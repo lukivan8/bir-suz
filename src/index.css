@@ -1,18 +1,47 @@
 @import url("https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght,SOFT@1,96,400,80;1,144,300,80&family=JetBrains+Mono:wght@400;500;700&family=Newsreader:ital,opsz,wght@0,16..17,400;1,16..17,400&display=swap");
 @import "tailwindcss";
 
+@theme {
+  --color-paper: var(--paper);
+  --color-paper-deep: var(--paper-deep);
+  --color-ink: var(--ink);
+  --color-ink-soft: var(--ink-soft);
+  --color-ink-faded: var(--ink-faded);
+  --color-accent: var(--accent);
+  --color-accent-deep: #7a3a10;
+  --color-accent-soft: transparent;
+  --color-rule: var(--rule);
+  --color-rule-soft: var(--rule-soft);
+  --font-serif-display: "Fraunces", Georgia, serif;
+  --font-serif-body: "Newsreader", "Fraunces", Georgia, serif;
+  --font-mono-editorial: "JetBrains Mono", ui-monospace, monospace;
+}
+
 :root {
   color-scheme: light;
-  font-family: Newsreader, serif;
-  background: #f2ebdc;
-  color: #1a1612;
+  --paper: #f2ebdc;
+  --paper-deep: #ebe2cf;
+  --ink: #1a1612;
+  --ink-soft: #4a4338;
+  --ink-faded: #7a7060;
+  --accent: #a8531c;
+  --accent-deep: #7a3a10;
+  --accent-soft: #d4a574;
+  --rule: rgba(26, 22, 18, 0.18);
+  --rule-soft: rgba(26, 22, 18, 0.08);
+  --serif-display: "Fraunces", Georgia, serif;
+  --serif-body: "Newsreader", "Fraunces", Georgia, serif;
+  --mono: "JetBrains Mono", ui-monospace, monospace;
+  font-family: var(--serif-body);
+  background: var(--paper);
+  color: var(--ink);
   font-feature-settings: "ss01", "kern";
   -webkit-font-smoothing: antialiased;
 }
 
 body {
   margin: 0;
-  background: #f2ebdc;
+  background: var(--paper);
 }
 
 button,
@@ -29,10 +58,10 @@ a {
   position: relative;
   min-height: 100vh;
   overflow: hidden;
-  padding: 56px 48px;
-  background: #f2ebdc;
-  color: #1a1612;
-  font-family: Newsreader, serif;
+  padding: 64px 56px 120px;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--serif-body);
   font-size: 17px;
   line-height: 1.55;
 }
@@ -81,7 +110,7 @@ a {
   gap: 24px;
   padding-bottom: 18px;
   margin-bottom: 48px;
-  border-bottom: 1px solid rgba(26, 22, 18, 0.18);
+  border-bottom: 1px solid var(--rule);
 }
 
 .memo-cell,
@@ -97,7 +126,7 @@ a {
 .table-tools,
 .mastered-row span:last-child,
 .dashboard-footer {
-  font-family: "JetBrains Mono", monospace;
+  font-family: var(--mono);
   text-transform: uppercase;
 }
 
@@ -110,11 +139,11 @@ a {
 }
 
 .memo-cell span {
-  color: #7a7060;
+  color: var(--ink-faded);
 }
 
 .memo-cell strong {
-  color: #1a1612;
+  color: var(--ink);
   font-weight: 500;
 }
 
@@ -125,7 +154,7 @@ a {
 .section-num {
   display: block;
   margin-bottom: 12px;
-  color: #a8531c;
+  color: var(--accent);
   font-size: 11px;
   letter-spacing: 0.2em;
 }
@@ -133,8 +162,8 @@ a {
 .section-heading {
   max-width: 720px;
   margin: 0 0 32px;
-  color: #1a1612;
-  font-family: Fraunces, serif;
+  color: var(--ink);
+  font-family: var(--serif-display);
   font-size: 40px;
   font-style: italic;
   font-weight: 400;
@@ -155,7 +184,7 @@ a {
 
 .stat-block span {
   display: block;
-  color: #7a7060;
+  color: var(--ink-faded);
   font-size: 11px;
   letter-spacing: 0.18em;
 }
@@ -164,8 +193,8 @@ a {
 .metric-panel strong {
   display: block;
   margin: 8px 0 4px;
-  color: #1a1612;
-  font-family: Fraunces, serif;
+  color: var(--ink);
+  font-family: var(--serif-display);
   font-size: 72px;
   font-style: italic;
   font-weight: 300;
@@ -177,7 +206,7 @@ a {
 }
 
 .stat-block strong.faded {
-  color: #7a7060;
+  color: var(--ink-faded);
 }
 
 .streak-row {
@@ -195,23 +224,23 @@ a {
 .streak-square {
   width: 28px;
   height: 28px;
-  border: 1px solid rgba(26, 22, 18, 0.18);
+  border: 1px solid var(--rule);
   background: transparent;
 }
 
 .streak-square.active {
-  background: #d4a574;
-  border-color: rgba(168, 83, 28, 0.3);
+  background: transparent;
+  border-color: var(--rule);
 }
 
 .streak-square.today {
-  outline: 2px solid #a8531c;
+  outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
 
 .streak-day span,
 .bar-day {
-  color: #7a7060;
+  color: var(--ink-faded);
   font-size: 10px;
   letter-spacing: 0.14em;
 }
@@ -223,8 +252,8 @@ a {
   gap: 32px;
   align-items: end;
   padding: 28px 32px;
-  background: #ebe2cf;
-  border: 1px solid rgba(26, 22, 18, 0.18);
+  background: var(--paper-deep);
+  border: 1px solid var(--rule);
 }
 
 .graph-box::before {
@@ -232,9 +261,9 @@ a {
   top: -10px;
   left: 24px;
   padding: 0 10px;
-  background: #f2ebdc;
-  color: #7a7060;
-  font-family: "JetBrains Mono", monospace;
+  background: var(--paper);
+  color: var(--ink-faded);
+  font-family: var(--mono);
   font-size: 10px;
   letter-spacing: 0.18em;
   content: "ПРОГРЕСС_7_ДНЕЙ";
@@ -261,25 +290,25 @@ a {
 
 .bar {
   width: 28px;
-  background: #d4a574;
-  border-top: 2px solid #a8531c;
+  background: transparent;
+  border-top: 2px solid var(--accent);
 }
 
 .bar.empty {
-  background: rgba(26, 22, 18, 0.18);
-  border-top-color: rgba(26, 22, 18, 0.18);
+  background: var(--rule);
+  border-top-color: var(--rule);
 }
 
 .bar-count {
-  color: #4a4338;
+  color: var(--ink-soft);
   font-size: 11px;
   letter-spacing: 0.12em;
 }
 
 .graph-notes {
-  color: #7a7060;
+  color: var(--ink-faded);
   font-size: 12px;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.12em;
 }
 
 .graph-notes p {
@@ -289,8 +318,8 @@ a {
 .vocab-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  border-top: 1px solid #1a1612;
-  border-bottom: 1px solid #1a1612;
+  border-top: 1px solid var(--ink);
+  border-bottom: 1px solid var(--ink);
 }
 
 .metric-panel {
@@ -300,11 +329,11 @@ a {
 .metric-panel + .metric-panel {
   padding-right: 0;
   padding-left: 32px;
-  border-left: 1px solid rgba(26, 22, 18, 0.18);
+  border-left: 1px solid var(--rule);
 }
 
 .metric-panel span {
-  color: #a8531c;
+  color: var(--accent);
   font-size: 11px;
   letter-spacing: 0.18em;
 }
@@ -314,19 +343,19 @@ a {
 }
 
 .metric-panel strong.accent {
-  color: #a8531c;
+  color: var(--accent);
 }
 
 .metric-panel p {
   margin: 0 0 8px;
-  color: #4a4338;
+  color: var(--ink-soft);
   font-size: 16px;
 }
 
 .metric-panel small {
-  color: #7a7060;
+  color: var(--ink-faded);
   font-size: 12px;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.12em;
 }
 
 .section-heading-row {
@@ -338,7 +367,7 @@ a {
 
 .table-count,
 .table-tools {
-  color: #7a7060;
+  color: var(--ink-faded);
   font-size: 11px;
   letter-spacing: 0.14em;
 }
@@ -351,7 +380,7 @@ a {
 
 .table-tools button {
   padding: 0;
-  color: #a8531c;
+  color: var(--accent);
   background: transparent;
   border: 0;
   font: inherit;
@@ -360,7 +389,7 @@ a {
 }
 
 .mastered-table {
-  border-top: 1px solid #1a1612;
+  border-top: 1px solid var(--ink);
 }
 
 .mastered-row {
@@ -368,37 +397,37 @@ a {
   grid-template-columns: 1fr 1fr auto;
   gap: 24px;
   padding: 10px 0;
-  border-bottom: 1px dashed rgba(26, 22, 18, 0.08);
+  border-bottom: 1px dashed var(--rule-soft);
   transition: background 80ms;
 }
 
 .mastered-row:hover {
-  background: rgba(26, 22, 18, 0.03);
+  color: var(--ink);
 }
 
 .mastered-row span:first-child {
-  color: #1a1612;
-  font-family: Newsreader, serif;
+  color: var(--ink);
+  font-family: var(--serif-body);
   font-size: 17px;
 }
 
 .mastered-row em {
-  color: #4a4338;
-  font-family: Newsreader, serif;
+  color: var(--ink-soft);
+  font-family: var(--serif-body);
   font-size: 17px;
 }
 
 .mastered-row span:last-child {
-  color: #7a7060;
+  color: var(--ink-faded);
   font-size: 11px;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.12em;
 }
 
 .empty-state {
   padding: 40px 0;
-  color: #7a7060;
-  border-top: 1px solid #1a1612;
-  font-family: Fraunces, serif;
+  color: var(--ink-faded);
+  border-top: 1px solid var(--ink);
+  font-family: var(--serif-display);
   font-size: 28px;
   font-style: italic;
   text-align: center;
@@ -409,15 +438,15 @@ a {
   justify-content: space-between;
   padding-top: 24px;
   margin-top: 96px;
-  color: #7a7060;
-  border-top: 1px solid rgba(26, 22, 18, 0.18);
+  color: var(--ink-faded);
+  border-top: 1px solid var(--rule);
   font-size: 11px;
   letter-spacing: 0.16em;
 }
 
 @media (max-width: 760px) {
   .dashboard-page {
-    padding: 40px 24px;
+    padding: 36px 24px 72px;
   }
 
   .memo-header {
@@ -431,7 +460,7 @@ a {
 
   .metric-panel + .metric-panel {
     padding-left: 0;
-    border-top: 1px solid rgba(26, 22, 18, 0.18);
+    border-top: 1px solid var(--rule);
     border-left: 0;
   }
 
