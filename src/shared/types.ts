@@ -47,7 +47,7 @@ export interface StorageShape {
   settings: AppSettings
   newTabCount: number
   navigationCount: number
-  pendingTrigger?: TriggerSource
+  pendingTrigger?: TriggerSource | undefined
 }
 
 export type TriggerSource =

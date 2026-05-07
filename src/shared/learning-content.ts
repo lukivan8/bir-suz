@@ -7,6 +7,13 @@ const srs = () => ({
   nextReview: 0,
 })
 
+type LearningEntry = readonly [
+  id: string,
+  sourceText: string,
+  targetText: string,
+  distractors: readonly [string, string, string, ...string[]],
+]
+
 const entries = [
   ['en_001', 'hello', 'привет', ['пока', 'дом', 'книга']],
   ['en_002', 'thank you', 'спасибо', ['утро', 'окно', 'работа']],
@@ -108,7 +115,7 @@ const entries = [
   ['en_098', 'go', 'идти', ['стоять', 'сидеть', 'ехать']],
   ['en_099', 'come', 'приходить', ['уходить', 'ждать', 'бежать']],
   ['en_100', 'buy', 'покупать', ['продавать', 'давать', 'брать']],
-] as const
+] as const satisfies readonly LearningEntry[]
 
 export const defaultWords: WordItem[] = entries.map(
   ([id, sourceText, targetText, distractors]) => ({

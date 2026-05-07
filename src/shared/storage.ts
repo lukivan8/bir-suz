@@ -52,7 +52,7 @@ export async function getStorage(): Promise<StorageShape> {
   const storage = (await chrome.storage.local.get(storageKeys)) as StorageShape
 
   const nextSettings = { ...defaultSettings, ...storage.settings }
-  if (storage.settings.navigationTriggerEnabled === undefined) {
+  if (storage.settings?.navigationTriggerEnabled === undefined) {
     storage.settings = nextSettings
     await chrome.storage.local.set({ settings: nextSettings })
   }
@@ -62,7 +62,7 @@ export async function getStorage(): Promise<StorageShape> {
     await chrome.storage.local.set({ navigationCount: 0 })
   }
 
-  if (!storage.wordBank.every(isCurrentWordShape)) {
+  if (!Array.isArray(storage.wordBank) || !storage.wordBank.every(isCurrentWordShape)) {
     storage.wordBank = defaultWords
     await chrome.storage.local.set({ wordBank: defaultWords })
   }
@@ -70,13 +70,18 @@ export async function getStorage(): Promise<StorageShape> {
   return storage
 }
 
-function isCurrentWordShape(word: WordItem) {
+function isCurrentWordShape(word: unknown): word is WordItem {
   return (
-    typeof word.sourceText === 'string' &&
-    typeof word.targetText === 'string' &&
-    Array.isArray(word.distractors) &&
-    word.distractors.length >= 3
+    isRecord(word) &&
+    typeof word['sourceText'] === 'string' &&
+    typeof word['targetText'] === 'string' &&
+    Array.isArray(word['distractors']) &&
+    word['distractors'].length >= 3
   )
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null
 }
 
 export async function updateStorage(patch: Partial<StorageShape>) {

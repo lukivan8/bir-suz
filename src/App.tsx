@@ -1,8 +1,9 @@
 import { createResource, createSignal, Show } from 'solid-js'
+import type { RuntimeMessage } from './shared/messages'
 import type { AppSettings, StorageShape } from './shared/types'
 
 async function getState() {
-  return (await chrome.runtime.sendMessage({
+  return (await sendRuntimeMessage({
     type: 'bir-soz:get-state',
   })) as StorageShape
 }
@@ -48,7 +49,7 @@ function App() {
 
   const triggerDemo = async () => {
     setBusy(true)
-    await chrome.runtime.sendMessage({ type: 'bir-soz:force-trigger' })
+    await sendRuntimeMessage({ type: 'bir-soz:force-trigger' })
     await refetch()
     setBusy(false)
   }
@@ -303,6 +304,10 @@ function NumberField(props: {
       />
     </label>
   )
+}
+
+function sendRuntimeMessage(message: RuntimeMessage) {
+  return chrome.runtime.sendMessage(message)
 }
 
 export default App

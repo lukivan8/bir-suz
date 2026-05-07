@@ -1,3 +1,4 @@
+import { isRuntimeMessage } from './shared/messages'
 import { calculateNextSrs, isDue, qualityFromResult } from './shared/srs'
 import {
   defaultStorage,
@@ -67,8 +68,12 @@ chrome.commands.onCommand.addListener(async (command) => {
   }
 })
 
-chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+chrome.runtime.onMessage.addListener((message: unknown, _sender, sendResponse) => {
   void (async () => {
+    if (!isRuntimeMessage(message)) {
+      sendResponse({ ok: false })
+      return
+    }
     if (message.type === 'bir-soz:get-state') {
       sendResponse(await getStorage())
       return
@@ -93,7 +98,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     }
 
     if (message.type === 'bir-soz:submit-result') {
-      await handleChallengeResult(message.payload as ChallengeResult)
+      await handleChallengeResult(message.payload)
       sendResponse({ ok: true })
       return
     }
