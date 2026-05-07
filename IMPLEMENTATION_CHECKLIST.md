@@ -45,33 +45,33 @@ This checklist is the working implementation plan for aligning the project with 
 
 ## Phase 4 — Navigation trigger
 
-- [ ] Add navigation trigger support.
-- [ ] Implement link-click counting first, preferably via content-script click tracking if Manifest V3 allows the needed flow cleanly.
-- [ ] Defer page-load and SPA-route counting until later.
-- [ ] Add required manifest permissions only if needed.
-- [ ] Add navigation frequency counter.
-- [ ] Add navigation trigger setting.
-- [ ] Add `navigation` or equivalent value to `TriggerSource`.
-- [ ] Respect cooldown, quiet hours, and disabled-until settings.
+- [x] Add navigation trigger support.
+- [x] Implement link-click counting first, preferably via content-script click tracking if Manifest V3 allows the needed flow cleanly.
+- [x] Defer page-load and SPA-route counting until later.
+- [x] Add required manifest permissions only if needed.
+- [x] Add navigation frequency counter.
+- [x] Add navigation trigger setting.
+- [x] Add `navigation` or equivalent value to `TriggerSource`.
+- [x] Respect cooldown, quiet hours, and disabled-until settings.
 
 ## Phase 5 — User-facing settings
 
-- [ ] Add UI to change challenge frequency.
-- [ ] Add UI to enable/disable idle trigger.
-- [ ] Add UI to enable/disable navigation trigger.
-- [ ] Add UI to configure quiet hours.
-- [ ] Add UI to change cooldown duration.
-- [ ] Add UI to pause/disable for a chosen duration.
-- [ ] Ensure all settings persist in `chrome.storage.local`.
+- [x] Add UI to change challenge frequency.
+- [x] Add UI to enable/disable idle trigger.
+- [x] Add UI to enable/disable navigation trigger.
+- [x] Add UI to configure quiet hours.
+- [x] Add UI to change cooldown duration.
+- [x] Add UI to pause/disable for a chosen duration.
+- [x] Ensure all settings persist in `chrome.storage.local`.
 
 ## Phase 6 — SRS correctness
 
-- [ ] Replace simplified boolean SRS with closer SM-2-style logic.
-- [ ] Map challenge result to SM-2 quality score using correctness, skips, and answer speed.
-- [ ] Use answer speed as part of quality score.
-- [ ] Keep skip and wrong answers as failed reviews.
-- [ ] Add tests or documented examples for interval progression.
-- [ ] Ensure due-word selection does not always pick the first due word.
+- [x] Replace simplified boolean SRS with closer SM-2-style logic.
+- [x] Map challenge result to SM-2 quality score using correctness, skips, and answer speed.
+- [x] Use answer speed as part of quality score.
+- [x] Keep skip and wrong answers as failed reviews.
+- [x] Add tests or documented examples for interval progression.
+- [x] Ensure due-word selection does not always pick the first due word.
 
 ## Phase 7 — Dashboard completion
 
