@@ -46,7 +46,7 @@ export interface QuietHours {
   endHour: number
 }
 
-export type UiLanguage = 'ru' | 'en'
+export type UiLanguage = 'ru'
 
 export interface AppSettings {
   uiLanguage: UiLanguage

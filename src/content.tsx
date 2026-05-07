@@ -191,7 +191,7 @@ function Overlay(props: { payload: ChallengePayload; onClose: () => void }) {
         <div class="bir-soz-content">
           <header class="bir-soz-topline">
             <span>Перевод</span>
-            <span>word 1</span>
+<span>sóz 1</span>
           </header>
 
           <section>
@@ -202,7 +202,7 @@ function Overlay(props: { payload: ChallengePayload; onClose: () => void }) {
               )}
             </h2>
             <p class="bir-soz-prompt">
-              Choose the {props.payload.word.targetLabel} translation
+              Orys tilindegi aýdarmany tańdańyz
             </p>
           </section>
 

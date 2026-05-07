@@ -90,13 +90,13 @@ function App() {
     )
   }
 
-  const t = () => copy[state()?.settings.uiLanguage ?? 'ru']
+  const t = () => copy.ru
 
   return (
     <main class="min-w-80 space-y-4 bg-paper p-5 font-serif-body text-[17px] leading-[1.55] text-ink">
       <header>
         <h1 class="font-mono-editorial text-[11px] uppercase tracking-[0.2em] text-accent">
-          Бір сөз
+          Bir sóz
         </h1>
       </header>
 
@@ -206,24 +206,6 @@ const copy = {
     triggersOff: 'Задания выключены',
     turnOff30: 'Не показывать 30 мин',
     openDashboard: 'Мой прогресс',
-  },
-  en: {
-    exposure: 'Exposure',
-    success: 'Success',
-    triggers: 'Triggers',
-    newTab: 'New tab',
-    everyTabs: (frequency: number) => `Every ${frequency} tabs`,
-    navigation: 'Navigation',
-    everyClicks: (frequency: number) => `Every ${frequency} link clicks`,
-    cooldown: 'Cooldown',
-    min: 'min',
-    quietHours: 'Quiet hours',
-    quietSchedule: (start: number, end: number) => `${start}:00–${end}:00`,
-    triggering: 'Triggering…',
-    demoTrigger: 'Demo Trigger',
-    triggersOff: 'Triggers off',
-    turnOff30: 'Turn triggers off for 30m',
-    openDashboard: 'Open dashboard',
   },
 } as const
 

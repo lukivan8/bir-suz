@@ -51,10 +51,10 @@ export async function getStorage(): Promise<StorageShape> {
   const storageKeys = Object.keys(defaultStorage) as (keyof StorageShape)[]
   const storage = (await chrome.storage.local.get(storageKeys)) as StorageShape
 
-  const nextSettings = { ...defaultSettings, ...storage.settings }
+  const nextSettings = { ...defaultSettings, ...storage.settings, uiLanguage: 'ru' as const }
   if (
     storage.settings?.navigationTriggerEnabled === undefined ||
-    storage.settings?.uiLanguage === undefined
+    storage.settings?.uiLanguage !== 'ru'
   ) {
     storage.settings = nextSettings
     await chrome.storage.local.set({ settings: nextSettings })
@@ -76,7 +76,8 @@ export async function getStorage(): Promise<StorageShape> {
 
   if (
     !Array.isArray(storage.wordBank) ||
-    !storage.wordBank.every(isCurrentWordShape)
+    !storage.wordBank.every(isCurrentWordShape) ||
+    !storage.wordBank.every((word) => word.id.startsWith('kz_'))
   ) {
     storage.wordBank = defaultWords
     await chrome.storage.local.set({ wordBank: defaultWords })

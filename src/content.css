@@ -102,7 +102,6 @@
 .bir-soz-word {
   margin: 14px 0 0;
   max-width: 100%;
-  overflow: hidden;
   color: var(--ink);
   font-family: var(--serif-display);
   font-size: 52px;
