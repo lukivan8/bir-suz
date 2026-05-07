@@ -1,5 +1,5 @@
 import { createResource, createSignal, Show } from 'solid-js'
-import type { StorageShape } from './shared/types'
+import type { AppSettings, StorageShape } from './shared/types'
 
 async function getState() {
   return (await chrome.runtime.sendMessage({
@@ -11,14 +11,38 @@ function App() {
   const [state, { mutate, refetch }] = createResource(getState)
   const [busy, setBusy] = createSignal(false)
 
-  const disableForHour = async () => {
-    const nextDisabledUntil = Date.now() + 60 * 60 * 1000
-    await chrome.storage.local.set({
+  const updateSettings = async (patch: Partial<AppSettings>) => {
+    const current = state()
+    if (!current) return
+
+    const next = {
+      ...current,
       settings: {
-        ...state()?.settings,
-        disabledUntil: nextDisabledUntil,
+        ...current.settings,
+        ...patch,
+      },
+    }
+
+    mutate(next)
+    await chrome.storage.local.set({ settings: next.settings })
+  }
+
+  const updateQuietHours = async (
+    patch: Partial<AppSettings['quietHours']>,
+  ) => {
+    const current = state()
+    if (!current) return
+
+    await updateSettings({
+      quietHours: {
+        ...current.settings.quietHours,
+        ...patch,
       },
     })
+  }
+
+  const pauseForMinutes = async (minutes: number) => {
+    await updateSettings({ disabledUntil: Date.now() + minutes * 60 * 1000 })
     await refetch()
   }
 
@@ -27,22 +51,6 @@ function App() {
     await chrome.runtime.sendMessage({ type: 'bir-soz:force-trigger' })
     await refetch()
     setBusy(false)
-  }
-
-  const toggleNewTab = async () => {
-    const current = state()
-    if (!current) return
-
-    const next = {
-      ...current,
-      settings: {
-        ...current.settings,
-        newTabTriggerEnabled: !current.settings.newTabTriggerEnabled,
-      },
-    }
-
-    mutate(next)
-    await chrome.storage.local.set({ settings: next.settings })
   }
 
   const successRate = () => {
@@ -81,22 +89,106 @@ function App() {
               />
             </section>
 
-            <section class="rounded-2xl border border-white/10 bg-white/5 p-3">
-              <div class="flex items-center justify-between">
-                <div>
-                  <p class="text-sm font-medium">New tab trigger</p>
-                  <p class="text-xs text-stone-400">
-                    Every {current().settings.frequency} tabs
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  class="rounded-full px-3 py-1 text-xs font-medium ring-1 ring-white/15 hover:bg-white/10"
-                  onClick={toggleNewTab}
-                >
-                  {current().settings.newTabTriggerEnabled ? 'On' : 'Off'}
-                </button>
+            <section class="space-y-3 rounded-2xl border border-white/10 bg-white/5 p-3">
+              <p class="text-xs font-semibold uppercase tracking-[0.18em] text-stone-400">
+                Triggers
+              </p>
+              <ToggleRow
+                label="New tab"
+                help={`Every ${current().settings.frequency} tabs`}
+                checked={current().settings.newTabTriggerEnabled}
+                onChange={(checked) =>
+                  updateSettings({ newTabTriggerEnabled: checked })
+                }
+              />
+              <ToggleRow
+                label="Idle return"
+                help="When you come back"
+                checked={current().settings.idleTriggerEnabled}
+                onChange={(checked) =>
+                  updateSettings({ idleTriggerEnabled: checked })
+                }
+              />
+              <ToggleRow
+                label="Navigation"
+                help={`Every ${current().settings.frequency} link clicks`}
+                checked={current().settings.navigationTriggerEnabled}
+                onChange={(checked) =>
+                  updateSettings({ navigationTriggerEnabled: checked })
+                }
+              />
+            </section>
+
+            <section class="space-y-3 rounded-2xl border border-white/10 bg-white/5 p-3">
+              <p class="text-xs font-semibold uppercase tracking-[0.18em] text-stone-400">
+                Frequency
+              </p>
+              <NumberField
+                label="Challenge frequency"
+                value={current().settings.frequency}
+                min={1}
+                max={20}
+                suffix="events"
+                onChange={(value) => updateSettings({ frequency: value })}
+              />
+              <NumberField
+                label="Cooldown"
+                value={current().settings.cooldownMinutes}
+                min={0}
+                max={240}
+                suffix="minutes"
+                onChange={(value) => updateSettings({ cooldownMinutes: value })}
+              />
+            </section>
+
+            <section class="space-y-3 rounded-2xl border border-white/10 bg-white/5 p-3">
+              <ToggleRow
+                label="Quiet hours"
+                help={`${current().settings.quietHours.startHour}:00–${current().settings.quietHours.endHour}:00`}
+                checked={current().settings.quietHours.enabled}
+                onChange={(checked) => updateQuietHours({ enabled: checked })}
+              />
+              <div class="grid grid-cols-2 gap-2">
+                <NumberField
+                  label="Start"
+                  value={current().settings.quietHours.startHour}
+                  min={0}
+                  max={23}
+                  suffix="h"
+                  onChange={(value) => updateQuietHours({ startHour: value })}
+                />
+                <NumberField
+                  label="End"
+                  value={current().settings.quietHours.endHour}
+                  min={0}
+                  max={23}
+                  suffix="h"
+                  onChange={(value) => updateQuietHours({ endHour: value })}
+                />
               </div>
+            </section>
+
+            <section class="space-y-3 rounded-2xl border border-white/10 bg-white/5 p-3">
+              <label class="flex items-center justify-between gap-3 text-sm">
+                <span>
+                  <span class="block font-medium">Theme</span>
+                  <span class="text-xs text-stone-400">Overlay preference</span>
+                </span>
+                <select
+                  class="rounded-lg border border-white/10 bg-stone-900 px-2 py-1 text-xs text-stone-50"
+                  value={current().settings.overlayTheme}
+                  onChange={(event) =>
+                    updateSettings({
+                      overlayTheme: event.currentTarget
+                        .value as AppSettings['overlayTheme'],
+                    })
+                  }
+                >
+                  <option value="system">System</option>
+                  <option value="light">Light</option>
+                  <option value="dark">Dark</option>
+                </select>
+              </label>
             </section>
 
             <section class="grid gap-2">
@@ -108,13 +200,29 @@ function App() {
               >
                 {busy() ? 'Triggering…' : 'Demo Trigger'}
               </button>
-              <button
-                type="button"
-                class="rounded-xl border border-white/10 px-4 py-3 text-sm font-medium hover:bg-white/5"
-                onClick={disableForHour}
-              >
-                Disable for 1 hour
-              </button>
+              <div class="grid grid-cols-3 gap-2">
+                <button
+                  type="button"
+                  class="rounded-xl border border-white/10 px-3 py-2 text-xs font-medium hover:bg-white/5"
+                  onClick={() => pauseForMinutes(30)}
+                >
+                  Pause 30m
+                </button>
+                <button
+                  type="button"
+                  class="rounded-xl border border-white/10 px-3 py-2 text-xs font-medium hover:bg-white/5"
+                  onClick={() => pauseForMinutes(60)}
+                >
+                  Pause 1h
+                </button>
+                <button
+                  type="button"
+                  class="rounded-xl border border-white/10 px-3 py-2 text-xs font-medium hover:bg-white/5"
+                  onClick={() => pauseForMinutes(240)}
+                >
+                  Pause 4h
+                </button>
+              </div>
               <a
                 class="rounded-xl border border-white/10 px-4 py-3 text-center text-sm font-medium hover:bg-white/5"
                 href="dashboard.html"
@@ -141,6 +249,59 @@ function Metric(props: { label: string; value: string | number }) {
       <p class="text-xs text-stone-400">{props.label}</p>
       <p class="mt-1 text-lg font-semibold">{props.value}</p>
     </div>
+  )
+}
+
+function ToggleRow(props: {
+  label: string
+  help: string
+  checked: boolean
+  onChange: (checked: boolean) => void
+}) {
+  return (
+    <div class="flex items-center justify-between gap-3 text-sm">
+      <div>
+        <p class="font-medium">{props.label}</p>
+        <p class="text-xs text-stone-400">{props.help}</p>
+      </div>
+      <button
+        type="button"
+        class="rounded-full px-3 py-1 text-xs font-medium ring-1 ring-white/15 hover:bg-white/10"
+        onClick={() => props.onChange(!props.checked)}
+      >
+        {props.checked ? 'On' : 'Off'}
+      </button>
+    </div>
+  )
+}
+
+function NumberField(props: {
+  label: string
+  value: number
+  min: number
+  max: number
+  suffix: string
+  onChange: (value: number) => void
+}) {
+  return (
+    <label class="flex items-center justify-between gap-3 text-sm">
+      <span>
+        <span class="block font-medium">{props.label}</span>
+        <span class="text-xs text-stone-400">{props.suffix}</span>
+      </span>
+      <input
+        class="w-20 rounded-lg border border-white/10 bg-stone-900 px-2 py-1 text-right text-xs text-stone-50"
+        type="number"
+        min={props.min}
+        max={props.max}
+        value={props.value}
+        onChange={(event) => {
+          const value = Number(event.currentTarget.value)
+          if (Number.isNaN(value)) return
+          props.onChange(Math.min(props.max, Math.max(props.min, value)))
+        }}
+      />
+    </label>
   )
 }
 
