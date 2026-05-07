@@ -1,4 +1,4 @@
-import { createResource, For, Show } from 'solid-js'
+import { createResource, createSignal, For, Show } from 'solid-js'
 import { render } from 'solid-js/web'
 import './index.css'
 import { calculateCurrentStreak } from './shared/challenge'
@@ -15,7 +15,37 @@ async function getState() {
 }
 
 function Dashboard() {
-  const [state] = createResource(getState)
+  const [state, { mutate }] = createResource(getState)
+  const [advancedOpen, setAdvancedOpen] = createSignal(false)
+
+  const updateSettings = async (patch: Partial<StorageShape['settings']>) => {
+    const current = state()
+    if (!current) return
+
+    const next = {
+      ...current,
+      settings: {
+        ...current.settings,
+        ...patch,
+      },
+    }
+
+    mutate(next)
+    await chrome.storage.local.set({ settings: next.settings })
+  }
+
+  const updateQuietHours = async (
+    patch: Partial<StorageShape['settings']['quietHours']>,
+  ) => {
+    const current = state()
+    if (!current) return
+    await updateSettings({
+      quietHours: {
+        ...current.settings.quietHours,
+        ...patch,
+      },
+    })
+  }
 
   const week = () => buildWeek(state())
   const masteredWords = () => getMasteredWords(state())
@@ -39,24 +69,24 @@ function Dashboard() {
           {(current) => (
             <>
               <section class="dashboard-section">
-                <span class="section-num">01 — Streak</span>
+                <span class="section-num">01 — Серия</span>
                 <h1 class="section-heading">Ритм, который держится.</h1>
                 <div class="streak-grid">
                   <StatBlock
-                    label="Текущий стрик"
+                    label="Дней подряд"
                     value={currentStreak()}
                     unit="дней"
                     faded={currentStreak() === 0}
                   />
                   <StatBlock
-                    label="Лучший стрик"
+                    label="Лучшая серия"
                     value={current().userStats.bestStreak}
                     unit="дней"
                   />
                   <StatBlock
-                    label="Всего контактов"
+                    label="Всего заданий"
                     value={current().userStats.totalExposures}
-                    unit="сессий"
+                    unit="задач"
                   />
                 </div>
                 <div class="streak-row">
@@ -80,7 +110,7 @@ function Dashboard() {
               <section class="dashboard-section">
                 <span class="section-num">02 — Прогресс за неделю</span>
                 <h2 class="section-heading">
-                  7 дней, <em>каждый контакт</em>.
+                  7 дней, <em>каждая задача</em>.
                 </h2>
                 <div class="graph-box">
                   <div class="bars">
@@ -110,27 +140,27 @@ function Dashboard() {
               </section>
 
               <section class="dashboard-section">
-                <span class="section-num">03 — Vocabulary</span>
+                <span class="section-num">03 — Словарь</span>
                 <h2 class="section-heading">Словарь в работе.</h2>
                 <div class="vocab-grid">
                   <MetricPanel
                     label="Активный словарь"
                     value={activeWords().length}
-                    body="слов в ротации прямо сейчас"
-                    note="активный: встречался хотя бы раз, ещё не освоен"
+                    body="слов сейчас повторяются"
+                    note="активный: уже встречался, ещё не освоен"
                   />
                   <MetricPanel
                     label="Освоенные слова"
                     value={masteredWords().length}
                     body="слов узнаёшь без подсказки"
-                    note="освоенное: правильно 3 раза подряд, интервал > 7 дней"
+                    note="освоенное: верно 3 раза подряд, повтор реже недели"
                     accent
                   />
                 </div>
               </section>
 
               <section class="dashboard-section">
-                <span class="section-num">04 — Mastered</span>
+                <span class="section-num">04 — Освоено</span>
                 <div class="section-heading-row">
                   <h2 class="section-heading">
                     Слова, <em>которые остались</em>.
@@ -138,7 +168,10 @@ function Dashboard() {
                   <span class="table-count">{masteredWords().length} слов</span>
                 </div>
                 <div class="table-tools">
-                  <button type="button">по дате ↓</button>
+                  <button type="button">Сначала новые</button>
+                  <button type="button" onClick={() => setAdvancedOpen(true)}>
+                    Доп. настройки
+                  </button>
                 </div>
                 <Show
                   when={masteredWords().length > 0}
@@ -154,19 +187,27 @@ function Dashboard() {
                         <div class="mastered-row">
                           <span>{word.sourceText}</span>
                           <em>{word.targetText}</em>
-                          <span>интервал {word.srs.interval} дней</span>
+                          <span>повтор через {word.srs.interval} дней</span>
                         </div>
                       )}
                     </For>
                   </div>
                 </Show>
               </section>
+              <Show when={advancedOpen()}>
+                <AdvancedSettingsModal
+                  settings={current().settings}
+                  onClose={() => setAdvancedOpen(false)}
+                  onSettingsChange={updateSettings}
+                  onQuietHoursChange={updateQuietHours}
+                />
+              </Show>
             </>
           )}
         </Show>
 
         <footer class="dashboard-footer">
-          <span>Бір сөз · Дашборд</span>
+          <span>Бір сөз · Прогресс</span>
           <span>v0.1 · локально</span>
         </footer>
       </div>
@@ -212,6 +253,95 @@ function MetricPanel(props: {
       <p>{props.body}</p>
       <small>{props.note}</small>
     </div>
+  )
+}
+
+function AdvancedSettingsModal(props: {
+  settings: StorageShape['settings']
+  onClose: () => void
+  onSettingsChange: (patch: Partial<StorageShape['settings']>) => void
+  onQuietHoursChange: (
+    patch: Partial<StorageShape['settings']['quietHours']>,
+  ) => void
+}) {
+  return (
+    <div class="modal-backdrop" onClick={props.onClose}>
+      <div class="advanced-modal" onClick={(event) => event.stopPropagation()}>
+        <div class="section-heading-row">
+          <h2 class="section-heading">Доп. настройки</h2>
+          <button type="button" class="modal-close" onClick={props.onClose}>
+            Закрыть
+          </button>
+        </div>
+        <label class="settings-number">
+          <span>Язык интерфейса</span>
+          <select
+            value={props.settings.uiLanguage}
+            onChange={(event) =>
+              props.onSettingsChange({ uiLanguage: event.currentTarget.value as 'ru' | 'en' })
+            }
+          >
+            <option value="ru">Русский</option>
+            <option value="en">English</option>
+          </select>
+          <small>язык меню</small>
+        </label>
+        <SettingsNumber
+          label="Как часто"
+          value={props.settings.frequency}
+          min={1}
+          max={20}
+          suffix="действий"
+          onChange={(frequency) => props.onSettingsChange({ frequency })}
+        />
+        <div class="settings-grid">
+          <SettingsNumber
+            label="Не показывать с"
+            value={props.settings.quietHours.startHour}
+            min={0}
+            max={23}
+            suffix="ч"
+            onChange={(startHour) => props.onQuietHoursChange({ startHour })}
+          />
+          <SettingsNumber
+            label="Не показывать до"
+            value={props.settings.quietHours.endHour}
+            min={0}
+            max={23}
+            suffix="ч"
+            onChange={(endHour) => props.onQuietHoursChange({ endHour })}
+          />
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function SettingsNumber(props: {
+  label: string
+  value: number
+  min: number
+  max: number
+  suffix: string
+  onChange: (value: number) => void
+}) {
+  return (
+    <label class="settings-number">
+      <span>{props.label}</span>
+      <input
+        type="number"
+        min={props.min}
+        max={props.max}
+        value={props.value}
+        onChange={(event) => {
+          const value = Number(event.currentTarget.value)
+          if (!Number.isNaN(value)) {
+            props.onChange(Math.min(props.max, Math.max(props.min, value)))
+          }
+        }}
+      />
+      <small>{props.suffix}</small>
+    </label>
   )
 }
 
