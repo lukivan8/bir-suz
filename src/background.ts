@@ -35,7 +35,10 @@ chrome.tabs.onCreated.addListener(async () => {
   if (!storage.settings.newTabTriggerEnabled) return
   if (nextCount % storage.settings.frequency !== 0) return
 
-  await maybeTriggerChallenge('new-tab')
+  const triggered = await maybeTriggerChallenge('new-tab')
+  if (!triggered) {
+    await updateStorage({ pendingTrigger: 'new-tab' })
+  }
 })
 
 chrome.idle.onStateChanged.addListener(async (state) => {
@@ -57,6 +60,18 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   void (async () => {
     if (message.type === 'bir-soz:get-state') {
       sendResponse(await getStorage())
+      return
+    }
+
+    if (message.type === 'bir-soz:content-ready') {
+      const storage = await getStorage()
+      if (storage.pendingTrigger) {
+        const triggered = await maybeTriggerChallenge(storage.pendingTrigger)
+        if (triggered) {
+          await updateStorage({ pendingTrigger: undefined })
+        }
+      }
+      sendResponse({ ok: true })
       return
     }
 
@@ -100,12 +115,15 @@ async function maybeTriggerChallenge(
   if (!word) return false
 
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
-  if (!tab?.id || !tab.url?.startsWith('http')) return false
+  if (!tab?.id || !isEligiblePage(tab.url)) return false
 
   const payload: ChallengePayload = {
     source,
     word,
-    options: shuffle([word.ru, ...word.distractors]).slice(0, 4),
+    options: shuffle([
+      word.targetText,
+      ...shuffle(word.distractors).slice(0, 3),
+    ]),
     startedAt: Date.now(),
   }
 
@@ -124,6 +142,10 @@ async function maybeTriggerChallenge(
   } catch {
     return false
   }
+}
+
+function isEligiblePage(url?: string) {
+  return url?.startsWith('http://') || url?.startsWith('https://')
 }
 
 async function handleChallengeResult(result: ChallengeResult) {
