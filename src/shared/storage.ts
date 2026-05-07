@@ -13,6 +13,7 @@ const defaultSettings: AppSettings = {
   frequency: 3,
   idleTriggerEnabled: true,
   newTabTriggerEnabled: true,
+  navigationTriggerEnabled: true,
   cooldownMinutes: 5,
   quietHours: {
     enabled: false,
@@ -27,6 +28,7 @@ export const defaultStorage: StorageShape = {
   userStats: defaultStats,
   settings: defaultSettings,
   newTabCount: 0,
+  navigationCount: 0,
   pendingTrigger: undefined,
 }
 
@@ -48,6 +50,17 @@ export async function getStorage(): Promise<StorageShape> {
   await ensureStorage()
   const storageKeys = Object.keys(defaultStorage) as (keyof StorageShape)[]
   const storage = (await chrome.storage.local.get(storageKeys)) as StorageShape
+
+  const nextSettings = { ...defaultSettings, ...storage.settings }
+  if (storage.settings.navigationTriggerEnabled === undefined) {
+    storage.settings = nextSettings
+    await chrome.storage.local.set({ settings: nextSettings })
+  }
+
+  if (typeof storage.navigationCount !== 'number') {
+    storage.navigationCount = 0
+    await chrome.storage.local.set({ navigationCount: 0 })
+  }
 
   if (!storage.wordBank.every(isCurrentWordShape)) {
     storage.wordBank = defaultWords

@@ -1,4 +1,4 @@
-import { calculateNextSrs, isDue } from './shared/srs'
+import { calculateNextSrs, isDue, qualityFromResult } from './shared/srs'
 import {
   defaultStorage,
   ensureStorage,
@@ -75,6 +75,12 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
       return
     }
 
+    if (message.type === 'bir-soz:navigation-click') {
+      const triggered = await handleNavigationClick()
+      sendResponse({ triggered })
+      return
+    }
+
     if (message.type === 'bir-soz:submit-result') {
       await handleChallengeResult(message.payload as ChallengeResult)
       sendResponse({ ok: true })
@@ -148,6 +154,17 @@ function isEligiblePage(url?: string) {
   return url?.startsWith('http://') || url?.startsWith('https://')
 }
 
+async function handleNavigationClick() {
+  const storage = await getStorage()
+  const nextCount = storage.navigationCount + 1
+  await updateStorage({ navigationCount: nextCount })
+
+  if (!storage.settings.navigationTriggerEnabled) return false
+  if (nextCount % storage.settings.frequency !== 0) return false
+
+  return maybeTriggerChallenge('navigation')
+}
+
 async function handleChallengeResult(result: ChallengeResult) {
   const storage = await getStorage()
   const now = Date.now()
@@ -155,11 +172,7 @@ async function handleChallengeResult(result: ChallengeResult) {
     if (word.id !== result.wordId) return word
     return {
       ...word,
-      srs: calculateNextSrs(
-        word.srs,
-        result.wasCorrect && !result.timedOut && !result.wasSkipped,
-        now,
-      ),
+      srs: calculateNextSrs(word.srs, qualityFromResult(result), now),
     }
   })
 
@@ -176,7 +189,13 @@ async function handleChallengeResult(result: ChallengeResult) {
 
 function pickDueWord(words: WordItem[]) {
   const dueWords = words.filter((word) => isDue(word.srs.nextReview))
-  return dueWords[0] ?? words[0]
+  const candidates = dueWords.length > 0 ? dueWords : words
+  return randomItem(candidates)
+}
+
+function randomItem<T>(items: T[]) {
+  if (items.length === 0) return undefined
+  return items[Math.floor(Math.random() * items.length)]
 }
 
 function isCoolingDown(

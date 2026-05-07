@@ -11,6 +11,19 @@ let removeOverlay: (() => void) | undefined
 
 void chrome.runtime.sendMessage({ type: 'bir-soz:content-ready' })
 
+document.addEventListener(
+  'click',
+  (event) => {
+    const target = event.target
+    if (!(target instanceof Element)) return
+    const link = target.closest('a[href]')
+    if (!link) return
+
+    void chrome.runtime.sendMessage({ type: 'bir-soz:navigation-click' })
+  },
+  { capture: true },
+)
+
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   if (message.type === 'bir-soz:show-challenge') {
     showOverlay(message.payload as ChallengePayload)
