@@ -85,17 +85,23 @@ export async function getStorage(): Promise<StorageShape> {
 
 function isCurrentWordShape(word: unknown): word is WordItem {
   return (
-    isRecord(word) &&
-    typeof word['sourceText'] === 'string' &&
-    typeof word['targetText'] === 'string' &&
-    typeof word['sourceLabel'] === 'string' &&
-    typeof word['targetLabel'] === 'string' &&
-    Array.isArray(word['distractors']) &&
-    word['distractors'].length >= 3
+    isWordLike(word) &&
+    typeof word.sourceText === 'string' &&
+    typeof word.targetText === 'string' &&
+    typeof word.sourceLabel === 'string' &&
+    typeof word.targetLabel === 'string' &&
+    Array.isArray(word.distractors) &&
+    word.distractors.length >= 3
   )
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
+function isWordLike(value: unknown): value is {
+  sourceText?: unknown
+  targetText?: unknown
+  sourceLabel?: unknown
+  targetLabel?: unknown
+  distractors?: unknown
+} {
   return typeof value === 'object' && value !== null
 }
 
