@@ -25,7 +25,6 @@ export function shouldBlockForUserSettings(
 export function buildChallengePayload(
   source: TriggerSource,
   word: WordItem,
-  overlayTheme: StorageShape['settings']['overlayTheme'],
   now = Date.now(),
 ): ChallengePayload {
   return {
@@ -36,7 +35,6 @@ export function buildChallengePayload(
       ...shuffle(word.distractors).slice(0, 3),
     ]),
     startedAt: now,
-    overlayTheme,
   }
 }
 

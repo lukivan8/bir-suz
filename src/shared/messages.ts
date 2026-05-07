@@ -2,7 +2,7 @@ import type { ChallengePayload, ChallengeResult } from './types'
 
 export type RuntimeMessage =
   | { type: 'bir-soz:content-ready' }
-  | { type: 'bir-soz:navigation-click' }
+  | { type: 'bir-soz:navigation-click'; href?: string | undefined }
   | { type: 'bir-soz:get-state' }
   | { type: 'bir-soz:show-challenge'; payload: ChallengePayload }
   | { type: 'bir-soz:submit-result'; payload: ChallengeResult }

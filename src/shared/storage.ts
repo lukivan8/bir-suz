@@ -21,7 +21,6 @@ const defaultSettings: AppSettings = {
     startHour: 22,
     endHour: 8,
   },
-  overlayTheme: 'system',
 }
 
 export const defaultStorage: StorageShape = {
@@ -30,7 +29,7 @@ export const defaultStorage: StorageShape = {
   settings: defaultSettings,
   newTabCount: 0,
   navigationCount: 0,
-  pendingTrigger: undefined,
+  pendingTrigger: null,
 }
 
 export async function ensureStorage() {

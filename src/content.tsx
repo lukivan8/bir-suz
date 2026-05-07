@@ -5,7 +5,7 @@ import { isRuntimeMessage, type RuntimeMessage } from './shared/messages'
 import type { ChallengePayload, ChallengeResult } from './shared/types'
 
 const CONTAINER_ID = 'bir-soz-extension-root'
-const ANSWER_DISMISS_MS = 1800
+const ANSWER_DISMISS_MS = 1200
 const EXIT_MS = 120
 let removeOverlay: (() => void) | undefined
 
@@ -19,7 +19,10 @@ document.addEventListener(
     const link = target.closest('a[href]')
     if (!link) return
 
-    void sendRuntimeMessage({ type: 'bir-soz:navigation-click' })
+    void sendRuntimeMessage({
+      type: 'bir-soz:navigation-click',
+      href: link instanceof HTMLAnchorElement ? link.href : link.getAttribute('href') ?? undefined,
+    })
   },
   { capture: true },
 )
@@ -37,13 +40,6 @@ chrome.runtime.onMessage.addListener(
 
 function sendRuntimeMessage(message: RuntimeMessage) {
   return chrome.runtime.sendMessage(message)
-}
-
-function resolveOverlayTheme(theme: ChallengePayload['overlayTheme']) {
-  if (theme !== 'system') return theme
-  return window.matchMedia('(prefers-color-scheme: dark)').matches
-    ? 'dark'
-    : 'light'
 }
 
 function showOverlay(payload: ChallengePayload) {
@@ -77,7 +73,6 @@ function showOverlay(payload: ChallengePayload) {
 
 function Overlay(props: { payload: ChallengePayload; onClose: () => void }) {
   const startedAt = Date.now()
-  const theme = resolveOverlayTheme(props.payload.overlayTheme)
   const [selected, setSelected] = createSignal<string>()
   const [feedback, setFeedback] = createSignal<string>()
   const [isExiting, setIsExiting] = createSignal(false)
@@ -140,8 +135,6 @@ function Overlay(props: { payload: ChallengePayload; onClose: () => void }) {
         class="bir-soz-card"
         classList={{
           'is-exiting': isExiting(),
-          'theme-dark': theme === 'dark',
-          'theme-light': theme === 'light',
         }}
       >
         <div class="bir-soz-paper-layer" />

@@ -53,8 +53,7 @@ export interface AppSettings {
   navigationTriggerEnabled: boolean
   cooldownMinutes: number
   quietHours: QuietHours
-  disabledUntil?: number
-  overlayTheme: 'light' | 'dark' | 'system'
+  disabledUntil?: number | undefined
 }
 
 export interface StorageShape {
@@ -63,7 +62,7 @@ export interface StorageShape {
   settings: AppSettings
   newTabCount: number
   navigationCount: number
-  pendingTrigger?: TriggerSource | undefined
+  pendingTrigger?: TriggerSource | null | undefined
 }
 
 export type TriggerSource =
@@ -77,7 +76,6 @@ export interface ChallengePayload {
   word: WordItem
   options: string[]
   startedAt: number
-  overlayTheme: AppSettings['overlayTheme']
 }
 
 export interface ChallengeResult {
