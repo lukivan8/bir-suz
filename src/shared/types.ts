@@ -15,12 +15,19 @@ export interface WordItem {
   srs: SrsData
 }
 
+export interface DailyReviewEntry {
+  date: string
+  count: number
+  correct: number
+}
+
 export interface UserStats {
   currentStreak: number
   bestStreak: number
   totalExposures: number
   totalCorrect: number
   timeInLanguageContactMs: number
+  dailyReviewHistory: DailyReviewEntry[]
   lastChallengeAt?: number
 }
 

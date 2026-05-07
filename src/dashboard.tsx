@@ -1,8 +1,11 @@
-import { createResource, For } from 'solid-js'
+import { createResource, For, Show } from 'solid-js'
 import { render } from 'solid-js/web'
 import './index.css'
 import type { RuntimeMessage } from './shared/messages'
-import type { StorageShape } from './shared/types'
+import type { StorageShape, WordItem } from './shared/types'
+
+const DAY_MS = 24 * 60 * 60 * 1000
+const DAY_LABELS = ['Вс', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб']
 
 async function getState() {
   return (await sendRuntimeMessage({
@@ -13,82 +16,252 @@ async function getState() {
 function Dashboard() {
   const [state] = createResource(getState)
 
-  const mastery = () => {
-    const current = state()
-    if (!current) return []
-
-    return current.wordBank.map((word) => ({
-      id: word.id,
-      word: word.sourceText,
-      percent: Math.min(100, Math.round((word.srs.repetition / 5) * 100)),
-    }))
-  }
+  const week = () => buildWeek(state())
+  const masteredWords = () => getMasteredWords(state())
+  const activeWords = () => getActiveWords(state())
+  const weekTotal = () => week().reduce((sum, day) => sum + day.count, 0)
+  const weekAverage = () => (weekTotal() / 7).toFixed(1)
+  const maxCount = () => Math.max(1, ...week().map((day) => day.count))
 
   return (
-    <main class="min-h-screen bg-stone-950 p-6 text-stone-50">
-      <div class="mx-auto max-w-5xl space-y-6">
-        <header>
-          <p class="text-xs uppercase tracking-[0.24em] text-emerald-300">
-            Bir Söz Dashboard
-          </p>
-          <h1 class="mt-2 text-4xl font-semibold">Retention snapshot</h1>
+    <main class="dashboard-page">
+      <div class="dashboard-shell">
+        <header class="memo-header">
+          <MemoCell label="Документ" value="Прогресс" />
+          <MemoCell label="Расширение" value="Бір сөз" />
+          <MemoCell label="Обновлено" value={formatToday()} />
         </header>
 
-        <section class="grid gap-4 md:grid-cols-3">
-          <Card
-            label="Active vocabulary"
-            value={state()?.wordBank.length ?? 0}
-          />
-          <Card
-            label="Time in language contact"
-            value={`${Math.round((state()?.userStats.timeInLanguageContactMs ?? 0) / 1000)}s`}
-          />
-          <Card
-            label="Success rate without hints"
-            value={`${rate(state())}%`}
-          />
-        </section>
-
-        <section class="rounded-3xl border border-white/10 bg-white/5 p-5">
-          <h2 class="text-xl font-semibold">Mastery heatmap</h2>
-          <div class="mt-4 grid gap-3 md:grid-cols-2">
-            <For each={mastery()}>
-              {(item) => (
-                <div class="rounded-2xl border border-white/10 p-4">
-                  <div class="mb-2 flex items-center justify-between text-sm">
-                    <span>{item.word}</span>
-                    <span class="text-stone-400">{item.percent}%</span>
-                  </div>
-                  <div class="h-3 overflow-hidden rounded-full bg-white/10">
-                    <div
-                      class="h-full rounded-full bg-emerald-400"
-                      style={{ width: `${item.percent}%` }}
-                    />
-                  </div>
+        <Show when={state()}>
+          {(current) => (
+            <>
+              <section class="dashboard-section">
+                <span class="section-num">01 — Streak</span>
+                <h1 class="section-heading">Ритм, который держится.</h1>
+                <div class="streak-grid">
+                  <StatBlock
+                    label="Текущий стрик"
+                    value={current().userStats.currentStreak}
+                    unit="дней"
+                    faded={current().userStats.currentStreak === 0}
+                  />
+                  <StatBlock
+                    label="Лучший стрик"
+                    value={current().userStats.bestStreak}
+                    unit="дней"
+                  />
+                  <StatBlock
+                    label="Всего контактов"
+                    value={current().userStats.totalExposures}
+                    unit="сессий"
+                  />
                 </div>
-              )}
-            </For>
-          </div>
-        </section>
+                <div class="streak-row">
+                  <For each={week()}>
+                    {(day) => (
+                      <div class="streak-day">
+                        <div
+                          class="streak-square"
+                          classList={{
+                            active: day.count > 0,
+                            today: day.isToday,
+                          }}
+                        />
+                        <span>{day.label}</span>
+                      </div>
+                    )}
+                  </For>
+                </div>
+              </section>
+
+              <section class="dashboard-section">
+                <span class="section-num">02 — Прогресс за неделю</span>
+                <h2 class="section-heading">
+                  7 дней, <em>каждый контакт</em>.
+                </h2>
+                <div class="graph-box">
+                  <div class="bars">
+                    <For each={week()}>
+                      {(day) => (
+                        <div class="bar-col">
+                          <div class="bar-wrap">
+                            <div
+                              class="bar"
+                              classList={{ empty: day.count === 0 }}
+                              style={{
+                                height: `${day.count === 0 ? 2 : Math.max(8, (day.count / maxCount()) * 80)}px`,
+                              }}
+                            />
+                          </div>
+                          <span class="bar-day">{day.label}</span>
+                          <span class="bar-count">{day.count}</span>
+                        </div>
+                      )}
+                    </For>
+                  </div>
+                  <aside class="graph-notes">
+                    <p>Всего за неделю: {weekTotal()} задач</p>
+                    <p>Среднее в день: {weekAverage()}</p>
+                  </aside>
+                </div>
+              </section>
+
+              <section class="dashboard-section">
+                <span class="section-num">03 — Vocabulary</span>
+                <h2 class="section-heading">Словарь в работе.</h2>
+                <div class="vocab-grid">
+                  <MetricPanel
+                    label="Активный словарь"
+                    value={activeWords().length}
+                    body="слов в ротации прямо сейчас"
+                    note="активный: встречался хотя бы раз, ещё не освоен"
+                  />
+                  <MetricPanel
+                    label="Освоенные слова"
+                    value={masteredWords().length}
+                    body="слов узнаёшь без подсказки"
+                    note="освоенное: правильно 3 раза подряд, интервал > 7 дней"
+                    accent
+                  />
+                </div>
+              </section>
+
+              <section class="dashboard-section">
+                <span class="section-num">04 — Mastered</span>
+                <div class="section-heading-row">
+                  <h2 class="section-heading">
+                    Слова, <em>которые остались</em>.
+                  </h2>
+                  <span class="table-count">{masteredWords().length} слов</span>
+                </div>
+                <div class="table-tools">
+                  <button type="button">по дате ↓</button>
+                </div>
+                <Show
+                  when={masteredWords().length > 0}
+                  fallback={
+                    <div class="empty-state">
+                      Ещё ни одного. <em>Скоро будут.</em>
+                    </div>
+                  }
+                >
+                  <div class="mastered-table">
+                    <For each={masteredWords()}>
+                      {(word) => (
+                        <div class="mastered-row">
+                          <span>{word.sourceText}</span>
+                          <em>{word.targetText}</em>
+                          <span>интервал {word.srs.interval} дней</span>
+                        </div>
+                      )}
+                    </For>
+                  </div>
+                </Show>
+              </section>
+            </>
+          )}
+        </Show>
+
+        <footer class="dashboard-footer">
+          <span>Бір сөз · Дашборд</span>
+          <span>v0.1 · локально</span>
+        </footer>
       </div>
     </main>
   )
 }
 
-function Card(props: { label: string; value: string | number }) {
+function MemoCell(props: { label: string; value: string }) {
   return (
-    <div class="rounded-3xl border border-white/10 bg-white/5 p-5">
-      <p class="text-sm text-stone-400">{props.label}</p>
-      <p class="mt-2 text-3xl font-semibold">{props.value}</p>
+    <div class="memo-cell">
+      <span>{props.label}</span>
+      <strong>{props.value}</strong>
     </div>
   )
 }
 
-function rate(state: StorageShape | undefined) {
-  if (!state || state.userStats.totalExposures === 0) return 0
-  return Math.round(
-    (state.userStats.totalCorrect / state.userStats.totalExposures) * 100,
+function StatBlock(props: {
+  label: string
+  value: number
+  unit: string
+  faded?: boolean
+}) {
+  return (
+    <div class="stat-block">
+      <span>{props.label}</span>
+      <strong classList={{ faded: props.faded }}>{props.value}</strong>
+      <span>{props.unit}</span>
+    </div>
   )
+}
+
+function MetricPanel(props: {
+  label: string
+  value: number
+  body: string
+  note: string
+  accent?: boolean
+}) {
+  return (
+    <div class="metric-panel">
+      <span>{props.label}</span>
+      <strong classList={{ accent: props.accent }}>{props.value}</strong>
+      <p>{props.body}</p>
+      <small>{props.note}</small>
+    </div>
+  )
+}
+
+function buildWeek(state: StorageShape | undefined) {
+  const history = new Map(
+    (state?.userStats.dailyReviewHistory ?? []).map((entry) => [
+      entry.date,
+      entry.count,
+    ]),
+  )
+  const today = startOfDay(Date.now())
+
+  return Array.from({ length: 7 }, (_, index) => {
+    const time = today - (6 - index) * DAY_MS
+    const date = new Date(time)
+    const key = date.toISOString().slice(0, 10)
+    return {
+      key,
+      label: DAY_LABELS[date.getDay()],
+      count: history.get(key) ?? 0,
+      isToday: index === 6,
+    }
+  })
+}
+
+function getMasteredWords(state: StorageShape | undefined) {
+  return (state?.wordBank ?? [])
+    .filter(isMastered)
+    .sort((a, b) => (b.srs.lastReviewedAt ?? 0) - (a.srs.lastReviewedAt ?? 0))
+}
+
+function getActiveWords(state: StorageShape | undefined) {
+  return (state?.wordBank ?? []).filter(
+    (word) => word.srs.lastReviewedAt && !isMastered(word),
+  )
+}
+
+function isMastered(word: WordItem) {
+  return word.srs.repetition >= 3 && word.srs.interval > 7
+}
+
+function startOfDay(time: number) {
+  const date = new Date(time)
+  date.setHours(0, 0, 0, 0)
+  return date.getTime()
+}
+
+function formatToday() {
+  return new Intl.DateTimeFormat('ru-RU', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  }).format(new Date())
 }
 
 const root = document.getElementById('root')

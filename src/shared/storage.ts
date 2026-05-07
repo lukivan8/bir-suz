@@ -7,6 +7,7 @@ const defaultStats: UserStats = {
   totalExposures: 0,
   totalCorrect: 0,
   timeInLanguageContactMs: 0,
+  dailyReviewHistory: [],
 }
 
 const defaultSettings: AppSettings = {
@@ -62,7 +63,19 @@ export async function getStorage(): Promise<StorageShape> {
     await chrome.storage.local.set({ navigationCount: 0 })
   }
 
-  if (!Array.isArray(storage.wordBank) || !storage.wordBank.every(isCurrentWordShape)) {
+  if (!Array.isArray(storage.userStats.dailyReviewHistory)) {
+    storage.userStats = {
+      ...defaultStats,
+      ...storage.userStats,
+      dailyReviewHistory: [],
+    }
+    await chrome.storage.local.set({ userStats: storage.userStats })
+  }
+
+  if (
+    !Array.isArray(storage.wordBank) ||
+    !storage.wordBank.every(isCurrentWordShape)
+  ) {
     storage.wordBank = defaultWords
     await chrome.storage.local.set({ wordBank: defaultWords })
   }

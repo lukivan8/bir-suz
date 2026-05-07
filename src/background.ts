@@ -11,10 +11,7 @@ import {
   getStorage,
   updateStorage,
 } from './shared/storage'
-import type {
-  ChallengeResult,
-  TriggerSource,
-} from './shared/types'
+import type { ChallengeResult, TriggerSource } from './shared/types'
 
 const COMMAND_NAME = 'demo-trigger'
 
@@ -63,52 +60,54 @@ chrome.commands.onCommand.addListener(async (command) => {
   }
 })
 
-chrome.runtime.onMessage.addListener((message: unknown, _sender, sendResponse) => {
-  void (async () => {
-    if (!isRuntimeMessage(message)) {
-      sendResponse({ ok: false })
-      return
-    }
-    if (message.type === 'bir-soz:get-state') {
-      sendResponse(await getStorage())
-      return
-    }
-
-    if (message.type === 'bir-soz:content-ready') {
-      const storage = await getStorage()
-      if (storage.pendingTrigger) {
-        const triggered = await maybeTriggerChallenge(storage.pendingTrigger)
-        if (triggered) {
-          await updateStorage({ pendingTrigger: undefined })
-        }
+chrome.runtime.onMessage.addListener(
+  (message: unknown, _sender, sendResponse) => {
+    void (async () => {
+      if (!isRuntimeMessage(message)) {
+        sendResponse({ ok: false })
+        return
       }
-      sendResponse({ ok: true })
-      return
-    }
+      if (message.type === 'bir-soz:get-state') {
+        sendResponse(await getStorage())
+        return
+      }
 
-    if (message.type === 'bir-soz:navigation-click') {
-      const triggered = await handleNavigationClick()
-      sendResponse({ triggered })
-      return
-    }
+      if (message.type === 'bir-soz:content-ready') {
+        const storage = await getStorage()
+        if (storage.pendingTrigger) {
+          const triggered = await maybeTriggerChallenge(storage.pendingTrigger)
+          if (triggered) {
+            await updateStorage({ pendingTrigger: undefined })
+          }
+        }
+        sendResponse({ ok: true })
+        return
+      }
 
-    if (message.type === 'bir-soz:submit-result') {
-      await handleChallengeResult(message.payload)
-      sendResponse({ ok: true })
-      return
-    }
+      if (message.type === 'bir-soz:navigation-click') {
+        const triggered = await handleNavigationClick()
+        sendResponse({ triggered })
+        return
+      }
 
-    if (message.type === 'bir-soz:force-trigger') {
-      const triggered = await maybeTriggerChallenge('demo-hotkey', true)
-      sendResponse({ triggered })
-      return
-    }
+      if (message.type === 'bir-soz:submit-result') {
+        await handleChallengeResult(message.payload)
+        sendResponse({ ok: true })
+        return
+      }
 
-    sendResponse({ ok: false })
-  })()
+      if (message.type === 'bir-soz:force-trigger') {
+        const triggered = await maybeTriggerChallenge('demo-hotkey', true)
+        sendResponse({ triggered })
+        return
+      }
 
-  return true
-})
+      sendResponse({ ok: false })
+    })()
+
+    return true
+  },
+)
 
 async function maybeTriggerChallenge(
   source: TriggerSource,

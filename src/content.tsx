@@ -24,14 +24,16 @@ document.addEventListener(
   { capture: true },
 )
 
-chrome.runtime.onMessage.addListener((message: unknown, _sender, sendResponse) => {
-  if (!isRuntimeMessage(message)) return
+chrome.runtime.onMessage.addListener(
+  (message: unknown, _sender, sendResponse) => {
+    if (!isRuntimeMessage(message)) return
 
-  if (message.type === 'bir-soz:show-challenge') {
-    showOverlay(message.payload)
-    sendResponse({ ok: true })
-  }
-})
+    if (message.type === 'bir-soz:show-challenge') {
+      showOverlay(message.payload)
+      sendResponse({ ok: true })
+    }
+  },
+)
 
 function sendRuntimeMessage(message: RuntimeMessage) {
   return chrome.runtime.sendMessage(message)

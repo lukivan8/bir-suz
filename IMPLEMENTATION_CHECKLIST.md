@@ -75,15 +75,15 @@ This checklist is the working implementation plan for aligning the project with 
 
 ## Phase 7 — Dashboard completion
 
-- [ ] Track daily review history.
-- [ ] Implement current streak calculation.
-- [ ] Implement best streak calculation.
-- [ ] Show visual streak on dashboard.
-- [ ] Add 7-day progress graph.
-- [ ] Add mastered words list.
-- [ ] Define mastered-word threshold.
-- [ ] Show active vocabulary metrics.
-- [ ] Keep dashboard internal to extension.
+- [x] Track daily review history.
+- [x] Implement current streak calculation.
+- [x] Implement best streak calculation.
+- [x] Show visual streak on dashboard.
+- [x] Add 7-day progress graph.
+- [x] Add mastered words list.
+- [x] Define mastered-word threshold.
+- [x] Show active vocabulary metrics.
+- [x] Keep dashboard internal to extension.
 
 ## Phase 8 — Theme support
 
