@@ -8,8 +8,12 @@ const CONTAINER_ID = 'bir-soz-extension-root'
 const ANSWER_DISMISS_MS = 1200
 const EXIT_MS = 120
 let removeOverlay: (() => void) | undefined
+let lastReadyUrl = window.location.href
 
-void sendRuntimeMessage({ type: 'bir-soz:content-ready' })
+void notifyContentReady()
+watchUrlChanges(() => {
+  void notifyContentReady()
+})
 
 document.addEventListener(
   'click',
@@ -38,8 +42,54 @@ chrome.runtime.onMessage.addListener(
   },
 )
 
-function sendRuntimeMessage(message: RuntimeMessage) {
-  return chrome.runtime.sendMessage(message)
+async function sendRuntimeMessage(message: RuntimeMessage) {
+  try {
+    if (!chrome.runtime?.id) return undefined
+    return await chrome.runtime.sendMessage(message)
+  } catch (error) {
+    // This happens when the extension is reloaded/updated while a tab still has
+    // the old content script injected. The page needs a refresh before that old
+    // script can talk to the new extension context again.
+    console.debug('[Bir Söz content] runtime message skipped', error)
+    return undefined
+  }
+}
+
+async function notifyContentReady() {
+  lastReadyUrl = window.location.href
+  await sendRuntimeMessage({ type: 'bir-soz:content-ready' })
+}
+
+function watchUrlChanges(onChange: () => void) {
+  const notifyIfChanged = () => {
+    window.setTimeout(() => {
+      if (window.location.href === lastReadyUrl) return
+      onChange()
+    }, 0)
+  }
+
+  // In Chrome, content scripts run in an isolated world. Patching history here
+  // catches same-world changes, but many SPAs (Reddit included) call history from
+  // the page world, so keep a lightweight URL poll as the reliable fallback.
+  window.setInterval(notifyIfChanged, 250)
+
+  const originalPushState = history.pushState
+  const originalReplaceState = history.replaceState
+
+  history.pushState = function pushState(...args) {
+    const result = originalPushState.apply(this, args)
+    notifyIfChanged()
+    return result
+  }
+
+  history.replaceState = function replaceState(...args) {
+    const result = originalReplaceState.apply(this, args)
+    notifyIfChanged()
+    return result
+  }
+
+  window.addEventListener('popstate', notifyIfChanged)
+  window.addEventListener('hashchange', notifyIfChanged)
 }
 
 function showOverlay(payload: ChallengePayload) {

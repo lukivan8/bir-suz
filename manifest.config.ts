@@ -18,7 +18,7 @@ const manifest = {
     },
   ],
   options_page: 'dashboard.html',
-  permissions: ['storage', 'tabs', 'idle'],
+  permissions: ['storage', 'tabs'],
   host_permissions: ['http://*/*', 'https://*/*'],
   commands: {
     'demo-trigger': {

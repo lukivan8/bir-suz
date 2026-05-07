@@ -46,9 +46,11 @@ export interface QuietHours {
   endHour: number
 }
 
+export type UiLanguage = 'ru' | 'en'
+
 export interface AppSettings {
+  uiLanguage: UiLanguage
   frequency: number
-  idleTriggerEnabled: boolean
   newTabTriggerEnabled: boolean
   navigationTriggerEnabled: boolean
   cooldownMinutes: number
@@ -67,7 +69,6 @@ export interface StorageShape {
 
 export type TriggerSource =
   | 'new-tab'
-  | 'idle-return'
   | 'navigation'
   | 'demo-hotkey'
 

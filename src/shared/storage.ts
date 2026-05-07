@@ -11,8 +11,8 @@ const defaultStats: UserStats = {
 }
 
 const defaultSettings: AppSettings = {
+  uiLanguage: 'ru',
   frequency: 3,
-  idleTriggerEnabled: true,
   newTabTriggerEnabled: true,
   navigationTriggerEnabled: true,
   cooldownMinutes: 5,
@@ -52,7 +52,10 @@ export async function getStorage(): Promise<StorageShape> {
   const storage = (await chrome.storage.local.get(storageKeys)) as StorageShape
 
   const nextSettings = { ...defaultSettings, ...storage.settings }
-  if (storage.settings?.navigationTriggerEnabled === undefined) {
+  if (
+    storage.settings?.navigationTriggerEnabled === undefined ||
+    storage.settings?.uiLanguage === undefined
+  ) {
     storage.settings = nextSettings
     await chrome.storage.local.set({ settings: nextSettings })
   }

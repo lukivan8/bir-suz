@@ -78,20 +78,6 @@ chrome.tabs.onCreated.addListener(async (tab) => {
   }
 })
 
-chrome.idle.onStateChanged.addListener(async (state) => {
-  log('idle state changed', { state })
-  if (state !== 'active') return
-
-  const storage = await getStorage()
-  if (!storage.settings.idleTriggerEnabled) {
-    log('idle-return skipped: trigger disabled')
-    return
-  }
-
-  const triggered = await maybeTriggerChallenge('idle-return')
-  log('idle-return trigger attempt finished', { triggered })
-})
-
 chrome.commands.onCommand.addListener(async (command) => {
   log('command received', { command })
   if (command === COMMAND_NAME) {
@@ -126,13 +112,20 @@ chrome.runtime.onMessage.addListener(
         })
         if (storage.pendingTrigger) {
           const pendingTrigger = storage.pendingTrigger
-          const triggered = await maybeTriggerChallenge(pendingTrigger)
+          const triggered = await maybeTriggerChallenge(
+            pendingTrigger,
+            false,
+            _sender.tab?.id,
+            _sender.tab?.url ?? _sender.url,
+          )
           log('pending trigger attempt finished', {
             pendingTrigger,
             triggered,
           })
-          await updateStorage({ pendingTrigger: null })
-          log('pending trigger cleared', { pendingTrigger, triggered })
+          if (triggered || !isEligiblePage(_sender.tab?.url ?? _sender.url)) {
+            await updateStorage({ pendingTrigger: null })
+            log('pending trigger cleared', { pendingTrigger, triggered })
+          }
         }
         sendResponse({ ok: true })
         return
@@ -166,6 +159,8 @@ chrome.runtime.onMessage.addListener(
 async function maybeTriggerChallenge(
   source: TriggerSource,
   bypassCooldown = false,
+  targetTabId?: number,
+  targetUrl?: string,
 ) {
   log('maybeTriggerChallenge started', { source, bypassCooldown })
   const storage = await getStorage()
@@ -183,22 +178,26 @@ async function maybeTriggerChallenge(
     return false
   }
 
-  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
-  log('active tab resolved for challenge', { source, tabId: tab?.id, url: tab?.url })
-  if (!tab?.id) {
-    log('challenge blocked: no active tab id', { source })
+  const [activeTab] = targetTabId
+    ? []
+    : await chrome.tabs.query({ active: true, currentWindow: true })
+  const tabId = targetTabId ?? activeTab?.id
+  const url = targetUrl ?? activeTab?.url
+  log('tab resolved for challenge', { source, tabId, url, targeted: Boolean(targetTabId) })
+  if (!tabId) {
+    log('challenge blocked: no tab id', { source })
     return false
   }
-  if (!isEligiblePage(tab.url)) {
-    log('challenge blocked: ineligible page', { source, url: tab.url })
+  if (!isEligiblePage(url)) {
+    log('challenge blocked: ineligible page', { source, url })
     return false
   }
 
   const payload = buildChallengePayload(source, word)
-  log('sending challenge to content script', { source, tabId: tab.id, wordId: word.id })
+  log('sending challenge to content script', { source, tabId, wordId: word.id })
 
   try {
-    await chrome.tabs.sendMessage(tab.id, {
+    await chrome.tabs.sendMessage(tabId, {
       type: 'bir-soz:show-challenge',
       payload,
     })
@@ -208,12 +207,12 @@ async function maybeTriggerChallenge(
         lastChallengeAt: Date.now(),
       },
     })
-    log('challenge sent successfully', { source, tabId: tab.id, wordId: word.id })
+    log('challenge sent successfully', { source, tabId, wordId: word.id })
     return true
   } catch (error) {
     log('challenge send failed', {
       source,
-      tabId: tab.id,
+      tabId,
       error: error instanceof Error ? error.message : String(error),
     })
     return false

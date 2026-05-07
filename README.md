@@ -8,7 +8,6 @@ Current MVP content is English → Russian multiple-choice vocabulary for fast i
 
 - Triggers can appear on:
   - every N-th new tab
-  - idle return
   - every N-th link click
 - If a new-tab page cannot be injected into, the challenge is deferred until the next eligible HTTP(S) page.
 - The challenge popup is a small editorial paper card, not a blocking page.
