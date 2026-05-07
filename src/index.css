@@ -374,11 +374,13 @@ a {
 
 .table-tools {
   display: flex;
+  gap: 18px;
   justify-content: flex-start;
   margin: -14px 0 14px;
 }
 
-.table-tools button {
+.table-tools button,
+.modal-close {
   padding: 0;
   color: var(--accent);
   background: transparent;
@@ -386,6 +388,71 @@ a {
   font: inherit;
   letter-spacing: inherit;
   text-transform: inherit;
+}
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(26, 22, 18, 0.24);
+}
+
+.advanced-modal {
+  width: min(560px, 100%);
+  padding: 28px;
+  background: var(--paper);
+  border: 1px solid var(--ink);
+  box-shadow: 0 24px 80px rgba(26, 22, 18, 0.22);
+}
+
+.advanced-modal .section-heading {
+  margin-bottom: 20px;
+  font-size: 34px;
+}
+
+.settings-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+}
+
+.settings-number {
+  display: grid;
+  grid-template-columns: 1fr 96px auto;
+  gap: 12px;
+  align-items: center;
+  padding: 14px 0;
+  border-top: 1px solid var(--rule);
+}
+
+.settings-number span,
+.settings-number small,
+.modal-close {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.settings-number small {
+  color: var(--ink-faded);
+}
+
+.settings-number input,
+.settings-number select {
+  width: 96px;
+  padding: 6px 8px;
+  color: var(--ink);
+  background: var(--paper-deep);
+  border: 1px solid var(--rule);
+  font-family: var(--mono);
+}
+
+.settings-number input {
+  text-align: right;
 }
 
 .mastered-table {
