@@ -62,8 +62,16 @@ function App() {
     )
   }
 
+  const popupTheme = () => state()?.settings.overlayTheme ?? 'system'
+
   return (
-    <main class="min-w-80 space-y-4 bg-stone-950 p-4 text-stone-50">
+    <main
+      class="min-w-80 space-y-4 p-4"
+      classList={{
+        'bg-stone-950 text-stone-50': popupTheme() !== 'light',
+        'bg-[#f2ebdc] text-[#1a1612]': popupTheme() === 'light',
+      }}
+    >
       <header class="space-y-1">
         <p class="text-xs uppercase tracking-[0.24em] text-emerald-300">
           Bir Söz

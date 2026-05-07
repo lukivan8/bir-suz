@@ -125,7 +125,11 @@ async function maybeTriggerChallenge(
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
   if (!tab?.id || !isEligiblePage(tab.url)) return false
 
-  const payload = buildChallengePayload(source, word)
+  const payload = buildChallengePayload(
+    source,
+    word,
+    storage.settings.overlayTheme,
+  )
 
   try {
     await chrome.tabs.sendMessage(tab.id, {

@@ -128,7 +128,15 @@ function Overlay(props: { payload: ChallengePayload; onClose: () => void }) {
 
   return (
     <div class="bir-soz-stage">
-      <article class="bir-soz-card" classList={{ 'is-exiting': isExiting() }}>
+      <article
+        class="bir-soz-card"
+        classList={{
+          'is-exiting': isExiting(),
+          'theme-dark': props.payload.overlayTheme === 'dark',
+          'theme-light': props.payload.overlayTheme === 'light',
+          'theme-system': props.payload.overlayTheme === 'system',
+        }}
+      >
         <div class="bir-soz-paper-layer" />
         <div class="bir-soz-content">
           <header class="bir-soz-topline">
@@ -143,7 +151,9 @@ function Overlay(props: { payload: ChallengePayload; onClose: () => void }) {
                 <span class="bir-soz-glyph">+</span>
               )}
             </h2>
-            <p class="bir-soz-prompt">Choose the Russian translation</p>
+            <p class="bir-soz-prompt">
+              Choose the {props.payload.word.targetLabel} translation
+            </p>
           </section>
 
           <div class="bir-soz-rule" />
