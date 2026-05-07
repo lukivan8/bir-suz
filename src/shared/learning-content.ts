@@ -122,6 +122,8 @@ export const defaultWords: WordItem[] = entries.map(
     id,
     sourceText,
     targetText,
+    sourceLabel: 'English',
+    targetLabel: 'Russian',
     distractors: [...distractors],
     level: 'A1',
     srs: srs(),

@@ -6,10 +6,19 @@ export interface SrsData {
   lastReviewedAt?: number
 }
 
+export interface ScriptVariant {
+  script: 'latin' | 'cyrillic'
+  text: string
+}
+
 export interface WordItem {
   id: string
   sourceText: string
   targetText: string
+  sourceLabel: string
+  targetLabel: string
+  sourceVariants?: ScriptVariant[]
+  targetVariants?: ScriptVariant[]
   distractors: string[]
   level: 'A1' | 'A2'
   srs: SrsData
@@ -68,6 +77,7 @@ export interface ChallengePayload {
   word: WordItem
   options: string[]
   startedAt: number
+  overlayTheme: AppSettings['overlayTheme']
 }
 
 export interface ChallengeResult {

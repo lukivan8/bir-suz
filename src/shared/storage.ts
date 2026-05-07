@@ -88,6 +88,8 @@ function isCurrentWordShape(word: unknown): word is WordItem {
     isRecord(word) &&
     typeof word['sourceText'] === 'string' &&
     typeof word['targetText'] === 'string' &&
+    typeof word['sourceLabel'] === 'string' &&
+    typeof word['targetLabel'] === 'string' &&
     Array.isArray(word['distractors']) &&
     word['distractors'].length >= 3
   )
