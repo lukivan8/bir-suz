@@ -1,12 +1,15 @@
-import { createSignal, For, Show } from 'solid-js'
+import { createSignal, For, onCleanup } from 'solid-js'
 import { render } from 'solid-js/web'
 import styles from './content.css?inline'
 import type { ChallengePayload, ChallengeResult } from './shared/types'
 
 const CONTAINER_ID = 'bir-soz-extension-root'
-const TIMER_MS = 5000
-
+const AUTO_DISMISS_MS = 5000
+const ANSWER_DISMISS_MS = 1200
+const EXIT_MS = 120
 let removeOverlay: (() => void) | undefined
+
+void chrome.runtime.sendMessage({ type: 'bir-soz:content-ready' })
 
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   if (message.type === 'bir-soz:show-challenge') {
@@ -45,86 +48,96 @@ function showOverlay(payload: ChallengePayload) {
 }
 
 function Overlay(props: { payload: ChallengePayload; onClose: () => void }) {
-  const [selected, setSelected] = createSignal<string>()
-  const [remaining, setRemaining] = createSignal(TIMER_MS)
   const startedAt = Date.now()
+  const [selected, setSelected] = createSignal<string>()
+  const [isExiting, setIsExiting] = createSignal(false)
+  let hasSubmitted = false
 
-  const interval = window.setInterval(() => {
-    setRemaining((value) => {
-      const next = value - 100
-      if (next <= 0) {
-        window.clearInterval(interval)
-        void submit(false, true, true)
-        return 0
-      }
-      return next
-    })
-  }, 100)
+  const autoDismiss = window.setTimeout(() => {
+    void submit(false, true, true)
+  }, AUTO_DISMISS_MS)
 
   async function submit(
     correct: boolean,
-    timedOut = false,
     wasSkipped = false,
+    immediateExit = false,
   ) {
-    window.clearInterval(interval)
+    if (hasSubmitted) return
+    hasSubmitted = true
+    window.clearTimeout(autoDismiss)
+    window.removeEventListener('keydown', onKeyDown)
 
+    const elapsedMs = Date.now() - startedAt
     const payload: ChallengeResult = {
       wordId: props.payload.word.id,
       source: props.payload.source,
-      elapsedMs: Date.now() - startedAt,
+      elapsedMs,
       wasCorrect: correct,
-      timedOut,
+      timedOut: false,
       wasSkipped,
     }
 
     await chrome.runtime.sendMessage({ type: 'bir-soz:submit-result', payload })
-    props.onClose()
+
+    const delay = immediateExit || wasSkipped ? 0 : ANSWER_DISMISS_MS
+    window.setTimeout(() => {
+      setIsExiting(true)
+      window.setTimeout(props.onClose, EXIT_MS)
+    }, delay)
   }
 
   const onKeyDown = (event: KeyboardEvent) => {
     if (event.key === 'Escape') {
-      void submit(false, false, true)
+      void submit(false, true, true)
     }
   }
 
-  window.addEventListener('keydown', onKeyDown, { once: true })
+  const optionState = (option: string) => {
+    const current = selected()
+    if (!current) return 'neutral'
+    if (option === props.payload.word.targetText) return 'correct'
+    if (option === current) return 'wrong'
+    return 'muted'
+  }
+
+  window.addEventListener('keydown', onKeyDown)
+  onCleanup(() => {
+    window.clearTimeout(autoDismiss)
+    window.removeEventListener('keydown', onKeyDown)
+  })
 
   return (
-    <div class="fixed inset-0 z-[2147483647] flex items-start justify-center bg-black/20 p-6 font-sans text-slate-900">
-      <div class="mt-6 w-full max-w-md overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
-        <div class="h-1 w-full bg-slate-100">
-          <div
-            class="h-full bg-emerald-500 transition-[width] duration-100"
-            style={{ width: `${(remaining() / TIMER_MS) * 100}%` }}
-          />
-        </div>
+    <div class="bir-soz-stage">
+      <article class="bir-soz-card" classList={{ 'is-exiting': isExiting() }}>
+        <div class="bir-soz-paper-layer" />
+        <div class="bir-soz-content">
+          <header class="bir-soz-topline">
+            <span>Перевод</span>
+            <span>word 1</span>
+          </header>
 
-        <div class="space-y-4 p-5">
-          <div class="flex items-center justify-between text-xs uppercase tracking-[0.2em] text-slate-500">
-            <span>Bir Söz</span>
-            <button
-              type="button"
-              class="font-medium text-slate-400 hover:text-slate-700"
-              onClick={() => void submit(false, false, true)}
-            >
-              Esc / Skip
-            </button>
-          </div>
+          <section>
+            <h2 class="bir-soz-word">
+              {props.payload.word.sourceText}
+              {selected() === props.payload.word.targetText && (
+                <span class="bir-soz-glyph">+</span>
+              )}
+            </h2>
+            <p class="bir-soz-prompt">Choose the Russian translation</p>
+          </section>
 
-          <div>
-            <p class="text-sm text-slate-500">Choose the Russian translation</p>
-            <h2 class="mt-1 text-3xl font-semibold">{props.payload.word.kk}</h2>
-          </div>
+          <div class="bir-soz-rule" />
 
-          <div class="grid gap-2">
+          <div class="bir-soz-options">
             <For each={props.payload.options}>
               {(option) => (
                 <button
                   type="button"
-                  class="rounded-xl border border-slate-200 px-4 py-3 text-left text-sm font-medium hover:border-emerald-400 hover:bg-emerald-50"
+                  class={`bir-soz-option is-${optionState(option)}`}
+                  disabled={Boolean(selected())}
                   onClick={() => {
                     setSelected(option)
-                    void submit(option === props.payload.word.ru)
+                    void submit(option === props.payload.word.targetText)
                   }}
                 >
                   {option}
@@ -133,11 +146,18 @@ function Overlay(props: { payload: ChallengePayload; onClose: () => void }) {
             </For>
           </div>
 
-          <Show when={selected()}>
-            <p class="text-xs text-slate-500">Answer recorded</p>
-          </Show>
+          <footer class="bir-soz-bottom">
+            <span>•</span>
+            <button
+              type="button"
+              class="bir-soz-skip"
+              onClick={() => void submit(false, true, true)}
+            >
+              Skip
+            </button>
+          </footer>
         </div>
-      </div>
+      </article>
     </div>
   )
 }
