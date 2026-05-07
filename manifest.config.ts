@@ -2,9 +2,19 @@ const manifest = {
   manifest_version: 3,
   name: 'Bir Söz',
   version: '0.1.0',
-  description: 'Low-friction Kazakh micro-learning browser extension.',
+  description: 'Qazaq sózderin úırenýge arnalǵan braýzer keńeıtimi.',
+  icons: {
+    16: 'favicon-16x16.png',
+    32: 'favicon-32x32.png',
+    192: 'android-chrome-192x192.png',
+    512: 'android-chrome-512x512.png',
+  },
   action: {
     default_popup: 'index.html',
+    default_icon: {
+      16: 'favicon-16x16.png',
+      32: 'favicon-32x32.png',
+    },
   },
   background: {
     service_worker: 'src/background.ts',
@@ -26,7 +36,7 @@ const manifest = {
         default: 'Ctrl+Shift+K',
         mac: 'Command+Shift+K',
       },
-      description: 'Demo Trigger',
+      description: 'Mysal tapsyrmany kórsetý',
     },
   },
 }
