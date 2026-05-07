@@ -1,5 +1,10 @@
+import {
+  applyChallengeResult,
+  buildChallengePayload,
+  pickDueWord,
+  shouldBlockForUserSettings,
+} from './shared/challenge'
 import { isRuntimeMessage } from './shared/messages'
-import { calculateNextSrs, isDue, qualityFromResult } from './shared/srs'
 import {
   defaultStorage,
   ensureStorage,
@@ -7,10 +12,8 @@ import {
   updateStorage,
 } from './shared/storage'
 import type {
-  ChallengePayload,
   ChallengeResult,
   TriggerSource,
-  WordItem,
 } from './shared/types'
 
 const COMMAND_NAME = 'demo-trigger'
@@ -36,15 +39,7 @@ chrome.tabs.onCreated.addListener(async () => {
   if (!storage.settings.newTabTriggerEnabled) return
   if (nextCount % storage.settings.frequency !== 0) return
 
-  if (isDisabled(storage.settings.disabledUntil)) return
-  if (isQuietTime(storage.settings)) return
-  if (
-    isCoolingDown(
-      storage.userStats.lastChallengeAt,
-      storage.settings.cooldownMinutes,
-    )
-  )
-    return
+  if (shouldBlockForUserSettings(storage)) return
   if (!pickDueWord(storage.wordBank)) return
 
   const triggered = await maybeTriggerChallenge('new-tab')
@@ -122,15 +117,7 @@ async function maybeTriggerChallenge(
   const storage = await getStorage()
 
   if (!bypassCooldown) {
-    if (isDisabled(storage.settings.disabledUntil)) return false
-    if (isQuietTime(storage.settings)) return false
-    if (
-      isCoolingDown(
-        storage.userStats.lastChallengeAt,
-        storage.settings.cooldownMinutes,
-      )
-    )
-      return false
+    if (shouldBlockForUserSettings(storage)) return false
   }
 
   const word = pickDueWord(storage.wordBank)
@@ -139,15 +126,7 @@ async function maybeTriggerChallenge(
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
   if (!tab?.id || !isEligiblePage(tab.url)) return false
 
-  const payload: ChallengePayload = {
-    source,
-    word,
-    options: shuffle([
-      word.targetText,
-      ...shuffle(word.distractors).slice(0, 3),
-    ]),
-    startedAt: Date.now(),
-  }
+  const payload = buildChallengePayload(source, word)
 
   try {
     await chrome.tabs.sendMessage(tab.id, {
@@ -183,61 +162,5 @@ async function handleNavigationClick() {
 
 async function handleChallengeResult(result: ChallengeResult) {
   const storage = await getStorage()
-  const now = Date.now()
-  const nextWords = storage.wordBank.map((word) => {
-    if (word.id !== result.wordId) return word
-    return {
-      ...word,
-      srs: calculateNextSrs(word.srs, qualityFromResult(result), now),
-    }
-  })
-
-  const nextStats = {
-    ...storage.userStats,
-    totalExposures: storage.userStats.totalExposures + 1,
-    totalCorrect: storage.userStats.totalCorrect + (result.wasCorrect ? 1 : 0),
-    timeInLanguageContactMs:
-      storage.userStats.timeInLanguageContactMs + result.elapsedMs,
-  }
-
-  await updateStorage({ wordBank: nextWords, userStats: nextStats })
-}
-
-function pickDueWord(words: WordItem[]) {
-  const dueWords = words.filter((word) => isDue(word.srs.nextReview))
-  const candidates = dueWords.length > 0 ? dueWords : words
-  return randomItem(candidates)
-}
-
-function randomItem<T>(items: T[]) {
-  if (items.length === 0) return undefined
-  return items[Math.floor(Math.random() * items.length)]
-}
-
-function isCoolingDown(
-  lastChallengeAt: number | undefined,
-  cooldownMinutes: number,
-) {
-  if (!lastChallengeAt) return false
-  return Date.now() - lastChallengeAt < cooldownMinutes * 60 * 1000
-}
-
-function isDisabled(disabledUntil?: number) {
-  return typeof disabledUntil === 'number' && disabledUntil > Date.now()
-}
-
-function isQuietTime(settings: typeof defaultStorage.settings) {
-  if (!settings.quietHours.enabled) return false
-  const hour = new Date().getHours()
-  const { startHour, endHour } = settings.quietHours
-
-  if (startHour < endHour) {
-    return hour >= startHour && hour < endHour
-  }
-
-  return hour >= startHour || hour < endHour
-}
-
-function shuffle<T>(items: T[]) {
-  return [...items].sort(() => Math.random() - 0.5)
+  await updateStorage(applyChallengeResult(storage, result))
 }
