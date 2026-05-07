@@ -87,27 +87,27 @@ This checklist is the working implementation plan for aligning the project with 
 
 ## Phase 8 — Theme support
 
-- [ ] Make `overlayTheme` setting actually affect UI.
-- [ ] Support light mode.
-- [ ] Support dark mode.
-- [ ] Support system mode.
-- [ ] Apply theme to popup challenge.
-- [ ] Apply theme to popup/settings if appropriate.
+- [x] Make `overlayTheme` setting actually affect UI.
+- [x] Support light mode.
+- [x] Support dark mode.
+- [x] Support system mode.
+- [x] Apply theme to popup challenge.
+- [x] Apply theme to popup/settings if appropriate.
 
 ## Phase 9 — Script/language flexibility
 
 Original spec mentions Kazakh Cyrillic/Latin toggle. Current temporary content direction allows English-generated content, but the data model should not block future Kazakh support.
 
-- [ ] Avoid hardcoding field names like `kk` and `ru` in generic learning logic.
-- [ ] Add a content model that can support source/target labels.
-- [ ] Leave room for future Cyrillic/Latin Kazakh variants.
-- [ ] Add script toggle only when Kazakh content is restored.
+- [x] Avoid hardcoding field names like `kk` and `ru` in generic learning logic.
+- [x] Add a content model that can support source/target labels.
+- [x] Leave room for future Cyrillic/Latin Kazakh variants.
+- [x] Add script toggle only when Kazakh content is restored.
 
 ## Phase 10 — Polish and validation
 
-- [ ] Run `npm run build` after each completed block.
-- [ ] Run `npm run lint` or `npm run check:write` before committing where practical.
+- [x] Run `npm run build` after each completed block.
+- [x] Run `npm run lint` or `npm run check:write` before committing where practical.
 - [ ] Manually test extension load from `dist/`.
 - [ ] Manually test skip, answer, popup close, and storage update.
 - [ ] Manually test trigger cooldown behavior.
-- [ ] Update README with current behavior and install/test instructions.
+- [x] Update README with current behavior and install/test instructions.
