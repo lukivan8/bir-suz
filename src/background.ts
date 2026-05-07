@@ -35,6 +35,17 @@ chrome.tabs.onCreated.addListener(async () => {
   if (!storage.settings.newTabTriggerEnabled) return
   if (nextCount % storage.settings.frequency !== 0) return
 
+  if (isDisabled(storage.settings.disabledUntil)) return
+  if (isQuietTime(storage.settings)) return
+  if (
+    isCoolingDown(
+      storage.userStats.lastChallengeAt,
+      storage.settings.cooldownMinutes,
+    )
+  )
+    return
+  if (!pickDueWord(storage.wordBank)) return
+
   const triggered = await maybeTriggerChallenge('new-tab')
   if (!triggered) {
     await updateStorage({ pendingTrigger: 'new-tab' })

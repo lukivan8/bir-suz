@@ -4,8 +4,7 @@ import styles from './content.css?inline'
 import type { ChallengePayload, ChallengeResult } from './shared/types'
 
 const CONTAINER_ID = 'bir-soz-extension-root'
-const AUTO_DISMISS_MS = 5000
-const ANSWER_DISMISS_MS = 1200
+const ANSWER_DISMISS_MS = 1800
 const EXIT_MS = 120
 let removeOverlay: (() => void) | undefined
 
@@ -63,12 +62,9 @@ function showOverlay(payload: ChallengePayload) {
 function Overlay(props: { payload: ChallengePayload; onClose: () => void }) {
   const startedAt = Date.now()
   const [selected, setSelected] = createSignal<string>()
+  const [feedback, setFeedback] = createSignal<string>()
   const [isExiting, setIsExiting] = createSignal(false)
   let hasSubmitted = false
-
-  const autoDismiss = window.setTimeout(() => {
-    void submit(false, true, true)
-  }, AUTO_DISMISS_MS)
 
   async function submit(
     correct: boolean,
@@ -77,7 +73,6 @@ function Overlay(props: { payload: ChallengePayload; onClose: () => void }) {
   ) {
     if (hasSubmitted) return
     hasSubmitted = true
-    window.clearTimeout(autoDismiss)
     window.removeEventListener('keydown', onKeyDown)
 
     const elapsedMs = Date.now() - startedAt
@@ -91,6 +86,10 @@ function Overlay(props: { payload: ChallengePayload; onClose: () => void }) {
     }
 
     await chrome.runtime.sendMessage({ type: 'bir-soz:submit-result', payload })
+
+    if (!wasSkipped) {
+      setFeedback(`Answered in ${(elapsedMs / 1000).toFixed(1)}s`)
+    }
 
     const delay = immediateExit || wasSkipped ? 0 : ANSWER_DISMISS_MS
     window.setTimeout(() => {
@@ -115,7 +114,6 @@ function Overlay(props: { payload: ChallengePayload; onClose: () => void }) {
 
   window.addEventListener('keydown', onKeyDown)
   onCleanup(() => {
-    window.clearTimeout(autoDismiss)
     window.removeEventListener('keydown', onKeyDown)
   })
 
@@ -160,7 +158,7 @@ function Overlay(props: { payload: ChallengePayload; onClose: () => void }) {
           </div>
 
           <footer class="bir-soz-bottom">
-            <span>•</span>
+            <span>{feedback() ?? '•'}</span>
             <button
               type="button"
               class="bir-soz-skip"
