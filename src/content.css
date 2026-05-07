@@ -205,15 +205,6 @@
   box-shadow: 0 2px 12px rgba(26, 22, 18, 0.24);
 }
 
-@media (prefers-color-scheme: dark) {
-  .bir-soz-card.theme-system {
-    color: #f2ebdc;
-    background: #1a1612;
-    border-color: rgba(242, 235, 220, 0.18);
-    box-shadow: 0 2px 12px rgba(26, 22, 18, 0.24);
-  }
-}
-
 .bir-soz-card.theme-dark .bir-soz-topline,
 .bir-soz-card.theme-dark .bir-soz-bottom,
 .bir-soz-card.theme-dark .bir-soz-prompt,
@@ -230,13 +221,6 @@
 .bir-soz-card.theme-dark .bir-soz-rule,
 .bir-soz-card.theme-dark .bar.empty {
   background: rgba(242, 235, 220, 0.18);
-}
-
-@media (prefers-color-scheme: dark) {
-  .bir-soz-card.theme-system .bir-soz-word,
-  .bir-soz-card.theme-system .bir-soz-option {
-    color: #f2ebdc;
-  }
 }
 
 @keyframes bir-soz-slide-in {

@@ -39,6 +39,13 @@ function sendRuntimeMessage(message: RuntimeMessage) {
   return chrome.runtime.sendMessage(message)
 }
 
+function resolveOverlayTheme(theme: ChallengePayload['overlayTheme']) {
+  if (theme !== 'system') return theme
+  return window.matchMedia('(prefers-color-scheme: dark)').matches
+    ? 'dark'
+    : 'light'
+}
+
 function showOverlay(payload: ChallengePayload) {
   removeOverlay?.()
 
@@ -70,6 +77,7 @@ function showOverlay(payload: ChallengePayload) {
 
 function Overlay(props: { payload: ChallengePayload; onClose: () => void }) {
   const startedAt = Date.now()
+  const theme = resolveOverlayTheme(props.payload.overlayTheme)
   const [selected, setSelected] = createSignal<string>()
   const [feedback, setFeedback] = createSignal<string>()
   const [isExiting, setIsExiting] = createSignal(false)
@@ -132,9 +140,8 @@ function Overlay(props: { payload: ChallengePayload; onClose: () => void }) {
         class="bir-soz-card"
         classList={{
           'is-exiting': isExiting(),
-          'theme-dark': props.payload.overlayTheme === 'dark',
-          'theme-light': props.payload.overlayTheme === 'light',
-          'theme-system': props.payload.overlayTheme === 'system',
+          'theme-dark': theme === 'dark',
+          'theme-light': theme === 'light',
         }}
       >
         <div class="bir-soz-paper-layer" />

@@ -1,6 +1,7 @@
 import { createResource, For, Show } from 'solid-js'
 import { render } from 'solid-js/web'
 import './index.css'
+import { calculateCurrentStreak } from './shared/challenge'
 import type { RuntimeMessage } from './shared/messages'
 import type { StorageShape, WordItem } from './shared/types'
 
@@ -22,6 +23,8 @@ function Dashboard() {
   const weekTotal = () => week().reduce((sum, day) => sum + day.count, 0)
   const weekAverage = () => (weekTotal() / 7).toFixed(1)
   const maxCount = () => Math.max(1, ...week().map((day) => day.count))
+  const currentStreak = () =>
+    calculateCurrentStreak(state()?.userStats.dailyReviewHistory ?? [])
 
   return (
     <main class="dashboard-page">
@@ -41,9 +44,9 @@ function Dashboard() {
                 <div class="streak-grid">
                   <StatBlock
                     label="Текущий стрик"
-                    value={current().userStats.currentStreak}
+                    value={currentStreak()}
                     unit="дней"
-                    faded={current().userStats.currentStreak === 0}
+                    faded={currentStreak() === 0}
                   />
                   <StatBlock
                     label="Лучший стрик"
@@ -224,7 +227,7 @@ function buildWeek(state: StorageShape | undefined) {
   return Array.from({ length: 7 }, (_, index) => {
     const time = today - (6 - index) * DAY_MS
     const date = new Date(time)
-    const key = date.toISOString().slice(0, 10)
+    const key = dateKey(date)
     return {
       key,
       label: DAY_LABELS[date.getDay()],
@@ -248,6 +251,13 @@ function getActiveWords(state: StorageShape | undefined) {
 
 function isMastered(word: WordItem) {
   return word.srs.repetition >= 3 && word.srs.interval > 7
+}
+
+function dateKey(date: Date) {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
 }
 
 function startOfDay(time: number) {

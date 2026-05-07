@@ -62,7 +62,8 @@ function App() {
     )
   }
 
-  const popupTheme = () => state()?.settings.overlayTheme ?? 'system'
+  const popupTheme = () =>
+    resolveTheme(state()?.settings.overlayTheme ?? 'system')
 
   return (
     <main
@@ -312,6 +313,13 @@ function NumberField(props: {
       />
     </label>
   )
+}
+
+function resolveTheme(theme: AppSettings['overlayTheme']) {
+  if (theme !== 'system') return theme
+  return window.matchMedia('(prefers-color-scheme: dark)').matches
+    ? 'dark'
+    : 'light'
 }
 
 function sendRuntimeMessage(message: RuntimeMessage) {

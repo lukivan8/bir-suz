@@ -108,9 +108,9 @@ function updateDailyHistory(
   ].slice(-90)
 }
 
-function calculateCurrentStreak(
+export function calculateCurrentStreak(
   history: StorageShape['userStats']['dailyReviewHistory'],
-  now: number,
+  now = Date.now(),
 ) {
   const activeDays = new Set(
     history.filter((entry) => entry.count > 0).map((entry) => entry.date),
@@ -126,7 +126,7 @@ function calculateCurrentStreak(
   return streak
 }
 
-function calculateBestStreak(
+export function calculateBestStreak(
   history: StorageShape['userStats']['dailyReviewHistory'],
 ) {
   const days = history
@@ -156,7 +156,11 @@ function daysBetween(start: string, end: string) {
 }
 
 function dateKey(time: number) {
-  return new Date(time).toISOString().slice(0, 10)
+  const date = new Date(time)
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
 }
 
 function startOfDay(time: number) {
