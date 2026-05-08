@@ -496,6 +496,16 @@ a {
   border: 1px solid var(--rule);
   font: inherit;
   text-align: left;
+  transition:
+    background 80ms,
+    border-color 80ms,
+    transform 80ms;
+}
+
+.vocabulary-card:hover {
+  background: var(--paper-deep);
+  border-color: var(--accent);
+  transform: translateY(-2px);
 }
 
 .vocabulary-card strong {
