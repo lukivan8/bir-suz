@@ -225,18 +225,10 @@ export function isDisabled(
 }
 
 export function isQuietTime(
-  quietHours: StorageShape['settings']['quietHours'],
-  date = new Date(),
+  _quietHours: StorageShape['settings']['quietHours'],
+  _date = new Date(),
 ) {
-  if (!quietHours.enabled) return false
-  const hour = date.getHours()
-  const { startHour, endHour } = quietHours
-
-  if (startHour < endHour) {
-    return hour >= startHour && hour < endHour
-  }
-
-  return hour >= startHour || hour < endHour
+  return false
 }
 
 function randomItem<T>(items: readonly T[]) {

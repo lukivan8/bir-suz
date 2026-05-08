@@ -27,10 +27,10 @@ const defaultStats: UserStats = {
 
 const defaultSettings: AppSettings = {
   uiLanguage: 'ru',
-  frequency: 3,
+  frequency: 5,
   newTabTriggerEnabled: true,
   navigationTriggerEnabled: true,
-  cooldownMinutes: 5,
+  cooldownMinutes: 3,
   quietHours: {
     enabled: false,
     startHour: 22,

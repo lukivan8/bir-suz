@@ -2,13 +2,13 @@ import {
   createEffect,
   createResource,
   createSignal,
+  For,
   onCleanup,
   Show,
 } from 'solid-js'
 import type { RuntimeMessage, RuntimeResponseFor } from './shared/messages'
 import type { AppSettings } from './shared/types'
 import { isStorageShape } from './shared/validation'
-import { getActiveVocabulary } from './shared/vocabularies'
 
 async function getState() {
   const response = await sendRuntimeMessage({
@@ -26,6 +26,7 @@ function App() {
   const [state, { mutate, refetch }] = createResource(getState)
   const [busy, setBusy] = createSignal(false)
   const [now, setNow] = createSignal(Date.now())
+  const [doNotDisturbMinutes, setDoNotDisturbMinutes] = createSignal(30)
 
   const updateSettings = async (patch: Partial<AppSettings>) => {
     const current = state()
@@ -43,26 +44,22 @@ function App() {
     await chrome.storage.local.set({ settings: next.settings })
   }
 
-  const updateQuietHours = async (
-    patch: Partial<AppSettings['quietHours']>,
-  ) => {
+  const updateActiveVocabulary = async (activeVocabularyId: string) => {
     const current = state()
     if (!current) return
 
-    await updateSettings({
-      quietHours: {
-        ...current.settings.quietHours,
-        ...patch,
-      },
+    mutate({
+      ...current,
+      activeVocabularyId,
     })
+    await chrome.storage.local.set({ activeVocabularyId })
   }
 
-  const toggleTriggersOff = async () => {
-    const current = state()
-    if (!current) return
-    const isOff = (current.settings.disabledUntil ?? 0) > Date.now()
+  const toggleDoNotDisturb = async (enabled: boolean) => {
     await updateSettings({
-      disabledUntil: isOff ? undefined : Date.now() + 30 * 60 * 1000,
+      disabledUntil: enabled
+        ? Date.now() + doNotDisturbMinutes() * 60 * 1000
+        : undefined,
     })
     await refetch()
   }
@@ -70,12 +67,7 @@ function App() {
   const triggerOffRemainingMs = () =>
     Math.max(0, (state()?.settings.disabledUntil ?? 0) - now())
 
-  const triggerOffLabel = () => {
-    const totalSeconds = Math.ceil(triggerOffRemainingMs() / 1000)
-    const minutes = Math.floor(totalSeconds / 60)
-    const seconds = totalSeconds % 60
-    return `${minutes}:${String(seconds).padStart(2, '0')}`
-  }
+  const isDoNotDisturbOn = () => triggerOffRemainingMs() > 0
 
   createEffect(() => {
     const timer = window.setInterval(async () => {
@@ -109,11 +101,6 @@ function App() {
     )
   }
 
-  const activeVocabulary = () => {
-    const current = state()
-    return current ? getActiveVocabulary(current) : undefined
-  }
-
   const t = () => copy.ru
 
   return (
@@ -136,32 +123,12 @@ function App() {
                   {t().success}: {successRate()}%
                 </span>
               </div>
-              <p>
-                {t().vocabulary}: {activeVocabulary()?.name ?? '—'} ·{' '}
-                {activeVocabulary()?.words.length ?? 0} слов
-              </p>
             </section>
 
             <section class="space-y-3 border border-rule bg-paper-deep p-3">
               <p class="font-mono-editorial text-[11px] font-normal uppercase tracking-[0.18em] text-ink-faded">
-                {t().triggers}
+                {t().settings}
               </p>
-              <ToggleRow
-                label={t().newTab}
-                help={t().everyTabs(current().settings.frequency)}
-                checked={current().settings.newTabTriggerEnabled}
-                onChange={(checked) =>
-                  updateSettings({ newTabTriggerEnabled: checked })
-                }
-              />
-              <ToggleRow
-                label={t().navigation}
-                help={t().everyClicks(current().settings.frequency)}
-                checked={current().settings.navigationTriggerEnabled}
-                onChange={(checked) =>
-                  updateSettings({ navigationTriggerEnabled: checked })
-                }
-              />
               <RangeField
                 label={t().cooldown}
                 value={current().settings.cooldownMinutes}
@@ -170,45 +137,75 @@ function App() {
                 suffix={t().min}
                 onChange={(value) => updateSettings({ cooldownMinutes: value })}
               />
-              <ToggleRow
-                label={t().quietHours}
-                help={t().quietSchedule(
-                  current().settings.quietHours.startHour,
-                  current().settings.quietHours.endHour,
-                )}
-                checked={current().settings.quietHours.enabled}
-                onChange={(checked) => updateQuietHours({ enabled: checked })}
-              />
+              <div class="grid gap-2 text-[15px]">
+                <span>{t().quietHours}</span>
+                <div class="flex items-center gap-3">
+                  <Show
+                    when={isDoNotDisturbOn()}
+                    fallback={
+                      <select
+                        class="h-[35px] min-w-0 flex-1 border border-rule bg-paper px-3 font-serif-body text-[15px] text-ink"                        value={doNotDisturbMinutes()}
+                        onChange={(event) =>
+                          setDoNotDisturbMinutes(
+                            Number(event.currentTarget.value),
+                          )
+                        }
+                      >
+                        <option value="30">30 {t().min}</option>
+                        <option value="60">1 час</option>
+                        <option value="120">2 часа</option>
+                        <option value="240">4 часа</option>
+                        <option value="480">8 часов</option>
+                      </select>
+                    }
+                  >
+                    <p class="flex h-[35px] min-w-0 flex-1 items-center border border-rule bg-paper px-3 font-mono-editorial text-[11px] uppercase tracking-[0.12em] text-ink-faded">
+                      {t().doNotDisturbActive} ·{' '}
+                      {formatRemaining(triggerOffRemainingMs())}
+                    </p>
+                  </Show>
+                  <Switch
+                    label={t().quietHours}
+                    checked={isDoNotDisturbOn()}
+                    onChange={toggleDoNotDisturb}
+                  />
+                </div>
+              </div>
+              <label class="grid gap-2 text-[15px]">
+                <span>{t().vocabulary}</span>
+                <select
+                  class="w-full border border-rule bg-paper px-3 py-2 font-serif-body text-[15px] text-ink"
+                  value={current().activeVocabularyId}
+                  onChange={(event) =>
+                    updateActiveVocabulary(event.currentTarget.value)
+                  }
+                >
+                  <For each={current().vocabularies}>
+                    {(vocabulary) => (
+                      <option value={vocabulary.id}>{vocabulary.name}</option>
+                    )}
+                  </For>
+                </select>
+              </label>
             </section>
 
             <section class="grid gap-2">
-              <button
-                type="button"
-                class="border border-accent bg-transparent px-4 py-3 font-mono-editorial text-[11px] uppercase tracking-[0.12em] text-accent hover:text-accent-deep disabled:opacity-60"
-                onClick={triggerDemo}
-                disabled={busy()}
-              >
-                {busy() ? t().triggering : t().demoTrigger}
-              </button>
-              <button
-                type="button"
-                role="switch"
-                aria-checked={triggerOffRemainingMs() > 0}
-                class="border border-rule px-4 py-3 font-mono-editorial text-[11px] uppercase tracking-[0.12em] text-ink-faded hover:text-ink aria-checked:border-accent aria-checked:text-accent"
-                onClick={toggleTriggersOff}
-              >
-                {triggerOffRemainingMs() > 0
-                  ? `${t().triggersOff} · ${triggerOffLabel()}`
-                  : t().turnOff30}
-              </button>
               <a
-                class="border border-rule px-4 py-3 text-center font-mono-editorial text-[11px] uppercase tracking-[0.12em] text-ink-faded hover:text-ink"
+                class="border border-accent bg-transparent px-4 py-3 text-center font-mono-editorial text-[11px] uppercase tracking-[0.12em] text-accent hover:text-accent-deep"
                 href="dashboard.html"
                 target="_blank"
                 rel="noopener"
               >
                 {t().openDashboard}
               </a>
+              <button
+                type="button"
+                class="border border-rule bg-transparent px-4 py-3 font-mono-editorial text-[11px] uppercase tracking-[0.12em] text-ink-faded hover:text-ink disabled:opacity-60"
+                onClick={triggerDemo}
+                disabled={busy()}
+              >
+                {busy() ? t().triggering : t().demoTrigger}
+              </button>
             </section>
           </>
         )}
@@ -222,54 +219,51 @@ const copy = {
     exposure: 'Заданий',
     success: 'Верно',
     vocabulary: 'Словарь',
-    triggers: 'Когда показывать',
-    newTab: 'Новая вкладка',
-    everyTabs: (frequency: number) => `Каждые ${frequency} вкладки`,
-    navigation: 'Страницы',
-    everyClicks: (frequency: number) => `Каждые ${frequency} страницы`,
-    cooldown: 'Перерыв',
+    settings: 'Настройки',
+    cooldown: 'Между заданиями',
     min: 'мин',
     quietHours: 'Не беспокоить',
-    quietSchedule: (start: number, end: number) => `${start}:00–${end}:00`,
+    doNotDisturbActive: 'Осталось',
     triggering: 'Показываем…',
     demoTrigger: 'Показать пример',
-    triggersOff: 'Задания выключены',
-    turnOff30: 'Не показывать 30 мин',
     openDashboard: 'Мой прогресс',
   },
 } as const
 
-function ToggleRow(props: {
+function formatRemaining(ms: number) {
+  const totalSeconds = Math.max(0, Math.ceil(ms / 1000))
+  const hours = Math.floor(totalSeconds / 3600)
+  const minutes = Math.floor((totalSeconds % 3600) / 60)
+  const seconds = totalSeconds % 60
+
+  if (hours > 0) {
+    return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`
+  }
+
+  return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
+}
+
+function Switch(props: {
   label: string
-  help: string
   checked: boolean
   onChange: (checked: boolean) => void
 }) {
   return (
-    <div class="flex items-center justify-between gap-3 text-[15px]">
-      <div>
-        <p class="font-normal">{props.label}</p>
-        <p class="font-mono-editorial text-[11px] uppercase tracking-[0.12em] text-ink-faded">
-          {props.help}
-        </p>
-      </div>
-      <button
-        type="button"
-        role="switch"
-        aria-checked={props.checked}
-        aria-label={`${props.label}: ${props.checked ? 'on' : 'off'}`}
-        class="relative h-7 w-14 shrink-0 border border-rule bg-paper text-left transition-colors hover:border-accent aria-checked:border-accent aria-checked:bg-accent"
-        onClick={() => props.onChange(!props.checked)}
-      >
-        <span
-          class="absolute left-1 top-1 h-5 w-5 bg-ink-faded transition-transform"
-          classList={{
-            'translate-x-7 bg-paper': props.checked,
-          }}
-        />
-        <span class="sr-only">{props.checked ? 'On' : 'Off'}</span>
-      </button>
-    </div>
+    <button
+      type="button"
+      role="switch"
+      aria-checked={props.checked}
+      aria-label={`${props.label}: ${props.checked ? 'on' : 'off'}`}
+      class="relative h-[35px] w-14 shrink-0 border border-rule bg-paper text-left transition-colors hover:border-accent aria-checked:border-accent aria-checked:bg-accent"      onClick={() => props.onChange(!props.checked)}
+    >
+      <span
+        class="absolute left-1 top-1/2 h-5 w-5 -translate-y-1/2 bg-ink-faded transition-transform"
+        classList={{
+          'translate-x-7 bg-paper': props.checked,
+        }}
+      />
+      <span class="sr-only">{props.checked ? 'On' : 'Off'}</span>
+    </button>
   )
 }
 
