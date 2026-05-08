@@ -508,8 +508,13 @@ a {
   transform: translateY(-2px);
 }
 
-.vocabulary-card strong {
-  font-size: 48px;
+.vocabulary-card-title {
+  margin-top: 34px;
+  color: var(--ink);
+  font-family: var(--serif-display);
+  font-size: 30px;
+  font-style: italic;
+  line-height: 1.05;
 }
 
 .vocabulary-card.is-active {

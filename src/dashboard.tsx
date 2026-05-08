@@ -345,13 +345,10 @@ function VocabularyOverview(props: {
                   {isActive() ? 'Активный' : vocabulary.category} ·{' '}
                   {vocabulary.words.length} слов
                 </span>
-                <strong classList={{ accent: isActive() }}>
-                  {progress().completion}%
-                </strong>
-                <p>{vocabulary.name}</p>
+                <p class="vocabulary-card-title">{vocabulary.name}</p>
                 <small>
                   освоено: {progress().mastered} · в работе:{' '}
-                  {progress().inProgress}
+                  {progress().inProgress} · {progress().completion}%
                 </small>
               </button>
             )
