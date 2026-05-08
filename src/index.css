@@ -484,23 +484,22 @@ a {
 
 .vocabulary-card-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-  gap: 0;
-  border-top: 1px solid var(--ink);
-  border-left: 1px solid var(--rule);
+  grid-template-columns: repeat(3, 1fr);
+  gap: 24px;
 }
 
 .vocabulary-card {
-  aspect-ratio: 1 / 1;
-  min-height: 240px;
-  padding: 24px;
+  min-height: 180px;
+  padding: 20px;
   color: inherit;
   background: transparent;
-  border: 0;
-  border-right: 1px solid var(--rule);
-  border-bottom: 1px solid var(--rule);
+  border: 1px solid var(--rule);
   font: inherit;
   text-align: left;
+}
+
+.vocabulary-card strong {
+  font-size: 48px;
 }
 
 .vocabulary-card.is-active {
