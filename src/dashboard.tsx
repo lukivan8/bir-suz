@@ -337,13 +337,19 @@ function VocabularyOverview(props: {
             return (
               <button
                 type="button"
-                class="flex min-h-[170px] flex-col justify-between border border-rule bg-transparent p-5 text-left font-serif-body text-ink transition hover:-translate-y-0.5 hover:border-accent hover:bg-paper-deep"
-                classList={{ 'border-accent bg-paper-deep': isActive() }}
+                class={`flex min-h-[170px] flex-col justify-between border p-5 text-left font-serif-body text-ink transition hover:-translate-y-0.5 hover:border-accent hover:bg-paper-deep ${
+                  isActive()
+                    ? 'border-accent bg-paper-deep shadow-[inset_4px_0_0_var(--accent)]'
+                    : 'border-rule bg-transparent'
+                }`}
                 onClick={() => props.onSelect(vocabulary.id)}
               >
-                <span class="font-mono-editorial text-[11px] uppercase tracking-[0.18em] text-accent">
-                  {vocabulary.words.length} слов
-                </span>
+                <div class="flex items-center justify-between gap-3 font-mono-editorial text-[11px] uppercase tracking-[0.18em]">
+                  <span class="text-accent">{vocabulary.words.length} слов</span>
+                  <Show when={isActive()}>
+                    <span class="text-ink-faded">Активный</span>
+                  </Show>
+                </div>
                 <p class="break-words font-serif-display text-2xl font-normal italic leading-none text-ink">
                   {vocabulary.name}
                 </p>
