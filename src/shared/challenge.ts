@@ -6,6 +6,7 @@ import type {
   TriggerSource,
   WordItem,
 } from './types'
+import { updateActiveVocabularyWords } from './vocabularies'
 
 export function shouldBlockForUserSettings(
   storage: StorageShape,
@@ -25,32 +26,46 @@ export function shouldBlockForUserSettings(
 export function buildChallengePayload(
   source: TriggerSource,
   word: WordItem,
+  vocabularyWords: WordItem[],
   now = Date.now(),
 ): ChallengePayload {
   return {
     source,
     word,
-    options: shuffle([
-      word.targetText,
-      ...shuffle(word.distractors).slice(0, 3),
-    ]),
+    options: buildAnswerOptions(word, vocabularyWords),
     startedAt: now,
   }
+}
+
+function buildAnswerOptions(word: WordItem, vocabularyWords: WordItem[]) {
+  const distractors = unique(
+    shuffle(vocabularyWords)
+      .filter((candidate) => candidate.id !== word.id)
+      .map((candidate) => candidate.targetText)
+      .filter((targetText) => targetText !== word.targetText),
+  ).slice(0, 3)
+
+  return shuffle([word.targetText, ...distractors])
 }
 
 export function applyChallengeResult(
   storage: StorageShape,
   result: ChallengeResult,
   now = Date.now(),
-): Pick<StorageShape, 'wordBank' | 'userStats'> {
+): Pick<StorageShape, 'vocabularies' | 'userStats'> {
   return {
-    wordBank: storage.wordBank.map((word) => {
-      if (word.id !== result.wordId) return word
-      return {
-        ...word,
-        srs: calculateNextSrs(word.srs, qualityFromResult(result), now),
-      }
-    }),
+    vocabularies: updateActiveVocabularyWords(
+      storage,
+      (words) =>
+        words.map((word) => {
+          if (word.id !== result.wordId) return word
+          return {
+            ...word,
+            srs: calculateNextSrs(word.srs, qualityFromResult(result), now),
+          }
+        }),
+      now,
+    ),
     userStats: buildNextStats(storage, result, now),
   }
 }
@@ -212,4 +227,8 @@ function randomItem<T>(items: readonly T[]) {
 
 function shuffle<T>(items: readonly T[]) {
   return [...items].sort(() => Math.random() - 0.5)
+}
+
+function unique<T>(items: readonly T[]) {
+  return [...new Set(items)]
 }

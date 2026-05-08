@@ -1,6 +1,13 @@
-import { createEffect, createResource, createSignal, onCleanup, Show } from 'solid-js'
+import {
+  createEffect,
+  createResource,
+  createSignal,
+  onCleanup,
+  Show,
+} from 'solid-js'
 import type { RuntimeMessage } from './shared/messages'
 import type { AppSettings, StorageShape } from './shared/types'
+import { getActiveVocabulary } from './shared/vocabularies'
 
 async function getState() {
   return (await sendRuntimeMessage({
@@ -47,7 +54,9 @@ function App() {
     const current = state()
     if (!current) return
     const isOff = (current.settings.disabledUntil ?? 0) > Date.now()
-    await updateSettings({ disabledUntil: isOff ? undefined : Date.now() + 30 * 60 * 1000 })
+    await updateSettings({
+      disabledUntil: isOff ? undefined : Date.now() + 30 * 60 * 1000,
+    })
     await refetch()
   }
 
@@ -67,7 +76,10 @@ function App() {
       setNow(nextNow)
 
       const current = state()
-      if (current?.settings.disabledUntil && current.settings.disabledUntil <= nextNow) {
+      if (
+        current?.settings.disabledUntil &&
+        current.settings.disabledUntil <= nextNow
+      ) {
         await updateSettings({ disabledUntil: undefined })
       }
     }, 1000)
@@ -90,6 +102,11 @@ function App() {
     )
   }
 
+  const activeVocabulary = () => {
+    const current = state()
+    return current ? getActiveVocabulary(current) : undefined
+  }
+
   const t = () => copy.ru
 
   return (
@@ -103,13 +120,19 @@ function App() {
       <Show when={state()}>
         {(current) => (
           <>
-            <section class="flex gap-4 font-mono-editorial text-[11px] uppercase tracking-[0.12em] text-ink-faded">
-              <span>
-                {t().exposure}: {current().userStats.totalExposures}
-              </span>
-              <span>
-                {t().success}: {successRate()}%
-              </span>
+            <section class="space-y-1 font-mono-editorial text-[11px] uppercase tracking-[0.12em] text-ink-faded">
+              <div class="flex gap-4">
+                <span>
+                  {t().exposure}: {current().userStats.totalExposures}
+                </span>
+                <span>
+                  {t().success}: {successRate()}%
+                </span>
+              </div>
+              <p>
+                {t().vocabulary}: {activeVocabulary()?.name ?? '—'} ·{' '}
+                {activeVocabulary()?.words.length ?? 0} слов
+              </p>
             </section>
 
             <section class="space-y-3 border border-rule bg-paper-deep p-3">
@@ -180,7 +203,6 @@ function App() {
                 {t().openDashboard}
               </a>
             </section>
-
           </>
         )}
       </Show>
@@ -192,6 +214,7 @@ const copy = {
   ru: {
     exposure: 'Заданий',
     success: 'Верно',
+    vocabulary: 'Словарь',
     triggers: 'Когда показывать',
     newTab: 'Новая вкладка',
     everyTabs: (frequency: number) => `Каждые ${frequency} вкладки`,
@@ -268,7 +291,6 @@ function RangeField(props: {
     </label>
   )
 }
-
 
 function sendRuntimeMessage(message: RuntimeMessage) {
   return chrome.runtime.sendMessage(message)
