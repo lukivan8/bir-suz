@@ -1,7 +1,11 @@
 import { createSignal, For, onCleanup } from 'solid-js'
 import { render } from 'solid-js/web'
 import styles from './content.css?inline'
-import { isRuntimeMessage, type RuntimeMessage } from './shared/messages'
+import {
+  isRuntimeMessage,
+  type RuntimeMessage,
+  type RuntimeResponseFor,
+} from './shared/messages'
 import type { ChallengePayload, ChallengeResult } from './shared/types'
 
 const CONTAINER_ID = 'bir-soz-extension-root'
@@ -25,7 +29,10 @@ document.addEventListener(
 
     void sendRuntimeMessage({
       type: 'bir-soz:navigation-click',
-      href: link instanceof HTMLAnchorElement ? link.href : link.getAttribute('href') ?? undefined,
+      href:
+        link instanceof HTMLAnchorElement
+          ? link.href
+          : (link.getAttribute('href') ?? undefined),
     })
   },
   { capture: true },
@@ -42,7 +49,9 @@ chrome.runtime.onMessage.addListener(
   },
 )
 
-async function sendRuntimeMessage(message: RuntimeMessage) {
+async function sendRuntimeMessage<TMessage extends RuntimeMessage>(
+  message: TMessage,
+): Promise<RuntimeResponseFor<TMessage> | undefined> {
   try {
     if (!chrome.runtime?.id) return undefined
     return await chrome.runtime.sendMessage(message)
@@ -196,7 +205,7 @@ function Overlay(props: { payload: ChallengePayload; onClose: () => void }) {
         <div class="bir-soz-content">
           <header class="bir-soz-topline">
             <span>Перевод</span>
-<span>söz 1</span>
+            <span>söz 1</span>
           </header>
 
           <section>
@@ -206,9 +215,7 @@ function Overlay(props: { payload: ChallengePayload; onClose: () => void }) {
                 <span class="bir-soz-glyph">+</span>
               )}
             </h2>
-            <p class="bir-soz-prompt">
-              Orys tilindegi audarmany tañdañyz
-            </p>
+            <p class="bir-soz-prompt">Orys tilindegi audarmany tañdañyz</p>
           </section>
 
           <div class="bir-soz-rule" />

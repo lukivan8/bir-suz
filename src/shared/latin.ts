@@ -1,130 +1,131 @@
 export const kazakhCyrillicToLatin = {
-    А: "A",
-    а: "a",
+  А: 'A',
+  а: 'a',
 
-    Ә: "Ä",
-    ә: "ä",
+  Ә: 'Ä',
+  ә: 'ä',
 
-    Б: "B",
-    б: "b",
+  Б: 'B',
+  б: 'b',
 
-    В: "V",
-    в: "v",
+  В: 'V',
+  в: 'v',
 
-    Г: "G",
-    г: "g",
+  Г: 'G',
+  г: 'g',
 
-    Ғ: "Ğ",
-    ғ: "ğ",
+  Ғ: 'Ğ',
+  ғ: 'ğ',
 
-    Д: "D",
-    д: "d",
+  Д: 'D',
+  д: 'd',
 
-    Е: "E",
-    е: "e",
+  Е: 'E',
+  е: 'e',
 
-    Ё: "Ö",
-    ё: "ö",
+  Ё: 'Ö',
+  ё: 'ö',
 
-    Ж: "J",
-    ж: "j",
+  Ж: 'J',
+  ж: 'j',
 
-    З: "Z",
-    з: "z",
+  З: 'Z',
+  з: 'z',
 
-    И: "İ",
-    и: "i",
+  И: 'İ',
+  и: 'i',
 
-    Й: "İ",
-    й: "i",
+  Й: 'İ',
+  й: 'i',
 
-    К: "K",
-    к: "k",
+  К: 'K',
+  к: 'k',
 
-    Қ: "Q",
-    қ: "q",
+  Қ: 'Q',
+  қ: 'q',
 
-    Л: "L",
-    л: "l",
+  Л: 'L',
+  л: 'l',
 
-    М: "M",
-    м: "m",
+  М: 'M',
+  м: 'm',
 
-    Н: "N",
-    н: "n",
+  Н: 'N',
+  н: 'n',
 
-    ң: "ñ",
+  ң: 'ñ',
 
-    О: "O",
-    о: "o",
+  О: 'O',
+  о: 'o',
 
-    Ө: "Ö",
-    ө: "ö",
+  Ө: 'Ö',
+  ө: 'ö',
 
-    П: "P",
-    п: "p",
+  П: 'P',
+  п: 'p',
 
-    Р: "R",
-    р: "r",
+  Р: 'R',
+  р: 'r',
 
-    С: "S",
-    с: "s",
+  С: 'S',
+  с: 's',
 
-    Т: "T",
-    т: "t",
+  Т: 'T',
+  т: 't',
 
-    У: "U",
-    у: "u",
+  У: 'U',
+  у: 'u',
 
-    Ұ: "Ū",
-    ұ: "ū",
+  Ұ: 'Ū',
+  ұ: 'ū',
 
-    Ү: "Ü",
-    ү: "ü",
+  Ү: 'Ü',
+  ү: 'ü',
 
-    Ф: "F",
-    ф: "f",
+  Ф: 'F',
+  ф: 'f',
 
-    Х: "H",
-    х: "h",
+  Х: 'H',
+  х: 'h',
 
-    һ: "h",
+  һ: 'h',
 
-    Ц: "S",
-    ц: "s",
+  Ц: 'S',
+  ц: 's',
 
-    Ч: "Ch",
-    ч: "ch",
+  Ч: 'Ch',
+  ч: 'ch',
 
-    Ш: "Ş",
-    ш: "ş",
+  Ш: 'Ş',
+  ш: 'ş',
 
-    Щ: "Ş",
-    щ: "ş",
+  Щ: 'Ş',
+  щ: 'ş',
 
-    Ы: "Y",
-    ы: "y",
+  Ы: 'Y',
+  ы: 'y',
 
-    І: "I",
-    і: "ı",
+  І: 'I',
+  і: 'ı',
 
-    Э: "E",
-    э: "e",
+  Э: 'E',
+  э: 'e',
 
-    Ю: "İu",
-    ю: "iu",
+  Ю: 'İu',
+  ю: 'iu',
 
-    Я: "İa",
-    я: "ia",
-} as const;
+  Я: 'İa',
+  я: 'ia',
+} as const
 
 const kazakhCyrillicPattern = new RegExp(
-    `[${Object.keys(kazakhCyrillicToLatin).join("")}]`,
-    "g",
-);
+  `[${Object.keys(kazakhCyrillicToLatin).join('')}]`,
+  'g',
+)
 
 export function kazakhCyrillicToLatinText(text: string): string {
-    return text.replace(kazakhCyrillicPattern, (char) =>
-        kazakhCyrillicToLatin[char as keyof typeof kazakhCyrillicToLatin],
-    );
+  return text.replace(
+    kazakhCyrillicPattern,
+    (char) => kazakhCyrillicToLatin[char as keyof typeof kazakhCyrillicToLatin],
+  )
 }

@@ -567,7 +567,17 @@ a {
   background: rgba(26, 22, 18, 0.24);
 }
 
+.modal-backdrop-button {
+  position: absolute;
+  inset: 0;
+  padding: 0;
+  background: transparent;
+  border: 0;
+}
+
 .advanced-modal {
+  position: relative;
+  z-index: 1;
   width: min(560px, 100%);
   padding: 28px;
   background: var(--paper);

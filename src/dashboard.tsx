@@ -2,8 +2,9 @@ import { createResource, createSignal, For, Show } from 'solid-js'
 import { render } from 'solid-js/web'
 import './index.css'
 import { calculateCurrentStreak } from './shared/challenge'
-import type { RuntimeMessage } from './shared/messages'
+import type { RuntimeMessage, RuntimeResponseFor } from './shared/messages'
 import type { StorageShape, WordItem } from './shared/types'
+import { isStorageShape } from './shared/validation'
 import { getActiveVocabulary, getActiveWords } from './shared/vocabularies'
 
 const DAY_MS = 24 * 60 * 60 * 1000
@@ -18,9 +19,15 @@ interface ActivityDay {
 }
 
 async function getState() {
-  return (await sendRuntimeMessage({
+  const response = await sendRuntimeMessage({
     type: 'bir-soz:get-state',
-  })) as StorageShape
+  })
+
+  if (!isStorageShape(response)) {
+    throw new Error('Invalid storage state response')
+  }
+
+  return response
 }
 
 function Dashboard() {
@@ -60,8 +67,10 @@ function Dashboard() {
   const activityDays = () => buildActivityDays(state())
   const activityMonths = () => buildActivityMonths(activityDays())
   const activityWeekdays = () => buildActivityWeekdays()
-  const activeVocabulary = () =>
-    state() ? getActiveVocabulary(state() as StorageShape) : undefined
+  const activeVocabulary = () => {
+    const current = state()
+    return current ? getActiveVocabulary(current) : undefined
+  }
   const dictionaryWords = () => getDictionaryWords(state(), masteryFilter())
   const masteredWordCount = () => countWordsByMastery(state(), 'mastered')
   const activeWordCount = () => countWordsByMastery(state(), 'in-progress')
@@ -117,6 +126,7 @@ function Dashboard() {
                       </div>
                       <div
                         class="activity-heatmap"
+                        role="img"
                         aria-label="Активность за последние 13 недель"
                       >
                         <For each={activityDays()}>
@@ -176,11 +186,12 @@ function Dashboard() {
                     Уровень освоения
                     <select
                       value={masteryFilter()}
-                      onChange={(event) =>
-                        setMasteryFilter(
-                          event.currentTarget.value as MasteryFilter,
-                        )
-                      }
+                      onChange={(event) => {
+                        const value = event.currentTarget.value
+                        if (isMasteryFilter(value)) {
+                          setMasteryFilter(value)
+                        }
+                      }}
                     >
                       <option value="all">Все</option>
                       <option value="mastered">Освоенные</option>
@@ -267,10 +278,23 @@ function AdvancedSettingsModal(props: {
   ) => void
 }) {
   return (
-    <div class="modal-backdrop" onClick={props.onClose}>
-      <div class="advanced-modal" onClick={(event) => event.stopPropagation()}>
+    <div class="modal-backdrop">
+      <button
+        type="button"
+        class="modal-backdrop-button"
+        aria-label="Закрыть доп. настройки"
+        onClick={props.onClose}
+      />
+      <section
+        class="advanced-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="advanced-settings-title"
+      >
         <div class="section-heading-row">
-          <h2 class="section-heading">Доп. настройки</h2>
+          <h2 id="advanced-settings-title" class="section-heading">
+            Доп. настройки
+          </h2>
           <button type="button" class="modal-close" onClick={props.onClose}>
             Закрыть
           </button>
@@ -301,7 +325,7 @@ function AdvancedSettingsModal(props: {
             onChange={(endHour) => props.onQuietHoursChange({ endHour })}
           />
         </div>
-      </div>
+      </section>
     </div>
   )
 }
@@ -471,7 +495,13 @@ if (!root) {
   throw new Error('Root element not found')
 }
 
-function sendRuntimeMessage(message: RuntimeMessage) {
+function isMasteryFilter(value: string): value is MasteryFilter {
+  return ['all', 'mastered', 'in-progress', 'new'].includes(value)
+}
+
+function sendRuntimeMessage<TMessage extends RuntimeMessage>(
+  message: TMessage,
+): Promise<RuntimeResponseFor<TMessage>> {
   return chrome.runtime.sendMessage(message)
 }
 

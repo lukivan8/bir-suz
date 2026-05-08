@@ -39,6 +39,6 @@ const manifest = {
       description: 'Mysal tapsyrmany kórsetý',
     },
   },
-}
+} satisfies chrome.runtime.ManifestV3
 
 export default manifest

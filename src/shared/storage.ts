@@ -1,11 +1,20 @@
 import { seedVocabularies, seedVocabularyId } from './learning-content'
 import type {
   AppSettings,
+  QuietHours,
   StorageShape,
   UserStats,
   Vocabulary,
   WordItem,
 } from './types'
+import {
+  isAppSettings,
+  isDailyReviewEntry,
+  isTriggerSource,
+  isUserStats,
+  isVocabulary,
+  isWordItem,
+} from './validation'
 
 const defaultStats: UserStats = {
   currentStreak: 0,
@@ -93,8 +102,9 @@ function buildStoragePatch(current: LegacyStorageShape): Partial<StorageShape> {
   }
 
   if (
-    current.settings?.navigationTriggerEnabled === undefined ||
-    current.settings?.uiLanguage !== 'ru'
+    !isAppSettings(current.settings) ||
+    current.settings.navigationTriggerEnabled === undefined ||
+    current.settings.uiLanguage !== 'ru'
   ) {
     patch.settings = normalized.settings
   }
@@ -130,16 +140,14 @@ function normalizeStorage(storage: LegacyStorageShape): StorageShape {
     vocabularies,
     activeVocabularyId,
     userStats: normalizeUserStats(storage.userStats),
-    settings: {
-      ...defaultSettings,
-      ...storage.settings,
-      uiLanguage: 'ru' as const,
-    },
+    settings: normalizeSettings(storage.settings),
     newTabCount:
       typeof storage.newTabCount === 'number' ? storage.newTabCount : 0,
     navigationCount:
       typeof storage.navigationCount === 'number' ? storage.navigationCount : 0,
-    pendingTrigger: storage.pendingTrigger ?? null,
+    pendingTrigger: isTriggerSource(storage.pendingTrigger)
+      ? storage.pendingTrigger
+      : null,
   }
 }
 
@@ -173,47 +181,94 @@ function normalizeVocabularies(storage: LegacyStorageShape): Vocabulary[] {
   return seedVocabularies
 }
 
-function normalizeUserStats(userStats: unknown): UserStats {
-  if (!isUserStats(userStats)) return defaultStats
+function normalizeSettings(settings: unknown): AppSettings {
+  if (!isMaybeSettings(settings)) return defaultSettings
+
+  const quietHours = normalizeQuietHours(settings.quietHours)
 
   return {
-    ...defaultStats,
-    ...userStats,
+    uiLanguage: 'ru',
+    frequency:
+      typeof settings.frequency === 'number'
+        ? settings.frequency
+        : defaultSettings.frequency,
+    newTabTriggerEnabled:
+      typeof settings.newTabTriggerEnabled === 'boolean'
+        ? settings.newTabTriggerEnabled
+        : defaultSettings.newTabTriggerEnabled,
+    navigationTriggerEnabled:
+      typeof settings.navigationTriggerEnabled === 'boolean'
+        ? settings.navigationTriggerEnabled
+        : defaultSettings.navigationTriggerEnabled,
+    cooldownMinutes:
+      typeof settings.cooldownMinutes === 'number'
+        ? settings.cooldownMinutes
+        : defaultSettings.cooldownMinutes,
+    quietHours,
+    ...(typeof settings.disabledUntil === 'number'
+      ? { disabledUntil: settings.disabledUntil }
+      : {}),
+  }
+}
+
+function normalizeQuietHours(quietHours: unknown): QuietHours {
+  if (!isMaybeQuietHours(quietHours)) return defaultSettings.quietHours
+
+  return {
+    enabled:
+      typeof quietHours.enabled === 'boolean'
+        ? quietHours.enabled
+        : defaultSettings.quietHours.enabled,
+    startHour:
+      typeof quietHours.startHour === 'number'
+        ? quietHours.startHour
+        : defaultSettings.quietHours.startHour,
+    endHour:
+      typeof quietHours.endHour === 'number'
+        ? quietHours.endHour
+        : defaultSettings.quietHours.endHour,
+  }
+}
+
+function normalizeUserStats(userStats: unknown): UserStats {
+  if (!isMaybeUserStats(userStats)) return defaultStats
+
+  return {
+    currentStreak:
+      typeof userStats.currentStreak === 'number'
+        ? userStats.currentStreak
+        : defaultStats.currentStreak,
+    bestStreak:
+      typeof userStats.bestStreak === 'number'
+        ? userStats.bestStreak
+        : defaultStats.bestStreak,
+    totalExposures:
+      typeof userStats.totalExposures === 'number'
+        ? userStats.totalExposures
+        : defaultStats.totalExposures,
+    totalCorrect:
+      typeof userStats.totalCorrect === 'number'
+        ? userStats.totalCorrect
+        : defaultStats.totalCorrect,
+    timeInLanguageContactMs:
+      typeof userStats.timeInLanguageContactMs === 'number'
+        ? userStats.timeInLanguageContactMs
+        : defaultStats.timeInLanguageContactMs,
     dailyReviewHistory: Array.isArray(userStats.dailyReviewHistory)
-      ? userStats.dailyReviewHistory
+      ? userStats.dailyReviewHistory.filter(isDailyReviewEntry)
       : [],
+    ...(typeof userStats.lastChallengeAt === 'number'
+      ? { lastChallengeAt: userStats.lastChallengeAt }
+      : {}),
   }
 }
 
 function areValidVocabularies(value: unknown): value is Vocabulary[] {
-  return (
-    Array.isArray(value) &&
-    value.length > 0 &&
-    value.every(
-      (vocabulary) =>
-        isVocabularyLike(vocabulary) &&
-        typeof vocabulary.id === 'string' &&
-        typeof vocabulary.name === 'string' &&
-        typeof vocabulary.category === 'string' &&
-        typeof vocabulary.isBuiltin === 'boolean' &&
-        typeof vocabulary.createdAt === 'number' &&
-        typeof vocabulary.updatedAt === 'number' &&
-        Array.isArray(vocabulary.words) &&
-        vocabulary.words.every(isCurrentWordShape),
-    )
-  )
+  return Array.isArray(value) && value.length > 0 && value.every(isVocabulary)
 }
 
 function isCurrentWordShape(word: unknown): word is WordItem {
-  return (
-    isWordLike(word) &&
-    typeof word.id === 'string' &&
-    typeof word.sourceText === 'string' &&
-    typeof word.targetText === 'string' &&
-    typeof word.sourceLabel === 'string' &&
-    typeof word.targetLabel === 'string' &&
-    isSrsLike(word.srs)
-  )
+  return isWordItem(word)
 }
 
 function removeLegacyDistractors(word: WordItem): WordItem {
@@ -223,31 +278,15 @@ function removeLegacyDistractors(word: WordItem): WordItem {
   return currentWord
 }
 
-function isUserStats(value: unknown): value is UserStats {
-  return (
-    typeof value === 'object' &&
-    value !== null &&
-    'dailyReviewHistory' in value &&
-    Array.isArray((value as UserStats).dailyReviewHistory)
-  )
-}
-
-function isSrsLike(value: unknown) {
-  return (
-    typeof value === 'object' &&
-    value !== null &&
-    typeof (value as WordItem['srs']).repetition === 'number' &&
-    typeof (value as WordItem['srs']).interval === 'number' &&
-    typeof (value as WordItem['srs']).easeFactor === 'number' &&
-    typeof (value as WordItem['srs']).nextReview === 'number'
-  )
-}
-
-function isVocabularyLike(value: unknown): value is Partial<Vocabulary> {
+function isMaybeSettings(value: unknown): value is Partial<AppSettings> {
   return typeof value === 'object' && value !== null
 }
 
-function isWordLike(value: unknown): value is Partial<WordItem> {
+function isMaybeQuietHours(value: unknown): value is Partial<QuietHours> {
+  return typeof value === 'object' && value !== null
+}
+
+function isMaybeUserStats(value: unknown): value is Partial<UserStats> {
   return typeof value === 'object' && value !== null
 }
 

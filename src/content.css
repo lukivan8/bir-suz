@@ -44,14 +44,13 @@
   z-index: -1;
   width: 180vw;
   height: 112vh;
-  background:
-    radial-gradient(
-      ellipse at 50% 100%,
-      rgba(26, 22, 18, 0.8) 0%,
-      rgba(26, 22, 18, 0.48) 26%,
-      rgba(168, 83, 28, 0.28) 52%,
-      rgba(26, 22, 18, 0) 84%
-    );
+  background: radial-gradient(
+    ellipse at 50% 100%,
+    rgba(26, 22, 18, 0.8) 0%,
+    rgba(26, 22, 18, 0.48) 26%,
+    rgba(168, 83, 28, 0.28) 52%,
+    rgba(26, 22, 18, 0) 84%
+  );
   opacity: 0;
   transform: translateX(-50%) translateY(18px) scale(0.96);
   animation: bir-soz-halo-in 180ms ease-out forwards;

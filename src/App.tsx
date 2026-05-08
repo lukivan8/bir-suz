@@ -5,14 +5,21 @@ import {
   onCleanup,
   Show,
 } from 'solid-js'
-import type { RuntimeMessage } from './shared/messages'
-import type { AppSettings, StorageShape } from './shared/types'
+import type { RuntimeMessage, RuntimeResponseFor } from './shared/messages'
+import type { AppSettings } from './shared/types'
+import { isStorageShape } from './shared/validation'
 import { getActiveVocabulary } from './shared/vocabularies'
 
 async function getState() {
-  return (await sendRuntimeMessage({
+  const response = await sendRuntimeMessage({
     type: 'bir-soz:get-state',
-  })) as StorageShape
+  })
+
+  if (!isStorageShape(response)) {
+    throw new Error('Invalid storage state response')
+  }
+
+  return response
 }
 
 function App() {
@@ -255,8 +262,10 @@ function ToggleRow(props: {
         onClick={() => props.onChange(!props.checked)}
       >
         <span
-          class="absolute left-1 top-1 h-5 w-5 bg-ink-faded transition-transform aria-checked:translate-x-7 aria-checked:bg-paper"
-          aria-checked={props.checked}
+          class="absolute left-1 top-1 h-5 w-5 bg-ink-faded transition-transform"
+          classList={{
+            'translate-x-7 bg-paper': props.checked,
+          }}
         />
         <span class="sr-only">{props.checked ? 'On' : 'Off'}</span>
       </button>
@@ -292,7 +301,9 @@ function RangeField(props: {
   )
 }
 
-function sendRuntimeMessage(message: RuntimeMessage) {
+function sendRuntimeMessage<TMessage extends RuntimeMessage>(
+  message: TMessage,
+): Promise<RuntimeResponseFor<TMessage>> {
   return chrome.runtime.sendMessage(message)
 }
 
