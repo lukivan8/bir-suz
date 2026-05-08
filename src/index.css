@@ -484,7 +484,7 @@ a {
 
 .vocabulary-card-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   gap: 24px;
 }
 
@@ -513,8 +513,9 @@ a {
   overflow-wrap: anywhere;
   color: var(--ink);
   font-family: var(--serif-display);
-  font-size: 34px;
+  font-size: 40px;
   font-style: italic;
+  font-weight: 400;
   line-height: 1.02;
 }
 
