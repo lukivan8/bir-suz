@@ -484,12 +484,12 @@ a {
 
 .vocabulary-card-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   gap: 24px;
 }
 
 .vocabulary-card {
-  min-height: 180px;
+  min-height: 170px;
   padding: 20px;
   color: inherit;
   background: transparent;
@@ -509,12 +509,13 @@ a {
 }
 
 .vocabulary-card-title {
-  margin-top: 34px;
+  margin-top: 30px;
+  overflow-wrap: anywhere;
   color: var(--ink);
   font-family: var(--serif-display);
-  font-size: 30px;
+  font-size: 34px;
   font-style: italic;
-  line-height: 1.05;
+  line-height: 1.02;
 }
 
 .vocabulary-card.is-active {

@@ -341,14 +341,11 @@ function VocabularyOverview(props: {
                 classList={{ 'is-active': isActive() }}
                 onClick={() => props.onSelect(vocabulary.id)}
               >
-                <span>
-                  {isActive() ? 'Активный' : vocabulary.category} ·{' '}
-                  {vocabulary.words.length} слов
-                </span>
+                <span>{vocabulary.words.length} слов</span>
                 <p class="vocabulary-card-title">{vocabulary.name}</p>
                 <small>
-                  освоено: {progress().mastered} · в работе:{' '}
-                  {progress().inProgress} · {progress().completion}%
+                  освоено: {progress().completion}% · в работе:{' '}
+                  {progress().inProgress}
                 </small>
               </button>
             )
