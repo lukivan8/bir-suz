@@ -3,9 +3,8 @@ import { render } from 'solid-js/web'
 import './index.css'
 import { calculateCurrentStreak } from './shared/challenge'
 import type { RuntimeMessage, RuntimeResponseFor } from './shared/messages'
-import type { StorageShape, WordItem } from './shared/types'
+import type { StorageShape, Vocabulary, WordItem } from './shared/types'
 import { isStorageShape } from './shared/validation'
-import { getActiveVocabulary, getActiveWords } from './shared/vocabularies'
 
 const DAY_MS = 24 * 60 * 60 * 1000
 const HEATMAP_WEEKS = 13
@@ -34,6 +33,7 @@ function Dashboard() {
   const [state, { mutate }] = createResource(getState)
   const [advancedOpen, setAdvancedOpen] = createSignal(false)
   const [masteryFilter, setMasteryFilter] = createSignal<MasteryFilter>('all')
+  const [selectedVocabularyId, setSelectedVocabularyId] = createSignal<string>()
 
   const updateSettings = async (patch: Partial<StorageShape['settings']>) => {
     const current = state()
@@ -67,15 +67,28 @@ function Dashboard() {
   const activityDays = () => buildActivityDays(state())
   const activityMonths = () => buildActivityMonths(activityDays())
   const activityWeekdays = () => buildActivityWeekdays()
-  const activeVocabulary = () => {
-    const current = state()
-    return current ? getActiveVocabulary(current) : undefined
-  }
-  const dictionaryWords = () => getDictionaryWords(state(), masteryFilter())
-  const masteredWordCount = () => countWordsByMastery(state(), 'mastered')
-  const activeWordCount = () => countWordsByMastery(state(), 'in-progress')
+  const selectedVocabulary = () => getSelectedVocabulary(state(), selectedVocabularyId())
+  const dictionaryWords = () =>
+    getDictionaryWords(selectedVocabulary(), masteryFilter())
+  const masteredWordCount = () =>
+    countWordsByMastery(selectedVocabulary(), 'mastered')
+  const activeWordCount = () =>
+    countWordsByMastery(selectedVocabulary(), 'in-progress')
   const currentStreak = () =>
     calculateCurrentStreak(state()?.userStats.dailyReviewHistory ?? [])
+
+  const makeVocabularyActive = async (vocabularyId: string) => {
+    const current = state()
+    if (!current) return
+
+    const next = {
+      ...current,
+      activeVocabularyId: vocabularyId,
+    }
+
+    mutate(next)
+    await chrome.storage.local.set({ activeVocabularyId: vocabularyId })
+  }
 
   return (
     <main class="dashboard-page">
@@ -157,68 +170,99 @@ function Dashboard() {
 
               <section class="dashboard-section">
                 <span class="section-num">02 — Словарь</span>
-                <div class="section-heading-row">
-                  <h2 class="section-heading">
-                    {activeVocabulary()?.name ?? 'Словарь'},{' '}
-                    <em>по уровню освоения</em>.
-                  </h2>
-                  <span class="table-count">
-                    {dictionaryWords().length} слов
-                  </span>
-                </div>
-                <div class="vocab-grid compact-vocab-grid">
-                  <MetricPanel
-                    label="Активный словарь"
-                    value={activeWordCount()}
-                    body="слов сейчас повторяются"
-                    note="активный: уже встречался, ещё не освоен"
-                  />
-                  <MetricPanel
-                    label="Освоенные слова"
-                    value={masteredWordCount()}
-                    body="слов узнаёшь без подсказки"
-                    note="освоенное: верно 3 раза подряд, повтор реже недели"
-                    accent
-                  />
-                </div>
-                <div class="table-tools">
-                  <label>
-                    Уровень освоения
-                    <select
-                      value={masteryFilter()}
-                      onChange={(event) => {
-                        const value = event.currentTarget.value
-                        if (isMasteryFilter(value)) {
-                          setMasteryFilter(value)
-                        }
-                      }}
-                    >
-                      <option value="all">Все</option>
-                      <option value="mastered">Освоенные</option>
-                      <option value="in-progress">В работе</option>
-                      <option value="new">Новые</option>
-                    </select>
-                  </label>
-                </div>
                 <Show
-                  when={dictionaryWords().length > 0}
+                  when={selectedVocabulary()}
                   fallback={
-                    <div class="empty-state">
-                      Ничего не найдено. <em>Попробуй другой фильтр.</em>
-                    </div>
+                    <VocabularyOverview
+                      storage={current()}
+                      onSelect={(vocabularyId) => {
+                        setSelectedVocabularyId(vocabularyId)
+                        setMasteryFilter('all')
+                      }}
+                    />
                   }
                 >
-                  <div class="mastered-table dictionary-table-scroll">
-                    <For each={dictionaryWords()}>
-                      {(word) => (
-                        <div class="mastered-row">
-                          <span>{word.sourceText}</span>
-                          <em>{word.targetText}</em>
-                          <span>{masteryLabel(word)}</span>
+                  {(vocabulary) => (
+                    <>
+                      <div class="section-heading-row">
+                        <h2 class="section-heading">{vocabulary().name}</h2>
+                        <div class="table-tools vocabulary-title-actions">
+                          <span>{dictionaryWords().length} слов</span>
+                          <button
+                            type="button"
+                            onClick={() => setSelectedVocabularyId(undefined)}
+                          >
+                            ← Все словари
+                          </button>
+                          <button
+                            type="button"
+                            disabled={
+                              current().activeVocabularyId === vocabulary().id
+                            }
+                            onClick={() => makeVocabularyActive(vocabulary().id)}
+                          >
+                            {current().activeVocabularyId === vocabulary().id
+                              ? 'Активный'
+                              : 'Сделать активным'}
+                          </button>
                         </div>
-                      )}
-                    </For>
-                  </div>
+                      </div>
+                      <div class="table-tools">
+                        <label>
+                          Уровень освоения
+                          <select
+                            value={masteryFilter()}
+                            onChange={(event) => {
+                              const value = event.currentTarget.value
+                              if (isMasteryFilter(value)) {
+                                setMasteryFilter(value)
+                              }
+                            }}
+                          >
+                            <option value="all">Все</option>
+                            <option value="mastered">Освоенные</option>
+                            <option value="in-progress">В работе</option>
+                            <option value="new">Новые</option>
+                          </select>
+                        </label>
+                      </div>
+                      <div class="vocab-grid compact-vocab-grid">
+                        <MetricPanel
+                          label="В работе"
+                          value={activeWordCount()}
+                          body="слов сейчас повторяются"
+                          note="уже встречались, ещё не освоены"
+                        />
+                        <MetricPanel
+                          label="Освоенные слова"
+                          value={masteredWordCount()}
+                          body="слов узнаёшь без подсказки"
+                          note="верно 3 раза подряд, повтор реже недели"
+                          accent
+                        />
+                      </div>
+                      <Show
+                        when={dictionaryWords().length > 0}
+                        fallback={
+                          <div class="empty-state">
+                            Ничего не найдено. <em>Попробуй другой фильтр.</em>
+                          </div>
+                        }
+                      >
+                        <div class="mastered-table dictionary-table-scroll">
+                          <For each={dictionaryWords()}>
+                            {(word) => (
+                              <div class="mastered-row">
+                                <span>{word.sourceText}</span>
+                                <em>{word.targetText}</em>
+                                <span>{masteryLabel(word)}</span>
+                              </div>
+                            )}
+                          </For>
+                        </div>
+                      </Show>
+                    </>
+                  )}
                 </Show>
               </section>
               <Show when={advancedOpen()}>
@@ -266,6 +310,55 @@ function MetricPanel(props: {
       <p>{props.body}</p>
       <small>{props.note}</small>
     </div>
+  )
+}
+
+function VocabularyOverview(props: {
+  storage: StorageShape
+  onSelect: (vocabularyId: string) => void
+}) {
+  return (
+    <>
+      <div class="section-heading-row">
+        <h2 class="section-heading">
+          Все словари, <em>выбери набор</em>.
+        </h2>
+        <span class="table-count">
+          {props.storage.vocabularies.length} словаря
+        </span>
+      </div>
+      <div class="vocabulary-card-grid">
+        <For each={props.storage.vocabularies}>
+          {(vocabulary) => {
+            const progress = () => vocabularyProgress(vocabulary)
+            const isActive = () =>
+              props.storage.activeVocabularyId === vocabulary.id
+
+            return (
+              <button
+                type="button"
+                class="metric-panel vocabulary-card"
+                classList={{ 'is-active': isActive() }}
+                onClick={() => props.onSelect(vocabulary.id)}
+              >
+                <span>
+                  {isActive() ? 'Активный' : vocabulary.category} ·{' '}
+                  {vocabulary.words.length} слов
+                </span>
+                <strong classList={{ accent: isActive() }}>
+                  {progress().completion}%
+                </strong>
+                <p>{vocabulary.name}</p>
+                <small>
+                  освоено: {progress().mastered} · в работе:{' '}
+                  {progress().inProgress}
+                </small>
+              </button>
+            )
+          }}
+        </For>
+      </div>
+    </>
   )
 }
 
@@ -410,19 +503,18 @@ function buildActivityDays(state: StorageShape | undefined): ActivityDay[] {
 }
 
 function countWordsByMastery(
-  state: StorageShape | undefined,
+  vocabulary: Vocabulary | undefined,
   level: Exclude<MasteryFilter, 'all'>,
 ) {
-  return getActiveWordsOrEmpty(state).filter(
-    (word) => masteryLevel(word) === level,
-  ).length
+  return (vocabulary?.words ?? []).filter((word) => masteryLevel(word) === level)
+    .length
 }
 
 function getDictionaryWords(
-  state: StorageShape | undefined,
+  vocabulary: Vocabulary | undefined,
   filter: MasteryFilter,
 ) {
-  return getActiveWordsOrEmpty(state)
+  return (vocabulary?.words ?? [])
     .filter((word) => filter === 'all' || masteryLevel(word) === filter)
     .sort((a, b) => {
       const rankDiff = masteryRank(a) - masteryRank(b)
@@ -439,8 +531,26 @@ function getDictionaryWords(
     })
 }
 
-function getActiveWordsOrEmpty(state: StorageShape | undefined) {
-  return state ? getActiveWords(state) : []
+function getSelectedVocabulary(
+  state: StorageShape | undefined,
+  selectedVocabularyId: string | undefined,
+) {
+  if (!state || !selectedVocabularyId) return undefined
+  return state.vocabularies.find(
+    (vocabulary) => vocabulary.id === selectedVocabularyId,
+  )
+}
+
+function vocabularyProgress(vocabulary: Vocabulary) {
+  const mastered = countWordsByMastery(vocabulary, 'mastered')
+  const inProgress = countWordsByMastery(vocabulary, 'in-progress')
+  const total = vocabulary.words.length
+
+  return {
+    mastered,
+    inProgress,
+    completion: total === 0 ? 0 : Math.round((mastered / total) * 100),
+  }
 }
 
 function masteryLevel(word: WordItem): Exclude<MasteryFilter, 'all'> {

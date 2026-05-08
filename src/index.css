@@ -482,6 +482,32 @@ a {
   font-size: 56px;
 }
 
+.vocabulary-card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 0;
+  border-top: 1px solid var(--ink);
+  border-left: 1px solid var(--rule);
+}
+
+.vocabulary-card {
+  aspect-ratio: 1 / 1;
+  min-height: 240px;
+  padding: 24px;
+  color: inherit;
+  background: transparent;
+  border: 0;
+  border-right: 1px solid var(--rule);
+  border-bottom: 1px solid var(--rule);
+  font: inherit;
+  text-align: left;
+}
+
+.vocabulary-card.is-active {
+  background: var(--paper-deep);
+  border-color: var(--accent);
+}
+
 .metric-panel span {
   color: var(--accent);
   font-size: 11px;
@@ -529,6 +555,11 @@ a {
   margin: -14px 0 14px;
 }
 
+.vocabulary-title-actions {
+  justify-content: flex-end;
+  margin: 0 0 32px;
+}
+
 .table-tools label {
   display: flex;
   align-items: center;
@@ -555,6 +586,11 @@ a {
   font: inherit;
   letter-spacing: inherit;
   text-transform: inherit;
+}
+
+.table-tools button:disabled {
+  color: var(--ink-faded);
+  cursor: default;
 }
 
 .modal-backdrop {
@@ -708,7 +744,8 @@ a {
   }
 
   .streak-grid,
-  .vocab-grid {
+  .vocab-grid,
+  .vocabulary-card-grid {
     grid-template-columns: 1fr;
   }
 
