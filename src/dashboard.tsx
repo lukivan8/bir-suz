@@ -327,7 +327,7 @@ function VocabularyOverview(props: {
           {props.storage.vocabularies.length} словаря
         </span>
       </div>
-      <div class="vocabulary-card-grid">
+      <div class="grid grid-cols-3 gap-6 max-[760px]:grid-cols-1">
         <For each={props.storage.vocabularies}>
           {(vocabulary) => {
             const progress = () => vocabularyProgress(vocabulary)
@@ -337,13 +337,17 @@ function VocabularyOverview(props: {
             return (
               <button
                 type="button"
-                class="metric-panel vocabulary-card"
-                classList={{ 'is-active': isActive() }}
+                class="min-h-[170px] border border-rule bg-transparent p-5 text-left font-serif-body text-ink transition hover:-translate-y-0.5 hover:border-accent hover:bg-paper-deep"
+                classList={{ 'border-accent bg-paper-deep': isActive() }}
                 onClick={() => props.onSelect(vocabulary.id)}
               >
-                <span>{vocabulary.words.length} слов</span>
-                <p class="vocabulary-card-title">{vocabulary.name}</p>
-                <small>
+                <span class="font-mono-editorial text-[11px] uppercase tracking-[0.18em] text-accent">
+                  {vocabulary.words.length} слов
+                </span>
+                <p class="mt-8 break-words font-serif-display text-[40px] font-normal italic leading-none text-ink">
+                  {vocabulary.name}
+                </p>
+                <small class="font-mono-editorial text-[12px] uppercase tracking-[0.12em] text-ink-faded">
                   освоено: {progress().completion}% · в работе:{' '}
                   {progress().inProgress}
                 </small>

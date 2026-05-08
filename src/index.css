@@ -482,48 +482,6 @@ a {
   font-size: 56px;
 }
 
-.vocabulary-card-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 24px;
-}
-
-.vocabulary-card {
-  min-height: 170px;
-  padding: 20px;
-  color: inherit;
-  background: transparent;
-  border: 1px solid var(--rule);
-  font: inherit;
-  text-align: left;
-  transition:
-    background 80ms,
-    border-color 80ms,
-    transform 80ms;
-}
-
-.vocabulary-card:hover {
-  background: var(--paper-deep);
-  border-color: var(--accent);
-  transform: translateY(-2px);
-}
-
-.vocabulary-card-title {
-  margin-top: 30px;
-  overflow-wrap: anywhere;
-  color: var(--ink);
-  font-family: var(--serif-display);
-  font-size: 40px;
-  font-style: italic;
-  font-weight: 400;
-  line-height: 1.02;
-}
-
-.vocabulary-card.is-active {
-  background: var(--paper-deep);
-  border-color: var(--accent);
-}
-
 .metric-panel span {
   color: var(--accent);
   font-size: 11px;
@@ -760,8 +718,7 @@ a {
   }
 
   .streak-grid,
-  .vocab-grid,
-  .vocabulary-card-grid {
+  .vocab-grid {
     grid-template-columns: 1fr;
   }
 
