@@ -1,7 +1,8 @@
-import { createResource, createSignal, For, Show } from 'solid-js'
+import { createResource, createSignal, For, onCleanup, onMount, Show } from 'solid-js'
 import { render } from 'solid-js/web'
 import './index.css'
 import { calculateCurrentStreak } from './shared/challenge'
+import { kazakhCyrillicToLatinText } from './shared/latin'
 import type { RuntimeMessage, RuntimeResponseFor } from './shared/messages'
 import type { StorageShape, Vocabulary, WordItem } from './shared/types'
 import { isStorageShape } from './shared/validation'
@@ -9,6 +10,14 @@ import { isStorageShape } from './shared/validation'
 const DAY_MS = 24 * 60 * 60 * 1000
 const HEATMAP_WEEKS = 13
 type MasteryFilter = 'all' | 'mastered' | 'in-progress' | 'new'
+interface PendingDelete {
+  vocabularyId: string
+  wordId: string
+  label: string
+}
+interface VocabularySettingsState {
+  vocabularyId: string
+}
 interface ActivityDay {
   key: string
   label: string
@@ -31,38 +40,13 @@ async function getState() {
 
 function Dashboard() {
   const [state, { mutate }] = createResource(getState)
-  const [advancedOpen, setAdvancedOpen] = createSignal(false)
   const [masteryFilter, setMasteryFilter] = createSignal<MasteryFilter>('all')
   const [selectedVocabularyId, setSelectedVocabularyId] = createSignal<string>()
-
-  const updateSettings = async (patch: Partial<StorageShape['settings']>) => {
-    const current = state()
-    if (!current) return
-
-    const next = {
-      ...current,
-      settings: {
-        ...current.settings,
-        ...patch,
-      },
-    }
-
-    mutate(next)
-    await chrome.storage.local.set({ settings: next.settings })
-  }
-
-  const updateQuietHours = async (
-    patch: Partial<StorageShape['settings']['quietHours']>,
-  ) => {
-    const current = state()
-    if (!current) return
-    await updateSettings({
-      quietHours: {
-        ...current.settings.quietHours,
-        ...patch,
-      },
-    })
-  }
+  const [isAddVocabularyOpen, setIsAddVocabularyOpen] = createSignal(false)
+  const [isAddWordOpen, setIsAddWordOpen] = createSignal(false)
+  const [editingWordId, setEditingWordId] = createSignal<string>()
+  const [pendingDelete, setPendingDelete] = createSignal<PendingDelete>()
+  const [vocabularySettings, setVocabularySettings] = createSignal<VocabularySettingsState>()
 
   const activityDays = () => buildActivityDays(state())
   const activityMonths = () => buildActivityMonths(activityDays())
@@ -70,12 +54,160 @@ function Dashboard() {
   const selectedVocabulary = () => getSelectedVocabulary(state(), selectedVocabularyId())
   const dictionaryWords = () =>
     getDictionaryWords(selectedVocabulary(), masteryFilter())
-  const masteredWordCount = () =>
-    countWordsByMastery(selectedVocabulary(), 'mastered')
-  const activeWordCount = () =>
-    countWordsByMastery(selectedVocabulary(), 'in-progress')
   const currentStreak = () =>
     calculateCurrentStreak(state()?.userStats.dailyReviewHistory ?? [])
+
+  const addVocabulary = async (name: string) => {
+    const current = state()
+    const trimmedName = name.trim()
+    if (!current || !trimmedName) return
+
+    const now = Date.now()
+    const vocabulary: Vocabulary = {
+      id: `custom_vocabulary_${now}_${Math.random().toString(36).slice(2, 8)}`,
+      name: trimmedName,
+      category: 'custom',
+      isBuiltin: false,
+      createdAt: now,
+      updatedAt: now,
+      words: [],
+    }
+    const next = {
+      ...current,
+      vocabularies: [vocabulary, ...current.vocabularies],
+      activeVocabularyId: vocabulary.id,
+    }
+
+    mutate(next)
+    setSelectedVocabularyId(vocabulary.id)
+    setIsAddVocabularyOpen(false)
+    await chrome.storage.local.set({
+      vocabularies: next.vocabularies,
+      activeVocabularyId: next.activeVocabularyId,
+    })
+  }
+
+  const updateVocabularyWords = async (
+    vocabularyId: string,
+    updateWords: (words: WordItem[]) => WordItem[],
+  ) => {
+    const current = state()
+    if (!current) return
+
+    const now = Date.now()
+    const next = {
+      ...current,
+      vocabularies: current.vocabularies.map((vocabulary) =>
+        vocabulary.id === vocabularyId
+          ? { ...vocabulary, updatedAt: now, words: updateWords(vocabulary.words) }
+          : vocabulary,
+      ),
+    }
+
+    mutate(next)
+    await chrome.storage.local.set({ vocabularies: next.vocabularies })
+  }
+
+  const addWords = async (vocabularyId: string, words: WordItem[]) => {
+    if (words.length === 0) return
+    await updateVocabularyWords(vocabularyId, (currentWords) => [
+      ...words,
+      ...currentWords,
+    ])
+    setMasteryFilter('all')
+  }
+
+  const updateWord = async (
+    vocabularyId: string,
+    wordId: string,
+    sourceText: string,
+    targetText: string,
+  ) => {
+    await updateVocabularyWords(vocabularyId, (words) =>
+      words.map((word) =>
+        word.id === wordId
+          ? {
+              ...word,
+              sourceText: kazakhCyrillicToLatinText(sourceText.trim()),
+              targetText: targetText.trim(),
+            }
+          : word,
+      ),
+    )
+  }
+
+  const deleteWord = async (vocabularyId: string, wordId: string) => {
+    await updateVocabularyWords(vocabularyId, (words) =>
+      words.filter((word) => word.id !== wordId),
+    )
+  }
+
+  const saveWordEdit = async (
+    vocabulary: Vocabulary,
+    word: WordItem,
+    sourceText: string,
+    targetText: string,
+  ) => {
+    const nextSourceText = kazakhCyrillicToLatinText(sourceText.trim())
+    const nextTargetText = targetText.trim()
+    if (!nextSourceText || !nextTargetText) return
+
+    const duplicateSourceText = vocabulary.words.some(
+      (candidate) =>
+        candidate.id !== word.id &&
+        normalizeSourceText(candidate.sourceText) === normalizeSourceText(nextSourceText),
+    )
+    if (duplicateSourceText) return
+
+    await updateWord(vocabulary.id, word.id, nextSourceText, nextTargetText)
+    setEditingWordId(undefined)
+  }
+
+  const renameVocabulary = async (vocabularyId: string, name: string) => {
+    const current = state()
+    const trimmedName = name.trim()
+    if (!current || !trimmedName) return
+
+    const now = Date.now()
+    const next = {
+      ...current,
+      vocabularies: current.vocabularies.map((vocabulary) =>
+        vocabulary.id === vocabularyId
+          ? { ...vocabulary, name: trimmedName, updatedAt: now }
+          : vocabulary,
+      ),
+    }
+
+    mutate(next)
+    await chrome.storage.local.set({ vocabularies: next.vocabularies })
+  }
+
+  const deleteVocabulary = async (vocabularyId: string) => {
+    const current = state()
+    if (!current || current.vocabularies.length <= 1) return
+
+    const nextVocabularies = current.vocabularies.filter(
+      (vocabulary) => vocabulary.id !== vocabularyId,
+    )
+    const nextActiveVocabularyId = nextVocabularies.some(
+      (vocabulary) => vocabulary.id === current.activeVocabularyId,
+    )
+      ? current.activeVocabularyId
+      : (nextVocabularies[0]?.id ?? current.activeVocabularyId)
+    const next = {
+      ...current,
+      vocabularies: nextVocabularies,
+      activeVocabularyId: nextActiveVocabularyId,
+    }
+
+    mutate(next)
+    setSelectedVocabularyId(undefined)
+    setVocabularySettings(undefined)
+    await chrome.storage.local.set({
+      vocabularies: next.vocabularies,
+      activeVocabularyId: next.activeVocabularyId,
+    })
+  }
 
   const makeVocabularyActive = async (vocabularyId: string) => {
     const current = state()
@@ -98,13 +230,6 @@ function Dashboard() {
             <>
               <div class="dashboard-actions">
                 <div class="dashboard-wordmark">Bir söz</div>
-                <button
-                  type="button"
-                  class="advanced-settings-button"
-                  onClick={() => setAdvancedOpen(true)}
-                >
-                  Доп. настройки
-                </button>
               </div>
 
               <section class="dashboard-section">
@@ -173,19 +298,40 @@ function Dashboard() {
                 <Show
                   when={selectedVocabulary()}
                   fallback={
-                    <VocabularyOverview
-                      storage={current()}
-                      onSelect={(vocabularyId) => {
-                        setSelectedVocabularyId(vocabularyId)
-                        setMasteryFilter('all')
-                      }}
-                    />
+                    <>
+                      <VocabularyOverview
+                        storage={current()}
+                        onAdd={() => setIsAddVocabularyOpen(true)}
+                        onSelect={(vocabularyId) => {
+                          setSelectedVocabularyId(vocabularyId)
+                          setMasteryFilter('all')
+                        }}
+                      />
+                      <Show when={isAddVocabularyOpen()}>
+                        <AddVocabularyModal
+                          onClose={() => setIsAddVocabularyOpen(false)}
+                          onAdd={addVocabulary}
+                        />
+                      </Show>
+                    </>
                   }
                 >
                   {(vocabulary) => (
                     <>
                       <div class="section-heading-row">
-                        <h2 class="section-heading">{vocabulary().name}</h2>
+                        <div class="vocabulary-heading-with-action">
+                          <h2 class="section-heading">{vocabulary().name}</h2>
+                          <button
+                            type="button"
+                            aria-label="Редактировать словарь"
+                            title="Редактировать словарь"
+                            onClick={() =>
+                              setVocabularySettings({ vocabularyId: vocabulary().id })
+                            }
+                          >
+                            ✎
+                          </button>
+                        </div>
                         <div class="table-tools vocabulary-title-actions">
                           <span>{dictionaryWords().length} слов</span>
                           <button
@@ -226,20 +372,14 @@ function Dashboard() {
                           </select>
                         </label>
                       </div>
-                      <div class="vocab-grid compact-vocab-grid">
-                        <MetricPanel
-                          label="В работе"
-                          value={activeWordCount()}
-                          body="слов сейчас повторяются"
-                          note="уже встречались, ещё не освоены"
-                        />
-                        <MetricPanel
-                          label="Освоенные слова"
-                          value={masteredWordCount()}
-                          body="слов узнаёшь без подсказки"
-                          note="верно 3 раза подряд, повтор реже недели"
-                          accent
-                        />
+                      <div class="dictionary-actions">
+                        <button
+                          type="button"
+                          onClick={() => setIsAddWordOpen(true)}
+                        >
+                          + Добавить слово
+                        </button>
+
                       </div>
                       <Show
                         when={dictionaryWords().length > 0}
@@ -252,27 +392,83 @@ function Dashboard() {
                         <div class="mastered-table dictionary-table-scroll">
                           <For each={dictionaryWords()}>
                             {(word) => (
-                              <div class="mastered-row">
+                              <button
+                                type="button"
+                                class="mastered-row mastered-row-button"
+                                onClick={() => setEditingWordId(word.id)}
+                              >
                                 <span>{word.sourceText}</span>
                                 <em>{word.targetText}</em>
                                 <span>{masteryLabel(word)}</span>
-                              </div>
+                              </button>
                             )}
                           </For>
                         </div>
+                      </Show>
+                      <Show when={isAddWordOpen()}>
+                        <AddWordModal
+                          vocabularyName={vocabulary().name}
+                          existingWords={vocabulary().words}
+                          onClose={() => setIsAddWordOpen(false)}
+                          onAdd={(words) => addWords(vocabulary().id, words)}
+                        />
+                      </Show>
+                      <Show
+                        when={vocabulary().words.find(
+                          (word) => word.id === editingWordId(),
+                        )}
+                      >
+                        {(word) => (
+                          <EditWordModal
+                            word={word()}
+                            onClose={() => setEditingWordId(undefined)}
+                            onSave={(sourceText, targetText) =>
+                              saveWordEdit(vocabulary(), word(), sourceText, targetText)
+                            }
+                            onDelete={() => {
+                              setPendingDelete({
+                                vocabularyId: vocabulary().id,
+                                wordId: word().id,
+                                label: `${word().sourceText} — ${word().targetText}`,
+                              })
+                              setEditingWordId(undefined)
+                            }}
+                          />
+                        )}
+                      </Show>
+                      <Show when={pendingDelete()}>
+                        {(deleteRequest) => (
+                          <ConfirmDeleteModal
+                            label={deleteRequest().label}
+                            onCancel={() => setPendingDelete(undefined)}
+                            onConfirm={async () => {
+                              await deleteWord(
+                                deleteRequest().vocabularyId,
+                                deleteRequest().wordId,
+                              )
+                              setPendingDelete(undefined)
+                            }}
+                          />
+                        )}
+                      </Show>
+                      <Show when={vocabularySettings()}>
+                        {(settings) => (
+                          <VocabularySettingsModal
+                            vocabulary={vocabulary()}
+                            canDelete={current().vocabularies.length > 1}
+                            onClose={() => setVocabularySettings(undefined)}
+                            onRename={async (name) => {
+                              await renameVocabulary(settings().vocabularyId, name)
+                              setVocabularySettings(undefined)
+                            }}
+                            onDelete={() => deleteVocabulary(settings().vocabularyId)}
+                          />
+                        )}
                       </Show>
                     </>
                   )}
                 </Show>
               </section>
-              <Show when={advancedOpen()}>
-                <AdvancedSettingsModal
-                  settings={current().settings}
-                  onClose={() => setAdvancedOpen(false)}
-                  onSettingsChange={updateSettings}
-                  onQuietHoursChange={updateQuietHours}
-                />
-              </Show>
             </>
           )}
         </Show>
@@ -296,25 +492,328 @@ function StatBlock(props: {
   )
 }
 
-function MetricPanel(props: {
-  label: string
-  value: number
-  body: string
-  note: string
-  accent?: boolean
+function EditWordModal(props: {
+  word: WordItem
+  onClose: () => void
+  onSave: (sourceText: string, targetText: string) => void | Promise<void>
+  onDelete: () => void
 }) {
+  useEscapeKey(props.onClose)
+  const [sourceText, setSourceText] = createSignal(props.word.sourceText)
+  const [targetText, setTargetText] = createSignal(props.word.targetText)
+  const canSave = () => sourceText().trim() && targetText().trim()
+
   return (
-    <div class="metric-panel">
-      <span>{props.label}</span>
-      <strong classList={{ accent: props.accent }}>{props.value}</strong>
-      <p>{props.body}</p>
-      <small>{props.note}</small>
+    <div class="modal-backdrop" role="dialog" aria-modal="true">
+      <button
+        type="button"
+        class="modal-backdrop-button"
+        aria-label="Закрыть"
+        onClick={props.onClose}
+      />
+      <div class="advanced-modal word-modal">
+        <button type="button" class="modal-close" onClick={props.onClose}>
+          закрыть
+        </button>
+        <h2 class="section-heading">Редактировать слово</h2>
+        <label class="word-field">
+          Казахское слово
+          <input
+            value={sourceText()}
+            onInput={(event) => setSourceText(event.currentTarget.value)}
+          />
+        </label>
+        <label class="word-field">
+          Русский перевод
+          <input
+            value={targetText()}
+            onInput={(event) => setTargetText(event.currentTarget.value)}
+          />
+        </label>
+        <div class="modal-actions">
+          <button type="button" class="danger-link" onClick={props.onDelete}>
+            Удалить слово
+          </button>
+          <button
+            type="button"
+            disabled={!canSave()}
+            onClick={() => props.onSave(sourceText(), targetText())}
+          >
+            Сохранить
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function ConfirmDeleteModal(props: {
+  label: string
+  onCancel: () => void
+  onConfirm: () => void | Promise<void>
+}) {
+  useEscapeKey(props.onCancel)
+  return (
+    <div class="modal-backdrop" role="dialog" aria-modal="true">
+      <button
+        type="button"
+        class="modal-backdrop-button"
+        aria-label="Отмена"
+        onClick={props.onCancel}
+      />
+      <div class="advanced-modal word-modal">
+        <h2 class="section-heading">Удалить слово?</h2>
+        <p class="modal-note">
+          Слово «{props.label}» будет удалено из словаря.
+        </p>
+        <div class="modal-actions">
+          <button type="button" onClick={props.onCancel}>
+            Отмена
+          </button>
+          <button type="button" onClick={props.onConfirm}>
+            Удалить
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function AddVocabularyModal(props: {
+  onClose: () => void
+  onAdd: (name: string) => void | Promise<void>
+}) {
+  useEscapeKey(props.onClose)
+  const [name, setName] = createSignal('')
+  const canAdd = () => Boolean(name().trim())
+
+  return (
+    <div class="modal-backdrop" role="dialog" aria-modal="true">
+      <button
+        type="button"
+        class="modal-backdrop-button"
+        aria-label="Закрыть"
+        onClick={props.onClose}
+      />
+      <form
+        class="advanced-modal word-modal"
+        onSubmit={(event) => {
+          event.preventDefault()
+          if (canAdd()) void props.onAdd(name())
+        }}
+      >
+        <button type="button" class="modal-close" onClick={props.onClose}>
+          закрыть
+        </button>
+        <h2 class="section-heading">Новый словарь</h2>
+        <label class="word-field">
+          Название словаря
+          <input
+            value={name()}
+            onInput={(event) => setName(event.currentTarget.value)}
+            placeholder="Мой словарь"
+            required
+          />
+        </label>
+        <div class="modal-actions">
+          <span />
+          <button type="submit" disabled={!canAdd()}>
+            Создать
+          </button>
+        </div>
+      </form>
+    </div>
+  )
+}
+
+function VocabularySettingsModal(props: {
+  vocabulary: Vocabulary
+  canDelete: boolean
+  onClose: () => void
+  onRename: (name: string) => void | Promise<void>
+  onDelete: () => void | Promise<void>
+}) {
+  useEscapeKey(props.onClose)
+  const [name, setName] = createSignal(props.vocabulary.name)
+  const [isDeleteConfirming, setIsDeleteConfirming] = createSignal(false)
+  const [deleteConfirmation, setDeleteConfirmation] = createSignal('')
+  const canRename = () => name().trim() && name().trim() !== props.vocabulary.name
+  const canDelete = () =>
+    props.canDelete && deleteConfirmation().trim() === props.vocabulary.name
+
+  return (
+    <div class="modal-backdrop" role="dialog" aria-modal="true">
+      <button
+        type="button"
+        class="modal-backdrop-button"
+        aria-label="Закрыть"
+        onClick={props.onClose}
+      />
+      <div class="advanced-modal word-modal">
+        <button type="button" class="modal-close" onClick={props.onClose}>
+          закрыть
+        </button>
+        <h2 class="section-heading">Настройки словаря</h2>
+        <label class="word-field">
+          Название словаря
+          <input
+            value={name()}
+            onInput={(event) => setName(event.currentTarget.value)}
+          />
+        </label>
+        <div class="modal-actions">
+          <span />
+          <button
+            type="button"
+            disabled={!canRename()}
+            onClick={() => props.onRename(name())}
+          >
+            Сохранить название
+          </button>
+        </div>
+        <div class="danger-zone">
+          <Show
+            when={isDeleteConfirming()}
+            fallback={
+              <button
+                type="button"
+                class="danger-button"
+                disabled={!props.canDelete}
+                onClick={() => setIsDeleteConfirming(true)}
+              >
+                {props.canDelete ? 'Удалить словарь' : 'Нельзя удалить последний словарь'}
+              </button>
+            }
+          >
+            <p class="modal-note">
+              Чтобы удалить словарь, введи его текущее название: «{props.vocabulary.name}».
+            </p>
+            <input
+              value={deleteConfirmation()}
+              onInput={(event) => setDeleteConfirmation(event.currentTarget.value)}
+              placeholder={props.vocabulary.name}
+            />
+            <div class="modal-actions">
+              <button
+                type="button"
+                onClick={() => {
+                  setIsDeleteConfirming(false)
+                  setDeleteConfirmation('')
+                }}
+              >
+                Отмена
+              </button>
+              <button type="button" disabled={!canDelete()} onClick={props.onDelete}>
+                Подтвердить удаление
+              </button>
+            </div>
+          </Show>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function AddWordModal(props: {
+  vocabularyName: string
+  existingWords: WordItem[]
+  onClose: () => void
+  onAdd: (words: WordItem[]) => Promise<void>
+}) {
+  useEscapeKey(props.onClose)
+  const [kazakhWord, setKazakhWord] = createSignal('')
+  const [russianWord, setRussianWord] = createSignal('')
+  const [isSaving, setIsSaving] = createSignal(false)
+  const [error, setError] = createSignal('')
+
+  const createAndAddWords = async (pairs: Array<[string, string]>) => {
+    const words = pairs
+      .map(([sourceText, targetText]) => createWordItem(sourceText, targetText))
+      .filter((word): word is WordItem => Boolean(word))
+
+    if (words.length === 0) {
+      setError('Добавь казахское и русское слово.')
+      return
+    }
+
+    const uniqueWords = filterUniqueSourceWords(words, props.existingWords)
+
+    setIsSaving(true)
+    setError('')
+    if (uniqueWords.length > 0) {
+      await props.onAdd(uniqueWords)
+    }
+    setIsSaving(false)
+    props.onClose()
+  }
+
+  const submit = async (event: SubmitEvent) => {
+    event.preventDefault()
+    await createAndAddWords([[kazakhWord(), russianWord()]])
+  }
+
+  const uploadCsv = async (event: Event) => {
+    const input = event.currentTarget as HTMLInputElement
+    const file = input.files?.[0]
+    if (!file) return
+
+    const rows = parseWordCsv(await file.text())
+    await createAndAddWords(rows)
+    input.value = ''
+  }
+
+  return (
+    <div class="modal-backdrop" role="dialog" aria-modal="true">
+      <button
+        type="button"
+        class="modal-backdrop-button"
+        aria-label="Закрыть"
+        onClick={props.onClose}
+      />
+      <form class="advanced-modal word-modal" onSubmit={submit}>
+        <button type="button" class="modal-close" onClick={props.onClose}>
+          закрыть
+        </button>
+        <h2 class="section-heading">Новое слово</h2>
+        <p class="modal-note">Добавится в «{props.vocabularyName}». Казахский текст будет сохранён латиницей.</p>
+        <label class="word-field">
+          Казахское слово
+          <input
+            value={kazakhWord()}
+            onInput={(event) => setKazakhWord(event.currentTarget.value)}
+            placeholder="кітап / kitap"
+            required
+          />
+        </label>
+        <label class="word-field">
+          Русский перевод
+          <input
+            value={russianWord()}
+            onInput={(event) => setRussianWord(event.currentTarget.value)}
+            placeholder="книга"
+            required
+          />
+        </label>
+        <Show when={error()}>
+          <p class="form-error">{error()}</p>
+        </Show>
+        <div class="modal-actions">
+          <label class="csv-upload-button">
+            импортировать csv
+            <input type="file" accept=".csv,text/csv" onChange={uploadCsv} />
+          </label>
+          <button type="submit" disabled={isSaving()}>
+            {isSaving() ? 'Сохраняем…' : 'Создать'}
+          </button>
+        </div>
+      </form>
     </div>
   )
 }
 
 function VocabularyOverview(props: {
   storage: StorageShape
+  onAdd: () => void
   onSelect: (vocabularyId: string) => void
 }) {
   return (
@@ -323,9 +822,14 @@ function VocabularyOverview(props: {
         <h2 class="section-heading">
           Все словари, <em>выбери набор</em>.
         </h2>
-        <span class="table-count">
-          {props.storage.vocabularies.length} словаря
-        </span>
+        <div class="overview-actions">
+          <button type="button" onClick={props.onAdd}>
+            + Добавить словарь
+          </button>
+          <span class="table-count">
+            {props.storage.vocabularies.length} словаря
+          </span>
+        </div>
       </div>
       <div class="grid grid-cols-3 gap-6 max-[760px]:grid-cols-1">
         <For each={props.storage.vocabularies}>
@@ -350,7 +854,7 @@ function VocabularyOverview(props: {
                     <span class="text-ink-faded">Активный</span>
                   </Show>
                 </div>
-                <p class="break-words font-serif-display text-2xl font-normal italic leading-none text-ink">
+                <p class="truncate font-serif-display text-2xl font-normal italic leading-none text-ink">
                   {vocabulary.name}
                 </p>
                 <small class="font-mono-editorial text-[12px] uppercase tracking-[0.12em] text-ink-faded">
@@ -363,95 +867,6 @@ function VocabularyOverview(props: {
         </For>
       </div>
     </>
-  )
-}
-
-function AdvancedSettingsModal(props: {
-  settings: StorageShape['settings']
-  onClose: () => void
-  onSettingsChange: (patch: Partial<StorageShape['settings']>) => void
-  onQuietHoursChange: (
-    patch: Partial<StorageShape['settings']['quietHours']>,
-  ) => void
-}) {
-  return (
-    <div class="modal-backdrop">
-      <button
-        type="button"
-        class="modal-backdrop-button"
-        aria-label="Закрыть доп. настройки"
-        onClick={props.onClose}
-      />
-      <section
-        class="advanced-modal"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="advanced-settings-title"
-      >
-        <div class="section-heading-row">
-          <h2 id="advanced-settings-title" class="section-heading">
-            Доп. настройки
-          </h2>
-          <button type="button" class="modal-close" onClick={props.onClose}>
-            Закрыть
-          </button>
-        </div>
-        <SettingsNumber
-          label="Как часто"
-          value={props.settings.frequency}
-          min={1}
-          max={20}
-          suffix="действий"
-          onChange={(frequency) => props.onSettingsChange({ frequency })}
-        />
-        <div class="settings-grid">
-          <SettingsNumber
-            label="Не показывать с"
-            value={props.settings.quietHours.startHour}
-            min={0}
-            max={23}
-            suffix="ч"
-            onChange={(startHour) => props.onQuietHoursChange({ startHour })}
-          />
-          <SettingsNumber
-            label="Не показывать до"
-            value={props.settings.quietHours.endHour}
-            min={0}
-            max={23}
-            suffix="ч"
-            onChange={(endHour) => props.onQuietHoursChange({ endHour })}
-          />
-        </div>
-      </section>
-    </div>
-  )
-}
-
-function SettingsNumber(props: {
-  label: string
-  value: number
-  min: number
-  max: number
-  suffix: string
-  onChange: (value: number) => void
-}) {
-  return (
-    <label class="settings-number">
-      <span>{props.label}</span>
-      <input
-        type="number"
-        min={props.min}
-        max={props.max}
-        value={props.value}
-        onChange={(event) => {
-          const value = Number(event.currentTarget.value)
-          if (!Number.isNaN(value)) {
-            props.onChange(Math.min(props.max, Math.max(props.min, value)))
-          }
-        }}
-      />
-      <small>{props.suffix}</small>
-    </label>
   )
 }
 
@@ -579,6 +994,72 @@ function masteryLabel(word: WordItem) {
 
 function isMastered(word: WordItem) {
   return word.srs.repetition >= 3 && word.srs.interval > 7
+}
+
+function createWordItem(sourceText: string, targetText: string): WordItem | undefined {
+  const latinSourceText = kazakhCyrillicToLatinText(sourceText.trim())
+  const cleanTargetText = targetText.trim()
+  if (!latinSourceText || !cleanTargetText) return undefined
+
+  return {
+    id: `custom_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+    sourceText: latinSourceText,
+    targetText: cleanTargetText,
+    sourceLabel: 'qazaq tili',
+    targetLabel: 'orys tili',
+    level: 'A1',
+    srs: {
+      repetition: 0,
+      interval: 1,
+      easeFactor: 2.5,
+      nextReview: 0,
+    },
+  }
+}
+
+function parseWordCsv(text: string): Array<[string, string]> {
+  return text
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line) => {
+      const [sourceText = '', targetText = ''] = line
+        .split(/[,;]/)
+        .map((cell) => cell.trim().replace(/^"|"$/g, ''))
+      return [sourceText, targetText] as [string, string]
+    })
+    .filter(([sourceText, targetText]) => sourceText && targetText)
+}
+
+function filterUniqueSourceWords(
+  newWords: WordItem[],
+  existingWords: WordItem[],
+): WordItem[] {
+  const seen = new Set(
+    existingWords.map((word) => normalizeSourceText(word.sourceText)),
+  )
+
+  return newWords.filter((word) => {
+    const normalizedSourceText = normalizeSourceText(word.sourceText)
+    if (seen.has(normalizedSourceText)) return false
+    seen.add(normalizedSourceText)
+    return true
+  })
+}
+
+function normalizeSourceText(text: string) {
+  return kazakhCyrillicToLatinText(text.trim()).toLocaleLowerCase('kk-KZ')
+}
+
+function useEscapeKey(onEscape: () => void) {
+  onMount(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') onEscape()
+    }
+
+    document.addEventListener('keydown', handleKeyDown)
+    onCleanup(() => document.removeEventListener('keydown', handleKeyDown))
+  })
 }
 
 function dateKey(date: Date) {
