@@ -96,7 +96,7 @@ function App() {
     <main class="min-w-80 space-y-4 bg-paper p-5 font-serif-body text-[17px] leading-[1.55] text-ink">
       <header>
         <h1 class="font-mono-editorial text-[11px] uppercase tracking-[0.2em] text-accent">
-          Bir sóz
+          Bir söz
         </h1>
       </header>
 

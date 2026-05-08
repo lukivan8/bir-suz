@@ -32,7 +32,33 @@
   z-index: 2147483647;
   width: 340px;
   pointer-events: none;
+  isolation: isolate;
   transform: translateX(-50%);
+}
+
+.bir-soz-stage::before {
+  content: "";
+  position: fixed;
+  left: 50%;
+  bottom: -18vh;
+  z-index: -1;
+  width: 180vw;
+  height: 112vh;
+  background:
+    radial-gradient(
+      ellipse at 50% 100%,
+      rgba(26, 22, 18, 0.8) 0%,
+      rgba(26, 22, 18, 0.48) 26%,
+      rgba(168, 83, 28, 0.28) 52%,
+      rgba(26, 22, 18, 0) 84%
+    );
+  opacity: 0;
+  transform: translateX(-50%) translateY(18px) scale(0.96);
+  animation: bir-soz-halo-in 180ms ease-out forwards;
+}
+
+.bir-soz-stage.is-exiting::before {
+  animation: bir-soz-halo-out 120ms ease-out forwards;
 }
 
 .bir-soz-card {
@@ -45,6 +71,7 @@
   border: 1px solid var(--rule);
   border-radius: 0;
   box-shadow: 0 2px 12px rgba(26, 22, 18, 0.12);
+  z-index: 1;
   pointer-events: auto;
   opacity: 0;
   transform: translateY(calc(100% + 24px));
@@ -218,6 +245,28 @@
   }
   .bir-soz-card {
     width: 100%;
+  }
+}
+
+@keyframes bir-soz-halo-in {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(18px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0) scale(1);
+  }
+}
+
+@keyframes bir-soz-halo-out {
+  from {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translateX(-50%) translateY(18px) scale(0.98);
   }
 }
 

@@ -180,7 +180,12 @@ function Overlay(props: { payload: ChallengePayload; onClose: () => void }) {
   })
 
   return (
-    <div class="bir-soz-stage">
+    <div
+      class="bir-soz-stage"
+      classList={{
+        'is-exiting': isExiting(),
+      }}
+    >
       <article
         class="bir-soz-card"
         classList={{
@@ -191,7 +196,7 @@ function Overlay(props: { payload: ChallengePayload; onClose: () => void }) {
         <div class="bir-soz-content">
           <header class="bir-soz-topline">
             <span>Перевод</span>
-<span>sóz 1</span>
+<span>söz 1</span>
           </header>
 
           <section>
@@ -202,7 +207,7 @@ function Overlay(props: { payload: ChallengePayload; onClose: () => void }) {
               )}
             </h2>
             <p class="bir-soz-prompt">
-              Orys tilindegi aýdarmany tańdańyz
+              Orys tilindegi audarmany tañdañyz
             </p>
           </section>
 

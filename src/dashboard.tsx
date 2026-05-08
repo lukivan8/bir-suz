@@ -72,7 +72,7 @@ function Dashboard() {
           {(current) => (
             <>
               <div class="dashboard-actions">
-                <div class="dashboard-wordmark">Bir sóz</div>
+                <div class="dashboard-wordmark">Bir söz</div>
                 <button
                   type="button"
                   class="advanced-settings-button"

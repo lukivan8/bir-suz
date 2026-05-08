@@ -78,6 +78,7 @@ function buildNextStats(
     totalCorrect: storage.userStats.totalCorrect + (result.wasCorrect ? 1 : 0),
     timeInLanguageContactMs:
       storage.userStats.timeInLanguageContactMs + result.elapsedMs,
+    lastChallengeAt: now,
   }
 }
 

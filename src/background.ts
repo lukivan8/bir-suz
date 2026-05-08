@@ -201,12 +201,6 @@ async function maybeTriggerChallenge(
       type: 'bir-soz:show-challenge',
       payload,
     })
-    await updateStorage({
-      userStats: {
-        ...storage.userStats,
-        lastChallengeAt: Date.now(),
-      },
-    })
     log('challenge sent successfully', { source, tabId, wordId: word.id })
     return true
   } catch (error) {
