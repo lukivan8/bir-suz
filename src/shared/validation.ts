@@ -15,6 +15,7 @@ import type {
 } from './types'
 
 const triggerSources = ['new-tab', 'navigation', 'demo-hotkey'] as const
+const challengeDirections = ['source-to-target', 'target-to-source'] as const
 const scriptVariants = ['latin', 'cyrillic'] as const
 const wordLevels = ['A1', 'A2'] as const
 const vocabularyCategories = [
@@ -168,6 +169,9 @@ export function isChallengePayload(value: unknown): value is ChallengePayload {
   return (
     isTriggerSource(candidate.source) &&
     isWordItem(candidate.word) &&
+    includesString(challengeDirections, candidate.direction) &&
+    typeof candidate.promptText === 'string' &&
+    typeof candidate.answerText === 'string' &&
     Array.isArray(candidate.options) &&
     candidate.options.every((option) => typeof option === 'string') &&
     typeof candidate.startedAt === 'number'

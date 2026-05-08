@@ -178,10 +178,15 @@ function Overlay(props: { payload: ChallengePayload; onClose: () => void }) {
   const optionState = (option: string) => {
     const current = selected()
     if (!current) return 'neutral'
-    if (option === props.payload.word.targetText) return 'correct'
+    if (option === props.payload.answerText) return 'correct'
     if (option === current) return 'wrong'
     return 'muted'
   }
+
+  const promptCopy = () =>
+    props.payload.direction === 'target-to-source'
+      ? 'Qazaq tilindegi audarmany tañdañyz'
+      : 'Orys tilindegi audarmany tañdañyz'
 
   window.addEventListener('keydown', onKeyDown)
   onCleanup(() => {
@@ -210,12 +215,12 @@ function Overlay(props: { payload: ChallengePayload; onClose: () => void }) {
 
           <section>
             <h2 class="bir-soz-word">
-              {props.payload.word.sourceText}
-              {selected() === props.payload.word.targetText && (
+              {props.payload.promptText}
+              {selected() === props.payload.answerText && (
                 <span class="bir-soz-glyph">+</span>
               )}
             </h2>
-            <p class="bir-soz-prompt">Orys tilindegi audarmany tañdañyz</p>
+            <p class="bir-soz-prompt">{promptCopy()}</p>
           </section>
 
           <div class="bir-soz-rule" />
@@ -229,7 +234,7 @@ function Overlay(props: { payload: ChallengePayload; onClose: () => void }) {
                   disabled={Boolean(selected())}
                   onClick={() => {
                     setSelected(option)
-                    void submit(option === props.payload.word.targetText)
+                    void submit(option === props.payload.answerText)
                   }}
                 >
                   {option}

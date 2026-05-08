@@ -29,23 +29,42 @@ export function buildChallengePayload(
   vocabularyWords: WordItem[],
   now = Date.now(),
 ): ChallengePayload {
+  const direction = Math.random() < 1 / 3 ? 'target-to-source' : 'source-to-target'
+  const promptText =
+    direction === 'target-to-source' ? word.targetText : word.sourceText
+  const answerText =
+    direction === 'target-to-source' ? word.sourceText : word.targetText
+
   return {
     source,
     word,
-    options: buildAnswerOptions(word, vocabularyWords),
+    direction,
+    promptText,
+    answerText,
+    options: buildAnswerOptions(word, vocabularyWords, direction),
     startedAt: now,
   }
 }
 
-function buildAnswerOptions(word: WordItem, vocabularyWords: WordItem[]) {
+function buildAnswerOptions(
+  word: WordItem,
+  vocabularyWords: WordItem[],
+  direction: ChallengePayload['direction'],
+) {
+  const answerText =
+    direction === 'target-to-source' ? word.sourceText : word.targetText
   const distractors = unique(
     shuffle(vocabularyWords)
       .filter((candidate) => candidate.id !== word.id)
-      .map((candidate) => candidate.targetText)
-      .filter((targetText) => targetText !== word.targetText),
+      .map((candidate) =>
+        direction === 'target-to-source'
+          ? candidate.sourceText
+          : candidate.targetText,
+      )
+      .filter((option) => option !== answerText),
   ).slice(0, 3)
 
-  return shuffle([word.targetText, ...distractors])
+  return shuffle([answerText, ...distractors])
 }
 
 export function applyChallengeResult(
