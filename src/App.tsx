@@ -253,7 +253,7 @@ function Switch(props: {
       type="button"
       role="switch"
       aria-checked={props.checked}
-      aria-label={`${props.label}: ${props.checked ? 'on' : 'off'}`}
+      aria-label={`${props.label}: ${props.checked ? 'включено' : 'выключено'}`}
       class="relative h-[35px] w-14 shrink-0 border border-rule bg-paper text-left transition-colors hover:border-accent aria-checked:border-accent aria-checked:bg-accent"      onClick={() => props.onChange(!props.checked)}
     >
       <span
@@ -262,7 +262,7 @@ function Switch(props: {
           'translate-x-7 bg-paper': props.checked,
         }}
       />
-      <span class="sr-only">{props.checked ? 'On' : 'Off'}</span>
+      <span class="sr-only">{props.checked ? 'Вкл' : 'Выкл'}</span>
     </button>
   )
 }
