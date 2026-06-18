@@ -1,39 +1,5 @@
+import { defaultWords } from './learning-content'
 import type { AppSettings, StorageShape, UserStats, WordItem } from './types'
-
-const defaultWords: WordItem[] = [
-  {
-    id: 'kk_001',
-    kk: 'Сәлем',
-    ru: 'Привет',
-    distractors: ['Пока', 'Дом', 'Книга'],
-    level: 'A1',
-    srs: { repetition: 0, interval: 1, easeFactor: 2.5, nextReview: 0 },
-  },
-  {
-    id: 'kk_002',
-    kk: 'Рақмет',
-    ru: 'Спасибо',
-    distractors: ['Здравствуйте', 'Урок', 'Время'],
-    level: 'A1',
-    srs: { repetition: 0, interval: 1, easeFactor: 2.5, nextReview: 0 },
-  },
-  {
-    id: 'kk_003',
-    kk: 'Кітап',
-    ru: 'Книга',
-    distractors: ['Окно', 'Учитель', 'Работа'],
-    level: 'A1',
-    srs: { repetition: 0, interval: 1, easeFactor: 2.5, nextReview: 0 },
-  },
-  {
-    id: 'kk_004',
-    kk: 'Жұмыс',
-    ru: 'Работа',
-    distractors: ['Школа', 'Спасибо', 'Вода'],
-    level: 'A1',
-    srs: { repetition: 0, interval: 1, easeFactor: 2.5, nextReview: 0 },
-  },
-]
 
 const defaultStats: UserStats = {
   currentStreak: 0,
@@ -61,6 +27,7 @@ export const defaultStorage: StorageShape = {
   userStats: defaultStats,
   settings: defaultSettings,
   newTabCount: 0,
+  pendingTrigger: undefined,
 }
 
 export async function ensureStorage() {
@@ -80,7 +47,23 @@ export async function ensureStorage() {
 export async function getStorage(): Promise<StorageShape> {
   await ensureStorage()
   const storageKeys = Object.keys(defaultStorage) as (keyof StorageShape)[]
-  return (await chrome.storage.local.get(storageKeys)) as StorageShape
+  const storage = (await chrome.storage.local.get(storageKeys)) as StorageShape
+
+  if (!storage.wordBank.every(isCurrentWordShape)) {
+    storage.wordBank = defaultWords
+    await chrome.storage.local.set({ wordBank: defaultWords })
+  }
+
+  return storage
+}
+
+function isCurrentWordShape(word: WordItem) {
+  return (
+    typeof word.sourceText === 'string' &&
+    typeof word.targetText === 'string' &&
+    Array.isArray(word.distractors) &&
+    word.distractors.length >= 3
+  )
 }
 
 export async function updateStorage(patch: Partial<StorageShape>) {

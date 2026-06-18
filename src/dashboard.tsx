@@ -18,7 +18,7 @@ function Dashboard() {
 
     return current.wordBank.map((word) => ({
       id: word.id,
-      word: word.kk,
+      word: word.sourceText,
       percent: Math.min(100, Math.round((word.srs.repetition / 5) * 100)),
     }))
   }

@@ -8,8 +8,8 @@ export interface SrsData {
 
 export interface WordItem {
   id: string
-  kk: string
-  ru: string
+  sourceText: string
+  targetText: string
   distractors: string[]
   level: 'A1' | 'A2'
   srs: SrsData
@@ -45,6 +45,7 @@ export interface StorageShape {
   userStats: UserStats
   settings: AppSettings
   newTabCount: number
+  pendingTrigger?: TriggerSource
 }
 
 export type TriggerSource = 'new-tab' | 'idle-return' | 'demo-hotkey'
