@@ -1,8 +1,20 @@
-import { createResource, For } from 'solid-js'
+import { createResource, createSignal, For, Show } from 'solid-js'
 import { render } from 'solid-js/web'
 import './index.css'
+import { calculateCurrentStreak } from './shared/challenge'
 import type { RuntimeMessage } from './shared/messages'
-import type { StorageShape } from './shared/types'
+import type { StorageShape, WordItem } from './shared/types'
+
+const DAY_MS = 24 * 60 * 60 * 1000
+const HEATMAP_WEEKS = 13
+type MasteryFilter = 'all' | 'mastered' | 'in-progress' | 'new'
+interface ActivityDay {
+  key: string
+  label: string
+  count: number
+  correct: number
+  isToday: boolean
+}
 
 async function getState() {
   return (await sendRuntimeMessage({
@@ -11,84 +23,423 @@ async function getState() {
 }
 
 function Dashboard() {
-  const [state] = createResource(getState)
+  const [state, { mutate }] = createResource(getState)
+  const [advancedOpen, setAdvancedOpen] = createSignal(false)
+  const [masteryFilter, setMasteryFilter] = createSignal<MasteryFilter>('all')
 
-  const mastery = () => {
+  const updateSettings = async (patch: Partial<StorageShape['settings']>) => {
     const current = state()
-    if (!current) return []
+    if (!current) return
 
-    return current.wordBank.map((word) => ({
-      id: word.id,
-      word: word.sourceText,
-      percent: Math.min(100, Math.round((word.srs.repetition / 5) * 100)),
-    }))
+    const next = {
+      ...current,
+      settings: {
+        ...current.settings,
+        ...patch,
+      },
+    }
+
+    mutate(next)
+    await chrome.storage.local.set({ settings: next.settings })
   }
 
+  const updateQuietHours = async (
+    patch: Partial<StorageShape['settings']['quietHours']>,
+  ) => {
+    const current = state()
+    if (!current) return
+    await updateSettings({
+      quietHours: {
+        ...current.settings.quietHours,
+        ...patch,
+      },
+    })
+  }
+
+  const activityDays = () => buildActivityDays(state())
+  const activityMonths = () => buildActivityMonths(activityDays())
+  const activityWeekdays = () => buildActivityWeekdays()
+  const dictionaryWords = () => getDictionaryWords(state(), masteryFilter())
+  const masteredWordCount = () => countWordsByMastery(state(), 'mastered')
+  const activeWordCount = () => countWordsByMastery(state(), 'in-progress')
+  const currentStreak = () =>
+    calculateCurrentStreak(state()?.userStats.dailyReviewHistory ?? [])
+
   return (
-    <main class="min-h-screen bg-stone-950 p-6 text-stone-50">
-      <div class="mx-auto max-w-5xl space-y-6">
-        <header>
-          <p class="text-xs uppercase tracking-[0.24em] text-emerald-300">
-            Bir Söz Dashboard
-          </p>
-          <h1 class="mt-2 text-4xl font-semibold">Retention snapshot</h1>
-        </header>
+    <main class="dashboard-page">
+      <div class="dashboard-shell">
+        <Show when={state()}>
+          {(current) => (
+            <>
+              <div class="dashboard-actions">
+                <div class="dashboard-wordmark">Bir sóz</div>
+                <button
+                  type="button"
+                  class="advanced-settings-button"
+                  onClick={() => setAdvancedOpen(true)}
+                >
+                  Доп. настройки
+                </button>
+              </div>
 
-        <section class="grid gap-4 md:grid-cols-3">
-          <Card
-            label="Active vocabulary"
-            value={state()?.wordBank.length ?? 0}
-          />
-          <Card
-            label="Time in language contact"
-            value={`${Math.round((state()?.userStats.timeInLanguageContactMs ?? 0) / 1000)}s`}
-          />
-          <Card
-            label="Success rate without hints"
-            value={`${rate(state())}%`}
-          />
-        </section>
-
-        <section class="rounded-3xl border border-white/10 bg-white/5 p-5">
-          <h2 class="text-xl font-semibold">Mastery heatmap</h2>
-          <div class="mt-4 grid gap-3 md:grid-cols-2">
-            <For each={mastery()}>
-              {(item) => (
-                <div class="rounded-2xl border border-white/10 p-4">
-                  <div class="mb-2 flex items-center justify-between text-sm">
-                    <span>{item.word}</span>
-                    <span class="text-stone-400">{item.percent}%</span>
-                  </div>
-                  <div class="h-3 overflow-hidden rounded-full bg-white/10">
-                    <div
-                      class="h-full rounded-full bg-emerald-400"
-                      style={{ width: `${item.percent}%` }}
+              <section class="dashboard-section">
+                <span class="section-num">01 — Серия</span>
+                <h1 class="section-heading">
+                  Ритм, который держится {currentStreak()} дней
+                </h1>
+                <div class="activity-panel">
+                  <div class="activity-stats">
+                    <StatBlock
+                      label="Лучшая серия"
+                      value={current().userStats.bestStreak}
+                      unit="дней"
+                    />
+                    <StatBlock
+                      label="Всего решено"
+                      value={current().userStats.totalCorrect}
+                      unit="задач"
                     />
                   </div>
+                  <div class="heatmap-frame">
+                    <div class="heatmap-months">
+                      <For each={activityMonths()}>
+                        {(month) => <span>{month}</span>}
+                      </For>
+                    </div>
+                    <div class="heatmap-body">
+                      <div class="heatmap-weekdays">
+                        <For each={activityWeekdays()}>
+                          {(day) => <span>{day}</span>}
+                        </For>
+                      </div>
+                      <div class="activity-heatmap" aria-label="Активность за последние 13 недель">
+                        <For each={activityDays()}>
+                          {(day) => (
+                            <button
+                              type="button"
+                              class="heatmap-day"
+                              classList={{
+                                today: day.isToday,
+                                'level-1': day.correct > 0 && day.correct < 10,
+                                'level-2': day.correct >= 10 && day.correct < 25,
+                                'level-3': day.correct >= 25 && day.correct < 50,
+                                'level-4': day.correct >= 50 && day.correct < 100,
+                                'level-5': day.correct >= 100,
+                              }}
+                              data-tooltip={`${day.label}: ${day.count} заданий, ${day.correct} решено`}
+                            />
+                          )}
+                        </For>
+                      </div>
+                    </div>
+                  </div>
                 </div>
-              )}
-            </For>
-          </div>
-        </section>
+              </section>
+
+              <section class="dashboard-section">
+                <span class="section-num">02 — Словарь</span>
+                <div class="section-heading-row">
+                  <h2 class="section-heading">
+                    Весь словарь, <em>по уровню освоения</em>.
+                  </h2>
+                  <span class="table-count">{dictionaryWords().length} слов</span>
+                </div>
+                <div class="vocab-grid compact-vocab-grid">
+                  <MetricPanel
+                    label="Активный словарь"
+                    value={activeWordCount()}
+                    body="слов сейчас повторяются"
+                    note="активный: уже встречался, ещё не освоен"
+                  />
+                  <MetricPanel
+                    label="Освоенные слова"
+                    value={masteredWordCount()}
+                    body="слов узнаёшь без подсказки"
+                    note="освоенное: верно 3 раза подряд, повтор реже недели"
+                    accent
+                  />
+                </div>
+                <div class="table-tools">
+                  <label>
+                    Уровень освоения
+                    <select
+                      value={masteryFilter()}
+                      onChange={(event) =>
+                        setMasteryFilter(event.currentTarget.value as MasteryFilter)
+                      }
+                    >
+                      <option value="all">Все</option>
+                      <option value="mastered">Освоенные</option>
+                      <option value="in-progress">В работе</option>
+                      <option value="new">Новые</option>
+                    </select>
+                  </label>
+                </div>
+                <Show
+                  when={dictionaryWords().length > 0}
+                  fallback={
+                    <div class="empty-state">
+                      Ничего не найдено. <em>Попробуй другой фильтр.</em>
+                    </div>
+                  }
+                >
+                  <div class="mastered-table dictionary-table-scroll">
+                    <For each={dictionaryWords()}>
+                      {(word) => (
+                        <div class="mastered-row">
+                          <span>{word.sourceText}</span>
+                          <em>{word.targetText}</em>
+                          <span>{masteryLabel(word)}</span>
+                        </div>
+                      )}
+                    </For>
+                  </div>
+                </Show>
+              </section>
+              <Show when={advancedOpen()}>
+                <AdvancedSettingsModal
+                  settings={current().settings}
+                  onClose={() => setAdvancedOpen(false)}
+                  onSettingsChange={updateSettings}
+                  onQuietHoursChange={updateQuietHours}
+                />
+              </Show>
+            </>
+          )}
+        </Show>
+
       </div>
     </main>
   )
 }
 
-function Card(props: { label: string; value: string | number }) {
+function StatBlock(props: {
+  label: string
+  value: number
+  unit: string
+  faded?: boolean
+}) {
   return (
-    <div class="rounded-3xl border border-white/10 bg-white/5 p-5">
-      <p class="text-sm text-stone-400">{props.label}</p>
-      <p class="mt-2 text-3xl font-semibold">{props.value}</p>
+    <div class="stat-block">
+      <span>{props.label}</span>
+      <strong classList={{ faded: props.faded }}>{props.value}</strong>
+      <span>{props.unit}</span>
     </div>
   )
 }
 
-function rate(state: StorageShape | undefined) {
-  if (!state || state.userStats.totalExposures === 0) return 0
-  return Math.round(
-    (state.userStats.totalCorrect / state.userStats.totalExposures) * 100,
+function MetricPanel(props: {
+  label: string
+  value: number
+  body: string
+  note: string
+  accent?: boolean
+}) {
+  return (
+    <div class="metric-panel">
+      <span>{props.label}</span>
+      <strong classList={{ accent: props.accent }}>{props.value}</strong>
+      <p>{props.body}</p>
+      <small>{props.note}</small>
+    </div>
   )
+}
+
+function AdvancedSettingsModal(props: {
+  settings: StorageShape['settings']
+  onClose: () => void
+  onSettingsChange: (patch: Partial<StorageShape['settings']>) => void
+  onQuietHoursChange: (
+    patch: Partial<StorageShape['settings']['quietHours']>,
+  ) => void
+}) {
+  return (
+    <div class="modal-backdrop" onClick={props.onClose}>
+      <div class="advanced-modal" onClick={(event) => event.stopPropagation()}>
+        <div class="section-heading-row">
+          <h2 class="section-heading">Доп. настройки</h2>
+          <button type="button" class="modal-close" onClick={props.onClose}>
+            Закрыть
+          </button>
+        </div>
+        <SettingsNumber
+          label="Как часто"
+          value={props.settings.frequency}
+          min={1}
+          max={20}
+          suffix="действий"
+          onChange={(frequency) => props.onSettingsChange({ frequency })}
+        />
+        <div class="settings-grid">
+          <SettingsNumber
+            label="Не показывать с"
+            value={props.settings.quietHours.startHour}
+            min={0}
+            max={23}
+            suffix="ч"
+            onChange={(startHour) => props.onQuietHoursChange({ startHour })}
+          />
+          <SettingsNumber
+            label="Не показывать до"
+            value={props.settings.quietHours.endHour}
+            min={0}
+            max={23}
+            suffix="ч"
+            onChange={(endHour) => props.onQuietHoursChange({ endHour })}
+          />
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function SettingsNumber(props: {
+  label: string
+  value: number
+  min: number
+  max: number
+  suffix: string
+  onChange: (value: number) => void
+}) {
+  return (
+    <label class="settings-number">
+      <span>{props.label}</span>
+      <input
+        type="number"
+        min={props.min}
+        max={props.max}
+        value={props.value}
+        onChange={(event) => {
+          const value = Number(event.currentTarget.value)
+          if (!Number.isNaN(value)) {
+            props.onChange(Math.min(props.max, Math.max(props.min, value)))
+          }
+        }}
+      />
+      <small>{props.suffix}</small>
+    </label>
+  )
+}
+
+function buildActivityMonths(days: ActivityDay[]) {
+  return days.filter((_, index) => index % 7 === 0).map((day, index, weeks) => {
+    const month = new Intl.DateTimeFormat('ru-RU', { month: 'short' }).format(
+      dateFromKey(day.key),
+    )
+    if (index === 0) return month
+
+    const previousMonth = new Intl.DateTimeFormat('ru-RU', {
+      month: 'short',
+    }).format(dateFromKey(weeks[index - 1]?.key ?? day.key))
+
+    return month === previousMonth ? '' : month
+  })
+}
+
+function buildActivityWeekdays() {
+  return ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс']
+}
+
+function buildActivityDays(state: StorageShape | undefined): ActivityDay[] {
+  const history = new Map(
+    (state?.userStats.dailyReviewHistory ?? []).map((entry) => [
+      entry.date,
+      entry,
+    ]),
+  )
+  const today = startOfDay(Date.now())
+  const todayWeekdayIndex = mondayWeekdayIndex(new Date(today))
+  const totalDays = (HEATMAP_WEEKS - 1) * 7 + todayWeekdayIndex + 1
+
+  return Array.from({ length: totalDays }, (_, index) => {
+    const time = today - (totalDays - 1 - index) * DAY_MS
+    const date = new Date(time)
+    const key = dateKey(date)
+    const entry = history.get(key)
+
+    return {
+      key,
+      label: new Intl.DateTimeFormat('ru-RU', {
+        day: 'numeric',
+        month: 'short',
+      }).format(date),
+      count: entry?.count ?? 0,
+      correct: entry?.correct ?? 0,
+      isToday: index === totalDays - 1,
+    }
+  })
+}
+
+function countWordsByMastery(
+  state: StorageShape | undefined,
+  level: Exclude<MasteryFilter, 'all'>,
+) {
+  return (state?.wordBank ?? []).filter((word) => masteryLevel(word) === level)
+    .length
+}
+
+function getDictionaryWords(
+  state: StorageShape | undefined,
+  filter: MasteryFilter,
+) {
+  return (state?.wordBank ?? [])
+    .filter((word) => filter === 'all' || masteryLevel(word) === filter)
+    .sort((a, b) => {
+      const rankDiff = masteryRank(a) - masteryRank(b)
+      if (rankDiff !== 0) return rankDiff
+
+      if (masteryLevel(a) === 'in-progress' && masteryLevel(b) === 'in-progress') {
+        return b.srs.repetition - a.srs.repetition
+      }
+
+      return a.sourceText.localeCompare(b.sourceText, 'ru')
+    })
+}
+
+function masteryLevel(word: WordItem): Exclude<MasteryFilter, 'all'> {
+  if (isMastered(word)) return 'mastered'
+  if (word.srs.lastReviewedAt) return 'in-progress'
+  return 'new'
+}
+
+function masteryRank(word: WordItem) {
+  const level = masteryLevel(word)
+  if (level === 'mastered') return 0
+  if (level === 'in-progress') return 1
+  return 2
+}
+
+function masteryLabel(word: WordItem) {
+  const level = masteryLevel(word)
+  if (level === 'mastered') return 'освоено'
+  if (level === 'in-progress') return `в работе · ${word.srs.repetition}/3`
+  return 'новое'
+}
+
+function isMastered(word: WordItem) {
+  return word.srs.repetition >= 3 && word.srs.interval > 7
+}
+
+function dateKey(date: Date) {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+function mondayWeekdayIndex(date: Date) {
+  return (date.getDay() + 6) % 7
+}
+
+function dateFromKey(key: string) {
+  const [year, month, day] = key.split('-').map(Number)
+  return new Date(year ?? 0, (month ?? 1) - 1, day ?? 1)
+}
+
+function startOfDay(time: number) {
+  const date = new Date(time)
+  date.setHours(0, 0, 0, 0)
+  return date.getTime()
 }
 
 const root = document.getElementById('root')

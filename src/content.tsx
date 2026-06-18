@@ -5,11 +5,15 @@ import { isRuntimeMessage, type RuntimeMessage } from './shared/messages'
 import type { ChallengePayload, ChallengeResult } from './shared/types'
 
 const CONTAINER_ID = 'bir-soz-extension-root'
-const ANSWER_DISMISS_MS = 1800
+const ANSWER_DISMISS_MS = 1200
 const EXIT_MS = 120
 let removeOverlay: (() => void) | undefined
+let lastReadyUrl = window.location.href
 
-void sendRuntimeMessage({ type: 'bir-soz:content-ready' })
+void notifyContentReady()
+watchUrlChanges(() => {
+  void notifyContentReady()
+})
 
 document.addEventListener(
   'click',
@@ -19,22 +23,73 @@ document.addEventListener(
     const link = target.closest('a[href]')
     if (!link) return
 
-    void sendRuntimeMessage({ type: 'bir-soz:navigation-click' })
+    void sendRuntimeMessage({
+      type: 'bir-soz:navigation-click',
+      href: link instanceof HTMLAnchorElement ? link.href : link.getAttribute('href') ?? undefined,
+    })
   },
   { capture: true },
 )
 
-chrome.runtime.onMessage.addListener((message: unknown, _sender, sendResponse) => {
-  if (!isRuntimeMessage(message)) return
+chrome.runtime.onMessage.addListener(
+  (message: unknown, _sender, sendResponse) => {
+    if (!isRuntimeMessage(message)) return
 
-  if (message.type === 'bir-soz:show-challenge') {
-    showOverlay(message.payload)
-    sendResponse({ ok: true })
+    if (message.type === 'bir-soz:show-challenge') {
+      showOverlay(message.payload)
+      sendResponse({ ok: true })
+    }
+  },
+)
+
+async function sendRuntimeMessage(message: RuntimeMessage) {
+  try {
+    if (!chrome.runtime?.id) return undefined
+    return await chrome.runtime.sendMessage(message)
+  } catch (error) {
+    // This happens when the extension is reloaded/updated while a tab still has
+    // the old content script injected. The page needs a refresh before that old
+    // script can talk to the new extension context again.
+    console.debug('[Bir Söz content] runtime message skipped', error)
+    return undefined
   }
-})
+}
 
-function sendRuntimeMessage(message: RuntimeMessage) {
-  return chrome.runtime.sendMessage(message)
+async function notifyContentReady() {
+  lastReadyUrl = window.location.href
+  await sendRuntimeMessage({ type: 'bir-soz:content-ready' })
+}
+
+function watchUrlChanges(onChange: () => void) {
+  const notifyIfChanged = () => {
+    window.setTimeout(() => {
+      if (window.location.href === lastReadyUrl) return
+      onChange()
+    }, 0)
+  }
+
+  // In Chrome, content scripts run in an isolated world. Patching history here
+  // catches same-world changes, but many SPAs (Reddit included) call history from
+  // the page world, so keep a lightweight URL poll as the reliable fallback.
+  window.setInterval(notifyIfChanged, 250)
+
+  const originalPushState = history.pushState
+  const originalReplaceState = history.replaceState
+
+  history.pushState = function pushState(...args) {
+    const result = originalPushState.apply(this, args)
+    notifyIfChanged()
+    return result
+  }
+
+  history.replaceState = function replaceState(...args) {
+    const result = originalReplaceState.apply(this, args)
+    notifyIfChanged()
+    return result
+  }
+
+  window.addEventListener('popstate', notifyIfChanged)
+  window.addEventListener('hashchange', notifyIfChanged)
 }
 
 function showOverlay(payload: ChallengePayload) {
@@ -126,12 +181,17 @@ function Overlay(props: { payload: ChallengePayload; onClose: () => void }) {
 
   return (
     <div class="bir-soz-stage">
-      <article class="bir-soz-card" classList={{ 'is-exiting': isExiting() }}>
+      <article
+        class="bir-soz-card"
+        classList={{
+          'is-exiting': isExiting(),
+        }}
+      >
         <div class="bir-soz-paper-layer" />
         <div class="bir-soz-content">
           <header class="bir-soz-topline">
             <span>Перевод</span>
-            <span>word 1</span>
+<span>sóz 1</span>
           </header>
 
           <section>
@@ -141,7 +201,9 @@ function Overlay(props: { payload: ChallengePayload; onClose: () => void }) {
                 <span class="bir-soz-glyph">+</span>
               )}
             </h2>
-            <p class="bir-soz-prompt">Choose the Russian translation</p>
+            <p class="bir-soz-prompt">
+              Orys tilindegi aýdarmany tańdańyz
+            </p>
           </section>
 
           <div class="bir-soz-rule" />

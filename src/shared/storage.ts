@@ -7,11 +7,12 @@ const defaultStats: UserStats = {
   totalExposures: 0,
   totalCorrect: 0,
   timeInLanguageContactMs: 0,
+  dailyReviewHistory: [],
 }
 
 const defaultSettings: AppSettings = {
+  uiLanguage: 'ru',
   frequency: 3,
-  idleTriggerEnabled: true,
   newTabTriggerEnabled: true,
   navigationTriggerEnabled: true,
   cooldownMinutes: 5,
@@ -20,7 +21,6 @@ const defaultSettings: AppSettings = {
     startHour: 22,
     endHour: 8,
   },
-  overlayTheme: 'system',
 }
 
 export const defaultStorage: StorageShape = {
@@ -29,7 +29,7 @@ export const defaultStorage: StorageShape = {
   settings: defaultSettings,
   newTabCount: 0,
   navigationCount: 0,
-  pendingTrigger: undefined,
+  pendingTrigger: null,
 }
 
 export async function ensureStorage() {
@@ -51,8 +51,11 @@ export async function getStorage(): Promise<StorageShape> {
   const storageKeys = Object.keys(defaultStorage) as (keyof StorageShape)[]
   const storage = (await chrome.storage.local.get(storageKeys)) as StorageShape
 
-  const nextSettings = { ...defaultSettings, ...storage.settings }
-  if (storage.settings?.navigationTriggerEnabled === undefined) {
+  const nextSettings = { ...defaultSettings, ...storage.settings, uiLanguage: 'ru' as const }
+  if (
+    storage.settings?.navigationTriggerEnabled === undefined ||
+    storage.settings?.uiLanguage !== 'ru'
+  ) {
     storage.settings = nextSettings
     await chrome.storage.local.set({ settings: nextSettings })
   }
@@ -62,7 +65,20 @@ export async function getStorage(): Promise<StorageShape> {
     await chrome.storage.local.set({ navigationCount: 0 })
   }
 
-  if (!Array.isArray(storage.wordBank) || !storage.wordBank.every(isCurrentWordShape)) {
+  if (!Array.isArray(storage.userStats.dailyReviewHistory)) {
+    storage.userStats = {
+      ...defaultStats,
+      ...storage.userStats,
+      dailyReviewHistory: [],
+    }
+    await chrome.storage.local.set({ userStats: storage.userStats })
+  }
+
+  if (
+    !Array.isArray(storage.wordBank) ||
+    !storage.wordBank.every(isCurrentWordShape) ||
+    !storage.wordBank.every((word) => word.id.startsWith('kz_'))
+  ) {
     storage.wordBank = defaultWords
     await chrome.storage.local.set({ wordBank: defaultWords })
   }
@@ -72,15 +88,23 @@ export async function getStorage(): Promise<StorageShape> {
 
 function isCurrentWordShape(word: unknown): word is WordItem {
   return (
-    isRecord(word) &&
-    typeof word['sourceText'] === 'string' &&
-    typeof word['targetText'] === 'string' &&
-    Array.isArray(word['distractors']) &&
-    word['distractors'].length >= 3
+    isWordLike(word) &&
+    typeof word.sourceText === 'string' &&
+    typeof word.targetText === 'string' &&
+    typeof word.sourceLabel === 'string' &&
+    typeof word.targetLabel === 'string' &&
+    Array.isArray(word.distractors) &&
+    word.distractors.length >= 3
   )
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
+function isWordLike(value: unknown): value is {
+  sourceText?: unknown
+  targetText?: unknown
+  sourceLabel?: unknown
+  targetLabel?: unknown
+  distractors?: unknown
+} {
   return typeof value === 'object' && value !== null
 }
 

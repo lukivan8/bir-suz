@@ -1,4 +1,4 @@
-import { createResource, createSignal, Show } from 'solid-js'
+import { createEffect, createResource, createSignal, onCleanup, Show } from 'solid-js'
 import type { RuntimeMessage } from './shared/messages'
 import type { AppSettings, StorageShape } from './shared/types'
 
@@ -11,6 +11,7 @@ async function getState() {
 function App() {
   const [state, { mutate, refetch }] = createResource(getState)
   const [busy, setBusy] = createSignal(false)
+  const [now, setNow] = createSignal(Date.now())
 
   const updateSettings = async (patch: Partial<AppSettings>) => {
     const current = state()
@@ -42,10 +43,37 @@ function App() {
     })
   }
 
-  const pauseForMinutes = async (minutes: number) => {
-    await updateSettings({ disabledUntil: Date.now() + minutes * 60 * 1000 })
+  const toggleTriggersOff = async () => {
+    const current = state()
+    if (!current) return
+    const isOff = (current.settings.disabledUntil ?? 0) > Date.now()
+    await updateSettings({ disabledUntil: isOff ? undefined : Date.now() + 30 * 60 * 1000 })
     await refetch()
   }
+
+  const triggerOffRemainingMs = () =>
+    Math.max(0, (state()?.settings.disabledUntil ?? 0) - now())
+
+  const triggerOffLabel = () => {
+    const totalSeconds = Math.ceil(triggerOffRemainingMs() / 1000)
+    const minutes = Math.floor(totalSeconds / 60)
+    const seconds = totalSeconds % 60
+    return `${minutes}:${String(seconds).padStart(2, '0')}`
+  }
+
+  createEffect(() => {
+    const timer = window.setInterval(async () => {
+      const nextNow = Date.now()
+      setNow(nextNow)
+
+      const current = state()
+      if (current?.settings.disabledUntil && current.settings.disabledUntil <= nextNow) {
+        await updateSettings({ disabledUntil: undefined })
+      }
+    }, 1000)
+
+    onCleanup(() => window.clearInterval(timer))
+  })
 
   const triggerDemo = async () => {
     setBusy(true)
@@ -62,181 +90,97 @@ function App() {
     )
   }
 
+  const t = () => copy.ru
+
   return (
-    <main class="min-w-80 space-y-4 bg-stone-950 p-4 text-stone-50">
-      <header class="space-y-1">
-        <p class="text-xs uppercase tracking-[0.24em] text-emerald-300">
-          Bir Söz
-        </p>
-        <h1 class="text-2xl font-semibold">Micro-learning overlay</h1>
-        <p class="text-sm text-stone-300">
-          Zero-decision Kazakh retention for idle moments.
-        </p>
+    <main class="min-w-80 space-y-4 bg-paper p-5 font-serif-body text-[17px] leading-[1.55] text-ink">
+      <header>
+        <h1 class="font-mono-editorial text-[11px] uppercase tracking-[0.2em] text-accent">
+          Bir sóz
+        </h1>
       </header>
 
       <Show when={state()}>
         {(current) => (
           <>
-            <section class="grid grid-cols-2 gap-2 text-sm">
-              <Metric label="Words" value={current().wordBank.length} />
-              <Metric label="Success" value={`${successRate()}%`} />
-              <Metric
-                label="Exposures"
-                value={current().userStats.totalExposures}
-              />
-              <Metric
-                label="Cooldown"
-                value={`${current().settings.cooldownMinutes}m`}
-              />
+            <section class="flex gap-4 font-mono-editorial text-[11px] uppercase tracking-[0.12em] text-ink-faded">
+              <span>
+                {t().exposure}: {current().userStats.totalExposures}
+              </span>
+              <span>
+                {t().success}: {successRate()}%
+              </span>
             </section>
 
-            <section class="space-y-3 rounded-2xl border border-white/10 bg-white/5 p-3">
-              <p class="text-xs font-semibold uppercase tracking-[0.18em] text-stone-400">
-                Triggers
+            <section class="space-y-3 border border-rule bg-paper-deep p-3">
+              <p class="font-mono-editorial text-[11px] font-normal uppercase tracking-[0.18em] text-ink-faded">
+                {t().triggers}
               </p>
               <ToggleRow
-                label="New tab"
-                help={`Every ${current().settings.frequency} tabs`}
+                label={t().newTab}
+                help={t().everyTabs(current().settings.frequency)}
                 checked={current().settings.newTabTriggerEnabled}
                 onChange={(checked) =>
                   updateSettings({ newTabTriggerEnabled: checked })
                 }
               />
               <ToggleRow
-                label="Idle return"
-                help="When you come back"
-                checked={current().settings.idleTriggerEnabled}
-                onChange={(checked) =>
-                  updateSettings({ idleTriggerEnabled: checked })
-                }
-              />
-              <ToggleRow
-                label="Navigation"
-                help={`Every ${current().settings.frequency} link clicks`}
+                label={t().navigation}
+                help={t().everyClicks(current().settings.frequency)}
                 checked={current().settings.navigationTriggerEnabled}
                 onChange={(checked) =>
                   updateSettings({ navigationTriggerEnabled: checked })
                 }
               />
-            </section>
-
-            <section class="space-y-3 rounded-2xl border border-white/10 bg-white/5 p-3">
-              <p class="text-xs font-semibold uppercase tracking-[0.18em] text-stone-400">
-                Frequency
-              </p>
-              <NumberField
-                label="Challenge frequency"
-                value={current().settings.frequency}
-                min={1}
-                max={20}
-                suffix="events"
-                onChange={(value) => updateSettings({ frequency: value })}
-              />
-              <NumberField
-                label="Cooldown"
+              <RangeField
+                label={t().cooldown}
                 value={current().settings.cooldownMinutes}
                 min={0}
-                max={240}
-                suffix="minutes"
+                max={15}
+                suffix={t().min}
                 onChange={(value) => updateSettings({ cooldownMinutes: value })}
               />
-            </section>
-
-            <section class="space-y-3 rounded-2xl border border-white/10 bg-white/5 p-3">
               <ToggleRow
-                label="Quiet hours"
-                help={`${current().settings.quietHours.startHour}:00–${current().settings.quietHours.endHour}:00`}
+                label={t().quietHours}
+                help={t().quietSchedule(
+                  current().settings.quietHours.startHour,
+                  current().settings.quietHours.endHour,
+                )}
                 checked={current().settings.quietHours.enabled}
                 onChange={(checked) => updateQuietHours({ enabled: checked })}
               />
-              <div class="grid grid-cols-2 gap-2">
-                <NumberField
-                  label="Start"
-                  value={current().settings.quietHours.startHour}
-                  min={0}
-                  max={23}
-                  suffix="h"
-                  onChange={(value) => updateQuietHours({ startHour: value })}
-                />
-                <NumberField
-                  label="End"
-                  value={current().settings.quietHours.endHour}
-                  min={0}
-                  max={23}
-                  suffix="h"
-                  onChange={(value) => updateQuietHours({ endHour: value })}
-                />
-              </div>
-            </section>
-
-            <section class="space-y-3 rounded-2xl border border-white/10 bg-white/5 p-3">
-              <label class="flex items-center justify-between gap-3 text-sm">
-                <span>
-                  <span class="block font-medium">Theme</span>
-                  <span class="text-xs text-stone-400">Overlay preference</span>
-                </span>
-                <select
-                  class="rounded-lg border border-white/10 bg-stone-900 px-2 py-1 text-xs text-stone-50"
-                  value={current().settings.overlayTheme}
-                  onChange={(event) =>
-                    updateSettings({
-                      overlayTheme: event.currentTarget
-                        .value as AppSettings['overlayTheme'],
-                    })
-                  }
-                >
-                  <option value="system">System</option>
-                  <option value="light">Light</option>
-                  <option value="dark">Dark</option>
-                </select>
-              </label>
             </section>
 
             <section class="grid gap-2">
               <button
                 type="button"
-                class="rounded-xl bg-emerald-400 px-4 py-3 text-sm font-semibold text-stone-950 hover:bg-emerald-300 disabled:opacity-60"
+                class="border border-accent bg-transparent px-4 py-3 font-mono-editorial text-[11px] uppercase tracking-[0.12em] text-accent hover:text-accent-deep disabled:opacity-60"
                 onClick={triggerDemo}
                 disabled={busy()}
               >
-                {busy() ? 'Triggering…' : 'Demo Trigger'}
+                {busy() ? t().triggering : t().demoTrigger}
               </button>
-              <div class="grid grid-cols-3 gap-2">
-                <button
-                  type="button"
-                  class="rounded-xl border border-white/10 px-3 py-2 text-xs font-medium hover:bg-white/5"
-                  onClick={() => pauseForMinutes(30)}
-                >
-                  Pause 30m
-                </button>
-                <button
-                  type="button"
-                  class="rounded-xl border border-white/10 px-3 py-2 text-xs font-medium hover:bg-white/5"
-                  onClick={() => pauseForMinutes(60)}
-                >
-                  Pause 1h
-                </button>
-                <button
-                  type="button"
-                  class="rounded-xl border border-white/10 px-3 py-2 text-xs font-medium hover:bg-white/5"
-                  onClick={() => pauseForMinutes(240)}
-                >
-                  Pause 4h
-                </button>
-              </div>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={triggerOffRemainingMs() > 0}
+                class="border border-rule px-4 py-3 font-mono-editorial text-[11px] uppercase tracking-[0.12em] text-ink-faded hover:text-ink aria-checked:border-accent aria-checked:text-accent"
+                onClick={toggleTriggersOff}
+              >
+                {triggerOffRemainingMs() > 0
+                  ? `${t().triggersOff} · ${triggerOffLabel()}`
+                  : t().turnOff30}
+              </button>
               <a
-                class="rounded-xl border border-white/10 px-4 py-3 text-center text-sm font-medium hover:bg-white/5"
+                class="border border-rule px-4 py-3 text-center font-mono-editorial text-[11px] uppercase tracking-[0.12em] text-ink-faded hover:text-ink"
                 href="dashboard.html"
                 target="_blank"
                 rel="noopener"
               >
-                Open dashboard
+                {t().openDashboard}
               </a>
             </section>
 
-            <p class="text-[11px] text-stone-500">
-              Primary jury hotkey name: Demo Trigger.
-            </p>
           </>
         )}
       </Show>
@@ -244,14 +188,26 @@ function App() {
   )
 }
 
-function Metric(props: { label: string; value: string | number }) {
-  return (
-    <div class="rounded-2xl border border-white/10 bg-white/5 p-3">
-      <p class="text-xs text-stone-400">{props.label}</p>
-      <p class="mt-1 text-lg font-semibold">{props.value}</p>
-    </div>
-  )
-}
+const copy = {
+  ru: {
+    exposure: 'Заданий',
+    success: 'Верно',
+    triggers: 'Когда показывать',
+    newTab: 'Новая вкладка',
+    everyTabs: (frequency: number) => `Каждые ${frequency} вкладки`,
+    navigation: 'Страницы',
+    everyClicks: (frequency: number) => `Каждые ${frequency} страницы`,
+    cooldown: 'Перерыв',
+    min: 'мин',
+    quietHours: 'Не беспокоить',
+    quietSchedule: (start: number, end: number) => `${start}:00–${end}:00`,
+    triggering: 'Показываем…',
+    demoTrigger: 'Показать пример',
+    triggersOff: 'Задания выключены',
+    turnOff30: 'Не показывать 30 мин',
+    openDashboard: 'Мой прогресс',
+  },
+} as const
 
 function ToggleRow(props: {
   label: string
@@ -260,23 +216,32 @@ function ToggleRow(props: {
   onChange: (checked: boolean) => void
 }) {
   return (
-    <div class="flex items-center justify-between gap-3 text-sm">
+    <div class="flex items-center justify-between gap-3 text-[15px]">
       <div>
-        <p class="font-medium">{props.label}</p>
-        <p class="text-xs text-stone-400">{props.help}</p>
+        <p class="font-normal">{props.label}</p>
+        <p class="font-mono-editorial text-[11px] uppercase tracking-[0.12em] text-ink-faded">
+          {props.help}
+        </p>
       </div>
       <button
         type="button"
-        class="rounded-full px-3 py-1 text-xs font-medium ring-1 ring-white/15 hover:bg-white/10"
+        role="switch"
+        aria-checked={props.checked}
+        aria-label={`${props.label}: ${props.checked ? 'on' : 'off'}`}
+        class="relative h-7 w-14 shrink-0 border border-rule bg-paper text-left transition-colors hover:border-accent aria-checked:border-accent aria-checked:bg-accent"
         onClick={() => props.onChange(!props.checked)}
       >
-        {props.checked ? 'On' : 'Off'}
+        <span
+          class="absolute left-1 top-1 h-5 w-5 bg-ink-faded transition-transform aria-checked:translate-x-7 aria-checked:bg-paper"
+          aria-checked={props.checked}
+        />
+        <span class="sr-only">{props.checked ? 'On' : 'Off'}</span>
       </button>
     </div>
   )
 }
 
-function NumberField(props: {
+function RangeField(props: {
   label: string
   value: number
   min: number
@@ -285,26 +250,25 @@ function NumberField(props: {
   onChange: (value: number) => void
 }) {
   return (
-    <label class="flex items-center justify-between gap-3 text-sm">
-      <span>
-        <span class="block font-medium">{props.label}</span>
-        <span class="text-xs text-stone-400">{props.suffix}</span>
+    <label class="grid gap-2 text-[15px]">
+      <span class="flex items-center justify-between gap-3">
+        <span>{props.label}</span>
+        <span class="font-mono-editorial text-[11px] uppercase tracking-[0.12em] text-ink-faded">
+          {props.value} {props.suffix}
+        </span>
       </span>
       <input
-        class="w-20 rounded-lg border border-white/10 bg-stone-900 px-2 py-1 text-right text-xs text-stone-50"
-        type="number"
+        class="accent-accent"
+        type="range"
         min={props.min}
         max={props.max}
         value={props.value}
-        onChange={(event) => {
-          const value = Number(event.currentTarget.value)
-          if (Number.isNaN(value)) return
-          props.onChange(Math.min(props.max, Math.max(props.min, value)))
-        }}
+        onInput={(event) => props.onChange(Number(event.currentTarget.value))}
       />
     </label>
   )
 }
+
 
 function sendRuntimeMessage(message: RuntimeMessage) {
   return chrome.runtime.sendMessage(message)
