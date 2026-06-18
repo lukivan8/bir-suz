@@ -29,7 +29,8 @@ export function buildChallengePayload(
   vocabularyWords: WordItem[],
   now = Date.now(),
 ): ChallengePayload {
-  const direction = Math.random() < 1 / 3 ? 'target-to-source' : 'source-to-target'
+  const direction =
+    Math.random() < 1 / 3 ? 'target-to-source' : 'source-to-target'
   const promptText =
     direction === 'target-to-source' ? word.targetText : word.sourceText
   const answerText =

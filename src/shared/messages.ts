@@ -1,15 +1,18 @@
+import type { StatsEventType } from './stats'
 import type { ChallengePayload, ChallengeResult, StorageShape } from './types'
 import { isChallengePayload, isChallengeResult, isRecord } from './validation'
-import type { StatsEventType } from './stats'
 
 export type RuntimeMessage =
   | { type: 'bir-soz:content-ready' }
-  | { type: 'bir-soz:navigation-click'; href?: string | undefined }
+  | { type: 'bir-soz:page-activity' }
   | { type: 'bir-soz:get-state' }
   | { type: 'bir-soz:show-challenge'; payload: ChallengePayload }
   | { type: 'bir-soz:submit-result'; payload: ChallengeResult }
   | { type: 'bir-soz:force-trigger' }
-  | { type: 'bir-soz:stats-event'; eventType: Extract<StatsEventType, 'disabled' | 'enabled'> }
+  | {
+      type: 'bir-soz:stats-event'
+      eventType: Extract<StatsEventType, 'disabled' | 'enabled'>
+    }
 
 export type RuntimeResponse =
   | StorageShape
@@ -21,7 +24,7 @@ export type RuntimeResponseFor<TMessage extends RuntimeMessage> =
   TMessage extends { type: 'bir-soz:get-state' }
     ? StorageShape
     : TMessage extends {
-          type: 'bir-soz:navigation-click' | 'bir-soz:force-trigger'
+          type: 'bir-soz:page-activity' | 'bir-soz:force-trigger'
         }
       ? { triggered: boolean }
       : { ok: boolean }
@@ -31,7 +34,7 @@ export function isRuntimeMessage(message: unknown): message is RuntimeMessage {
 
   switch (message.type) {
     case 'bir-soz:content-ready':
-    case 'bir-soz:navigation-click':
+    case 'bir-soz:page-activity':
     case 'bir-soz:get-state':
     case 'bir-soz:force-trigger':
       return true

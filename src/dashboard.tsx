@@ -1,4 +1,11 @@
-import { createResource, createSignal, For, onCleanup, onMount, Show } from 'solid-js'
+import {
+  createResource,
+  createSignal,
+  For,
+  onCleanup,
+  onMount,
+  Show,
+} from 'solid-js'
 import { render } from 'solid-js/web'
 import './index.css'
 import { calculateCurrentStreak } from './shared/challenge'
@@ -43,19 +50,51 @@ function Dashboard() {
   const [masteryFilter, setMasteryFilter] = createSignal<MasteryFilter>('all')
   const [selectedVocabularyId, setSelectedVocabularyId] = createSignal<string>()
   const [isAddVocabularyOpen, setIsAddVocabularyOpen] = createSignal(false)
+  const [isAnalyticsWelcomeOpen, setIsAnalyticsWelcomeOpen] = createSignal(
+    new URLSearchParams(window.location.search).get('welcome') === 'analytics',
+  )
+  const [isSettingsOpen, setIsSettingsOpen] = createSignal(false)
   const [isAddWordOpen, setIsAddWordOpen] = createSignal(false)
   const [editingWordId, setEditingWordId] = createSignal<string>()
   const [pendingDelete, setPendingDelete] = createSignal<PendingDelete>()
-  const [vocabularySettings, setVocabularySettings] = createSignal<VocabularySettingsState>()
+  const [vocabularySettings, setVocabularySettings] =
+    createSignal<VocabularySettingsState>()
 
   const activityDays = () => buildActivityDays(state())
   const activityMonths = () => buildActivityMonths(activityDays())
   const activityWeekdays = () => buildActivityWeekdays()
-  const selectedVocabulary = () => getSelectedVocabulary(state(), selectedVocabularyId())
+  const selectedVocabulary = () =>
+    getSelectedVocabulary(state(), selectedVocabularyId())
   const dictionaryWords = () =>
     getDictionaryWords(selectedVocabulary(), masteryFilter())
   const currentStreak = () =>
     calculateCurrentStreak(state()?.userStats.dailyReviewHistory ?? [])
+
+  const closeAnalyticsWelcome = () => {
+    setIsAnalyticsWelcomeOpen(false)
+    window.history.replaceState(null, '', 'dashboard.html')
+  }
+
+  const updateAnalyticsEnabled = async (analyticsEnabled: boolean) => {
+    const current = state()
+    if (!current) return
+
+    const next = {
+      ...current,
+      settings: {
+        ...current.settings,
+        analyticsEnabled,
+      },
+    }
+
+    mutate(next)
+    await chrome.storage.local.set({ settings: next.settings })
+  }
+
+  const enableAnalytics = async () => {
+    await updateAnalyticsEnabled(true)
+    closeAnalyticsWelcome()
+  }
 
   const addVocabulary = async (name: string) => {
     const current = state()
@@ -99,7 +138,11 @@ function Dashboard() {
       ...current,
       vocabularies: current.vocabularies.map((vocabulary) =>
         vocabulary.id === vocabularyId
-          ? { ...vocabulary, updatedAt: now, words: updateWords(vocabulary.words) }
+          ? {
+              ...vocabulary,
+              updatedAt: now,
+              words: updateWords(vocabulary.words),
+            }
           : vocabulary,
       ),
     }
@@ -155,7 +198,8 @@ function Dashboard() {
     const duplicateSourceText = vocabulary.words.some(
       (candidate) =>
         candidate.id !== word.id &&
-        normalizeSourceText(candidate.sourceText) === normalizeSourceText(nextSourceText),
+        normalizeSourceText(candidate.sourceText) ===
+          normalizeSourceText(nextSourceText),
     )
     if (duplicateSourceText) return
 
@@ -230,7 +274,28 @@ function Dashboard() {
             <>
               <div class="dashboard-actions">
                 <div class="dashboard-wordmark">Bir söz</div>
+                <button
+                  type="button"
+                  class="dashboard-settings-button"
+                  onClick={() => setIsSettingsOpen(true)}
+                >
+                  Настройки
+                </button>
               </div>
+
+              <Show when={isAnalyticsWelcomeOpen()}>
+                <AnalyticsWelcomeModal
+                  onSkip={closeAnalyticsWelcome}
+                  onEnable={enableAnalytics}
+                />
+              </Show>
+              <Show when={isSettingsOpen()}>
+                <DashboardSettingsModal
+                  analyticsEnabled={current().settings.analyticsEnabled}
+                  onAnalyticsChange={updateAnalyticsEnabled}
+                  onClose={() => setIsSettingsOpen(false)}
+                />
+              </Show>
 
               <section class="dashboard-section">
                 <span class="section-num">01 — Серия</span>
@@ -326,7 +391,9 @@ function Dashboard() {
                             aria-label="Редактировать словарь"
                             title="Редактировать словарь"
                             onClick={() =>
-                              setVocabularySettings({ vocabularyId: vocabulary().id })
+                              setVocabularySettings({
+                                vocabularyId: vocabulary().id,
+                              })
                             }
                           >
                             ✎
@@ -345,7 +412,9 @@ function Dashboard() {
                             disabled={
                               current().activeVocabularyId === vocabulary().id
                             }
-                            onClick={() => makeVocabularyActive(vocabulary().id)}
+                            onClick={() =>
+                              makeVocabularyActive(vocabulary().id)
+                            }
                           >
                             {current().activeVocabularyId === vocabulary().id
                               ? 'Активный'
@@ -379,7 +448,6 @@ function Dashboard() {
                         >
                           + Добавить слово
                         </button>
-
                       </div>
                       <Show
                         when={dictionaryWords().length > 0}
@@ -423,7 +491,12 @@ function Dashboard() {
                             word={word()}
                             onClose={() => setEditingWordId(undefined)}
                             onSave={(sourceText, targetText) =>
-                              saveWordEdit(vocabulary(), word(), sourceText, targetText)
+                              saveWordEdit(
+                                vocabulary(),
+                                word(),
+                                sourceText,
+                                targetText,
+                              )
                             }
                             onDelete={() => {
                               setPendingDelete({
@@ -458,10 +531,15 @@ function Dashboard() {
                             canDelete={current().vocabularies.length > 1}
                             onClose={() => setVocabularySettings(undefined)}
                             onRename={async (name) => {
-                              await renameVocabulary(settings().vocabularyId, name)
+                              await renameVocabulary(
+                                settings().vocabularyId,
+                                name,
+                              )
                               setVocabularySettings(undefined)
                             }}
-                            onDelete={() => deleteVocabulary(settings().vocabularyId)}
+                            onDelete={() =>
+                              deleteVocabulary(settings().vocabularyId)
+                            }
                           />
                         )}
                       </Show>
@@ -489,6 +567,98 @@ function StatBlock(props: {
       <strong classList={{ faded: props.faded }}>{props.value}</strong>
       <span>{props.unit}</span>
     </div>
+  )
+}
+
+function AnalyticsWelcomeModal(props: {
+  onSkip: () => void
+  onEnable: () => void | Promise<void>
+}) {
+  return (
+    <div class="modal-backdrop" role="dialog" aria-modal="true">
+      <div class="advanced-modal word-modal analytics-welcome-modal">
+        <h2 class="section-heading">Статистика помогает Bir Söz расти</h2>
+        <p class="modal-note">
+          Наша миссия — создавать языковую среду для людей, которые изучают
+          казахский. Обезличенная статистика помогает понимать, какие задания
+          действительно поддерживают эту среду: показы, ответы, пропуски, время
+          ответа и прогресс по встроенным словам.
+        </p>
+        <p class="modal-note">
+          Мы не отправляем адреса страниц, содержимое сайтов, формы, пароли,
+          cookies, историю браузера, клики или ваши личные слова. Статистика
+          связана только со случайным идентификатором установки и не указывает
+          на конкретного пользователя.
+        </p>
+        <div class="modal-actions">
+          <button type="button" onClick={props.onSkip}>
+            Не включать
+          </button>
+          <button type="button" onClick={props.onEnable}>
+            Включить статистику
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function DashboardSettingsModal(props: {
+  analyticsEnabled: boolean
+  onAnalyticsChange: (analyticsEnabled: boolean) => void | Promise<void>
+  onClose: () => void
+}) {
+  useEscapeKey(props.onClose)
+
+  return (
+    <div class="modal-backdrop" role="dialog" aria-modal="true">
+      <button
+        type="button"
+        class="modal-backdrop-button"
+        aria-label="Закрыть"
+        onClick={props.onClose}
+      />
+      <div class="advanced-modal word-modal dashboard-settings-modal">
+        <button type="button" class="modal-close" onClick={props.onClose}>
+          закрыть
+        </button>
+        <h2 class="section-heading">Настройки</h2>
+        <div class="settings-toggle-row">
+          <div>
+            <span>Статистика использования</span>
+            <p>
+              Отправляет техническую статистику обучения без адресов страниц и
+              содержимого сайтов.
+            </p>
+          </div>
+          <DashboardSwitch
+            label="Статистика использования"
+            checked={props.analyticsEnabled}
+            onChange={props.onAnalyticsChange}
+          />
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function DashboardSwitch(props: {
+  label: string
+  checked: boolean
+  onChange: (checked: boolean) => void | Promise<void>
+}) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={props.checked}
+      aria-label={`${props.label}: ${props.checked ? 'включено' : 'выключено'}`}
+      class="dashboard-switch"
+      classList={{ checked: props.checked }}
+      onClick={() => props.onChange(!props.checked)}
+    >
+      <span />
+    </button>
   )
 }
 
@@ -637,7 +807,8 @@ function VocabularySettingsModal(props: {
   const [name, setName] = createSignal(props.vocabulary.name)
   const [isDeleteConfirming, setIsDeleteConfirming] = createSignal(false)
   const [deleteConfirmation, setDeleteConfirmation] = createSignal('')
-  const canRename = () => name().trim() && name().trim() !== props.vocabulary.name
+  const canRename = () =>
+    name().trim() && name().trim() !== props.vocabulary.name
   const canDelete = () =>
     props.canDelete && deleteConfirmation().trim() === props.vocabulary.name
 
@@ -681,16 +852,21 @@ function VocabularySettingsModal(props: {
                 disabled={!props.canDelete}
                 onClick={() => setIsDeleteConfirming(true)}
               >
-                {props.canDelete ? 'Удалить словарь' : 'Нельзя удалить последний словарь'}
+                {props.canDelete
+                  ? 'Удалить словарь'
+                  : 'Нельзя удалить последний словарь'}
               </button>
             }
           >
             <p class="modal-note">
-              Чтобы удалить словарь, введи его текущее название: «{props.vocabulary.name}».
+              Чтобы удалить словарь, введи его текущее название: «
+              {props.vocabulary.name}».
             </p>
             <input
               value={deleteConfirmation()}
-              onInput={(event) => setDeleteConfirmation(event.currentTarget.value)}
+              onInput={(event) =>
+                setDeleteConfirmation(event.currentTarget.value)
+              }
               placeholder={props.vocabulary.name}
             />
             <div class="modal-actions">
@@ -703,7 +879,11 @@ function VocabularySettingsModal(props: {
               >
                 Отмена
               </button>
-              <button type="button" disabled={!canDelete()} onClick={props.onDelete}>
+              <button
+                type="button"
+                disabled={!canDelete()}
+                onClick={props.onDelete}
+              >
                 Подтвердить удаление
               </button>
             </div>
@@ -775,7 +955,10 @@ function AddWordModal(props: {
           закрыть
         </button>
         <h2 class="section-heading">Новое слово</h2>
-        <p class="modal-note">Добавится в «{props.vocabularyName}». Казахский текст будет сохранён латиницей.</p>
+        <p class="modal-note">
+          Добавится в «{props.vocabularyName}». Казахский текст будет сохранён
+          латиницей.
+        </p>
         <label class="word-field">
           Казахское слово
           <input
@@ -849,7 +1032,9 @@ function VocabularyOverview(props: {
                 onClick={() => props.onSelect(vocabulary.id)}
               >
                 <div class="flex items-center justify-between gap-3 font-mono-editorial text-[11px] uppercase tracking-[0.18em]">
-                  <span class="text-accent">{vocabulary.words.length} слов</span>
+                  <span class="text-accent">
+                    {vocabulary.words.length} слов
+                  </span>
                   <Show when={isActive()}>
                     <span class="text-ink-faded">Активный</span>
                   </Show>
@@ -925,8 +1110,9 @@ function countWordsByMastery(
   vocabulary: Vocabulary | undefined,
   level: Exclude<MasteryFilter, 'all'>,
 ) {
-  return (vocabulary?.words ?? []).filter((word) => masteryLevel(word) === level)
-    .length
+  return (vocabulary?.words ?? []).filter(
+    (word) => masteryLevel(word) === level,
+  ).length
 }
 
 function getDictionaryWords(
@@ -996,7 +1182,10 @@ function isMastered(word: WordItem) {
   return word.srs.repetition >= 3 && word.srs.interval > 7
 }
 
-function createWordItem(sourceText: string, targetText: string): WordItem | undefined {
+function createWordItem(
+  sourceText: string,
+  targetText: string,
+): WordItem | undefined {
   const latinSourceText = kazakhCyrillicToLatinText(sourceText.trim())
   const cleanTargetText = targetText.trim()
   if (!latinSourceText || !cleanTargetText) return undefined

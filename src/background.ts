@@ -6,17 +6,17 @@ import {
 } from './shared/challenge'
 import { isRuntimeMessage } from './shared/messages'
 import {
-  defaultStorage,
-  ensureStorage,
-  getStorage,
-  updateStorage,
-} from './shared/storage'
-import {
   flushStatsQueueFromTimer,
   recordChallengeEvent,
   recordSettingsEvent,
   syncStatsInBackground,
 } from './shared/stats'
+import {
+  defaultStorage,
+  ensureStorage,
+  getStorage,
+  updateStorage,
+} from './shared/storage'
 import type { ChallengeResult, TriggerSource } from './shared/types'
 import { getActiveWords } from './shared/vocabularies'
 
@@ -40,6 +40,9 @@ chrome.runtime.onInstalled.addListener(async (details) => {
     await chrome.storage.local.set(defaultStorage)
     await ensureStatsFlushAlarm()
     syncStatsInBackground(defaultStorage)
+    await chrome.tabs.create({
+      url: chrome.runtime.getURL('dashboard.html?welcome=analytics'),
+    })
     return
   }
 
@@ -70,7 +73,6 @@ chrome.tabs.onCreated.addListener(async (tab) => {
   await updateStorage({ newTabCount: nextCount })
   log('new tab created', {
     tabId: tab.id,
-    url: tab.url,
     nextCount,
     frequency: storage.settings.frequency,
     newTabTriggerEnabled: storage.settings.newTabTriggerEnabled,
@@ -97,12 +99,8 @@ chrome.tabs.onCreated.addListener(async (tab) => {
     return
   }
 
-  const triggered = await maybeTriggerChallenge('new-tab')
-  log('new-tab trigger attempt finished', { triggered })
-  if (!triggered) {
-    log('new-tab challenge pending until content script is ready')
-    await updateStorage({ pendingTrigger: 'new-tab' })
-  }
+  log('new-tab challenge queued until an eligible content script is ready')
+  await updateStorage({ pendingTrigger: 'new-tab' })
 })
 
 chrome.commands.onCommand.addListener(async (command) => {
@@ -124,7 +122,6 @@ chrome.runtime.onMessage.addListener(
       log('runtime message received', {
         type: message.type,
         senderTabId: _sender.tab?.id,
-        senderUrl: _sender.url,
       })
       if (message.type === 'bir-soz:get-state') {
         sendResponse(await getStorage())
@@ -143,13 +140,12 @@ chrome.runtime.onMessage.addListener(
             pendingTrigger,
             false,
             _sender.tab?.id,
-            _sender.tab?.url ?? _sender.url,
           )
           log('pending trigger attempt finished', {
             pendingTrigger,
             triggered,
           })
-          if (triggered || !isEligiblePage(_sender.tab?.url ?? _sender.url)) {
+          if (triggered) {
             await updateStorage({ pendingTrigger: null })
             log('pending trigger cleared', { pendingTrigger, triggered })
           }
@@ -158,12 +154,8 @@ chrome.runtime.onMessage.addListener(
         return
       }
 
-      if (message.type === 'bir-soz:navigation-click') {
-        const triggered = await handleNavigationClick(
-          message.href,
-          _sender.tab?.id,
-          _sender.url,
-        )
+      if (message.type === 'bir-soz:page-activity') {
+        const triggered = await handlePageActivity(_sender.tab?.id)
         sendResponse({ triggered })
         return
       }
@@ -197,7 +189,6 @@ async function maybeTriggerChallenge(
   source: TriggerSource,
   bypassCooldown = false,
   targetTabId?: number,
-  targetUrl?: string,
 ) {
   log('maybeTriggerChallenge started', { source, bypassCooldown })
   const storage = await getStorage()
@@ -226,19 +217,13 @@ async function maybeTriggerChallenge(
     ? []
     : await chrome.tabs.query({ active: true, currentWindow: true })
   const tabId = targetTabId ?? activeTab?.id
-  const url = targetUrl ?? activeTab?.url
   log('tab resolved for challenge', {
     source,
     tabId,
-    url,
     targeted: Boolean(targetTabId),
   })
   if (!tabId) {
     log('challenge blocked: no tab id', { source })
-    return false
-  }
-  if (!isEligiblePage(url)) {
-    log('challenge blocked: ineligible page', { source, url })
     return false
   }
 
@@ -275,33 +260,23 @@ async function ensureStatsFlushAlarm() {
   })
 }
 
-function isEligiblePage(url?: string) {
-  return url?.startsWith('http://') || url?.startsWith('https://')
-}
-
-async function handleNavigationClick(
-  href: string | undefined,
-  senderTabId: number | undefined,
-  senderUrl: string | undefined,
-) {
+async function handlePageActivity(senderTabId: number | undefined) {
   const storage = await getStorage()
   const nextCount = storage.navigationCount + 1
   await updateStorage({ navigationCount: nextCount })
-  log('navigation link click noted', {
-    href,
+  log('page activity noted', {
     senderTabId,
-    senderUrl,
     nextCount,
     frequency: storage.settings.frequency,
     navigationTriggerEnabled: storage.settings.navigationTriggerEnabled,
   })
 
   if (!storage.settings.navigationTriggerEnabled) {
-    log('navigation skipped: trigger disabled')
+    log('page activity skipped: trigger disabled')
     return false
   }
   if (nextCount < storage.settings.frequency) {
-    log('navigation skipped: frequency gate', {
+    log('page activity skipped: frequency gate', {
       nextCount,
       frequency: storage.settings.frequency,
     })
@@ -311,11 +286,9 @@ async function handleNavigationClick(
   if (shouldBlockForUserSettings(storage)) {
     await updateStorage({ navigationCount: 0, pendingTrigger: null })
     log(
-      'navigation threshold reached but skipped: user settings blocked; reset counter without queuing',
+      'page activity threshold reached but skipped: user settings blocked; reset counter without queuing',
       {
-        href,
         senderTabId,
-        senderUrl,
         previousCount: nextCount,
         nextCount: 0,
         ...blockDetails(storage),
@@ -324,18 +297,19 @@ async function handleNavigationClick(
     return false
   }
 
-  await updateStorage({ navigationCount: 0, pendingTrigger: 'navigation' })
-  log(
-    'navigation threshold reached: queued challenge for destination page and reset counter',
-    {
-      href,
-      senderTabId,
-      senderUrl,
-      previousCount: nextCount,
-      nextCount: 0,
-    },
+  await updateStorage({ navigationCount: 0 })
+  const triggered = await maybeTriggerChallenge(
+    'navigation',
+    false,
+    senderTabId,
   )
-  return false
+  log('page activity threshold reached: trigger attempt finished', {
+    senderTabId,
+    previousCount: nextCount,
+    nextCount: 0,
+    triggered,
+  })
+  return triggered
 }
 
 function blockDetails(storage: Awaited<ReturnType<typeof getStorage>>) {

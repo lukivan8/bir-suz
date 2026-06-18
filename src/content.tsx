@@ -2,6 +2,11 @@ import { createEffect, createSignal, For, onCleanup, onMount } from 'solid-js'
 import { render } from 'solid-js/web'
 import styles from './content.css?inline'
 import {
+  challengeResultMessage,
+  contentReadyMessage,
+  pageActivityMessage,
+} from './shared/content-script-access'
+import {
   isRuntimeMessage,
   type RuntimeMessage,
   type RuntimeResponseFor,
@@ -12,31 +17,11 @@ const CONTAINER_ID = 'bir-soz-extension-root'
 const ANSWER_DISMISS_MS = 1200
 const EXIT_MS = 120
 let removeOverlay: (() => void) | undefined
-let lastReadyUrl = window.location.href
+let pageActivityTimer: number | undefined
 
 void notifyContentReady()
-watchUrlChanges(() => {
-  void notifyContentReady()
-})
-
-document.addEventListener(
-  'click',
-  (event) => {
-    const target = event.target
-    if (!(target instanceof Element)) return
-    const link = target.closest('a[href]')
-    if (!link) return
-
-    void sendRuntimeMessage({
-      type: 'bir-soz:navigation-click',
-      href:
-        link instanceof HTMLAnchorElement
-          ? link.href
-          : (link.getAttribute('href') ?? undefined),
-    })
-  },
-  { capture: true },
-)
+void notifyPageActivity()
+watchPageActivity(notifyPageActivity)
 
 chrome.runtime.onMessage.addListener(
   (message: unknown, _sender, sendResponse) => {
@@ -65,40 +50,41 @@ async function sendRuntimeMessage<TMessage extends RuntimeMessage>(
 }
 
 async function notifyContentReady() {
-  lastReadyUrl = window.location.href
-  await sendRuntimeMessage({ type: 'bir-soz:content-ready' })
+  await sendRuntimeMessage(contentReadyMessage)
 }
 
-function watchUrlChanges(onChange: () => void) {
-  const notifyIfChanged = () => {
-    window.setTimeout(() => {
-      if (window.location.href === lastReadyUrl) return
-      onChange()
-    }, 0)
+function notifyPageActivity() {
+  if (pageActivityTimer !== undefined) {
+    window.clearTimeout(pageActivityTimer)
   }
 
-  // In Chrome, content scripts run in an isolated world. Patching history here
-  // catches same-world changes, but many SPAs (Reddit included) call history from
-  // the page world, so keep a lightweight URL poll as the reliable fallback.
-  window.setInterval(notifyIfChanged, 250)
+  pageActivityTimer = window.setTimeout(() => {
+    pageActivityTimer = undefined
+    void sendRuntimeMessage(pageActivityMessage)
+  }, 100)
+}
 
+function watchPageActivity(onChange: () => void) {
   const originalPushState = history.pushState
   const originalReplaceState = history.replaceState
 
   history.pushState = function pushState(...args) {
     const result = originalPushState.apply(this, args)
-    notifyIfChanged()
+    onChange()
     return result
   }
 
   history.replaceState = function replaceState(...args) {
     const result = originalReplaceState.apply(this, args)
-    notifyIfChanged()
+    onChange()
     return result
   }
 
-  window.addEventListener('popstate', notifyIfChanged)
-  window.addEventListener('hashchange', notifyIfChanged)
+  window.addEventListener('popstate', onChange)
+  window.addEventListener('hashchange', onChange)
+
+  const navigationApi = globalThis.navigation
+  navigationApi?.addEventListener('currententrychange', onChange)
 }
 
 function showOverlay(payload: ChallengePayload) {
@@ -159,7 +145,7 @@ function Overlay(props: { payload: ChallengePayload; onClose: () => void }) {
       wasSkipped,
     }
 
-    await sendRuntimeMessage({ type: 'bir-soz:submit-result', payload })
+    await sendRuntimeMessage(challengeResultMessage(payload))
 
     if (!wasSkipped) {
       setFeedback(`Ответ за ${(elapsedMs / 1000).toFixed(1)} с`)

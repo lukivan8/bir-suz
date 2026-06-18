@@ -1,3 +1,5 @@
+import { defineManifest } from '@crxjs/vite-plugin'
+
 const manifest = {
   manifest_version: 3,
   name: 'Bir Söz',
@@ -28,8 +30,8 @@ const manifest = {
     },
   ],
   options_page: 'dashboard.html',
-  permissions: ['storage', 'tabs', 'alarms'],
-  host_permissions: ['http://*/*', 'https://*/*', 'https://api.lukivan8.com/*'],
+  permissions: ['storage', 'alarms'],
+  host_permissions: ['https://api.lukivan8.com/*'],
   commands: {
     'demo-trigger': {
       suggested_key: {
@@ -41,4 +43,4 @@ const manifest = {
   },
 } satisfies chrome.runtime.ManifestV3
 
-export default manifest
+export default defineManifest(manifest)

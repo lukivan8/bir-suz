@@ -148,7 +148,8 @@ function App() {
                     when={isDoNotDisturbOn()}
                     fallback={
                       <select
-                        class="h-[35px] min-w-0 flex-1 border border-rule bg-paper px-3 font-serif-body text-[15px] text-ink"                        value={doNotDisturbMinutes()}
+                        class="h-[35px] min-w-0 flex-1 border border-rule bg-paper px-3 font-serif-body text-[15px] text-ink"
+                        value={doNotDisturbMinutes()}
                         onChange={(event) =>
                           setDoNotDisturbMinutes(
                             Number(event.currentTarget.value),
@@ -258,7 +259,8 @@ function Switch(props: {
       role="switch"
       aria-checked={props.checked}
       aria-label={`${props.label}: ${props.checked ? 'включено' : 'выключено'}`}
-      class="relative h-[35px] w-14 shrink-0 border border-rule bg-paper text-left transition-colors hover:border-accent aria-checked:border-accent aria-checked:bg-accent"      onClick={() => props.onChange(!props.checked)}
+      class="relative h-[35px] w-14 shrink-0 border border-rule bg-paper text-left transition-colors hover:border-accent aria-checked:border-accent aria-checked:bg-accent"
+      onClick={() => props.onChange(!props.checked)}
     >
       <span
         class="absolute left-1 top-1/2 h-5 w-5 -translate-y-1/2 bg-ink-faded transition-transform"

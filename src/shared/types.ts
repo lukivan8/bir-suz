@@ -70,6 +70,7 @@ export interface AppSettings {
   frequency: number
   newTabTriggerEnabled: boolean
   navigationTriggerEnabled: boolean
+  analyticsEnabled: boolean
   cooldownMinutes: number
   quietHours: QuietHours
   disabledUntil?: number | undefined

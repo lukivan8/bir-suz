@@ -15,6 +15,85 @@ let flushRequestedAgain = false
 
 export type StatsEventType = 'answered' | 'skipped' | 'disabled' | 'enabled'
 
+type AnalyticsEndpoint = '/api/events' | '/api/snapshot'
+
+interface AnalyticsVocabulary {
+  id: string
+  name: string
+  is_builtin: boolean
+  is_remote: false
+  remote_version: null
+  created_at: number
+  updated_at: number
+}
+
+interface AnalyticsWord {
+  id: string
+  vocabulary_id: string
+  kk: string
+  ru: string
+  level: 'A1' | 'A2'
+  created_at: number
+}
+
+interface AnalyticsWordProgress {
+  uuid: string
+  word_id: string
+  vocabulary_id: string
+  repetition: number
+  interval: number
+  ease_factor: number
+  next_review: number
+  last_reviewed_at: number | null
+  first_seen_at: null
+  mastered: boolean
+}
+
+interface AnalyticsVocabularyProgress {
+  uuid: string
+  vocabulary_id: string
+  total: number
+  mastered: number
+  in_progress: number
+  new: number
+  completion: number
+  snapshotted_at: number
+}
+
+interface AnalyticsEvent {
+  id: string
+  uuid: string
+  vocabulary_id: string
+  word_id: string
+  event_type: StatsEventType
+  correct: boolean | null
+  response_ms: number | null
+  ts: number
+}
+
+interface AnalyticsWordRef {
+  vocabularyId: string
+  wordId: string
+}
+
+interface AnalyticsEventsRequest {
+  vocabularies: AnalyticsVocabulary[]
+  words: AnalyticsWord[]
+  events: AnalyticsEvent[]
+}
+
+interface AnalyticsSnapshotRequest {
+  vocabularies: AnalyticsVocabulary[]
+  words: AnalyticsWord[]
+  word_progress: AnalyticsWordProgress[]
+  vocabulary_progress: AnalyticsVocabularyProgress[]
+}
+
+type AnalyticsRequestBody = {
+  '/api/events': AnalyticsEventsRequest
+  '/api/snapshot': AnalyticsSnapshotRequest
+}
+
 function log(message: string, details?: Record<string, unknown>) {
   if (details) {
     console.log(`${LOG_PREFIX} ${message}`, details)
@@ -24,39 +103,30 @@ function log(message: string, details?: Record<string, unknown>) {
   console.log(`${LOG_PREFIX} ${message}`)
 }
 
-function logError(message: string, error: unknown, details?: Record<string, unknown>) {
+function logError(
+  message: string,
+  error: unknown,
+  details?: Record<string, unknown>,
+) {
   console.warn(`${LOG_PREFIX} ${message}`, {
     ...details,
     error: error instanceof Error ? error.message : String(error),
   })
 }
 
-interface StatsEvent {
-  id: string
-  uuid: string
-  vocabulary_id: string
-  word_id: string
-  event_type: StatsEventType
-  correct?: boolean | null
-  response_ms?: number | null
-  ts: number
-}
-
 interface StatsStorage {
   statsClientUuid?: string
-  statsPendingEvents?: StatsEvent[]
-  statsPendingSnapshots?: SnapshotRequest[]
+  statsPendingEvents?: AnalyticsEvent[]
+  statsPendingSnapshots?: AnalyticsSnapshotRequest[]
   statsLastSnapshotDate?: string
 }
 
-interface SnapshotRequest {
-  vocabularies: ReturnType<typeof mapVocabularies>
-  words: ReturnType<typeof mapWords>
-  word_progress: Awaited<ReturnType<typeof mapWordProgress>>
-  vocabulary_progress: Awaited<ReturnType<typeof mapVocabularyProgress>>
-}
-
 export function syncStatsInBackground(storage: StorageShape) {
+  if (!storage.settings.analyticsEnabled) {
+    log('background stats maintenance skipped: analytics disabled')
+    return
+  }
+
   log('background stats maintenance scheduled; queue only, no immediate send', {
     vocabularies: storage.vocabularies.length,
     words: storage.vocabularies.reduce(
@@ -68,6 +138,11 @@ export function syncStatsInBackground(storage: StorageShape) {
 }
 
 export function flushStatsQueueFromTimer(storage: StorageShape) {
+  if (!storage.settings.analyticsEnabled) {
+    log('timer queue drain skipped: analytics disabled')
+    return
+  }
+
   log('timer requested queue drain')
   void flushStats(storage)
 }
@@ -76,10 +151,20 @@ export async function recordChallengeEvent(
   storage: StorageShape,
   result: ChallengeResult,
 ) {
+  if (!storage.settings.analyticsEnabled) {
+    log('challenge event skipped: analytics disabled', {
+      wordId: result.wordId,
+      source: result.source,
+    })
+    return
+  }
+
   const vocabulary = storage.vocabularies.find((candidate) =>
     candidate.words.some((word) => word.id === result.wordId),
   )
-  const word = vocabulary?.words.find((candidate) => candidate.id === result.wordId)
+  const word = vocabulary?.words.find(
+    (candidate) => candidate.id === result.wordId,
+  )
 
   if (!vocabulary || !word) {
     log('challenge event skipped: word/vocabulary not found', {
@@ -98,8 +183,7 @@ export async function recordChallengeEvent(
   })
 
   await enqueueEvent(storage, {
-    vocabularyId: vocabulary.id,
-    wordId: word.id,
+    ...toAnalyticsWordRef(vocabulary, word.id),
     eventType: result.wasSkipped ? 'skipped' : 'answered',
     correct: result.wasSkipped ? null : result.wasCorrect,
     responseMs: result.elapsedMs,
@@ -110,7 +194,14 @@ export async function recordSettingsEvent(
   storage: StorageShape,
   eventType: Extract<StatsEventType, 'disabled' | 'enabled'>,
 ) {
-  const vocabulary = storage.vocabularies.find((candidate) => candidate.words.length > 0)
+  if (!storage.settings.analyticsEnabled) {
+    log('settings event skipped: analytics disabled', { eventType })
+    return
+  }
+
+  const vocabulary = storage.vocabularies.find(
+    (candidate) => candidate.words.length > 0,
+  )
   const word = vocabulary?.words[0]
   if (!vocabulary || !word) {
     log('settings event skipped: no vocabulary/word anchor', { eventType })
@@ -124,8 +215,7 @@ export async function recordSettingsEvent(
   })
 
   await enqueueEvent(storage, {
-    vocabularyId: vocabulary.id,
-    wordId: word.id,
+    ...toAnalyticsWordRef(vocabulary, word.id),
     eventType,
     correct: null,
     responseMs: null,
@@ -143,7 +233,7 @@ async function enqueueEvent(
   },
 ) {
   const uuid = await getClientUuid()
-  const event: StatsEvent = {
+  const event: AnalyticsEvent = {
     id: crypto.randomUUID(),
     uuid,
     vocabulary_id: input.vocabularyId,
@@ -214,8 +304,12 @@ async function flushStats(storage: StorageShape) {
         })
         await postJson('/api/snapshot', snapshot)
         const latest = await getPendingSnapshots()
-        await chrome.storage.local.set({ [PENDING_SNAPSHOTS_KEY]: latest.slice(1) })
-        log('snapshot request succeeded', { remaining: Math.max(0, latest.length - 1) })
+        await chrome.storage.local.set({
+          [PENDING_SNAPSHOTS_KEY]: latest.slice(1),
+        })
+        log('snapshot request succeeded', {
+          remaining: Math.max(0, latest.length - 1),
+        })
       } catch (error) {
         logError('snapshot request failed; keeping queued', error)
         return
@@ -231,7 +325,11 @@ async function flushStats(storage: StorageShape) {
 
     const vocabularies = mapVocabularies(storage.vocabularies)
     const words = mapWords(storage.vocabularies)
-    for (let offset = 0; offset < events.length; offset += MAX_EVENT_BATCH_SIZE) {
+    for (
+      let offset = 0;
+      offset < events.length;
+      offset += MAX_EVENT_BATCH_SIZE
+    ) {
       const batch = events.slice(offset, offset + MAX_EVENT_BATCH_SIZE)
       try {
         log('sending events request', {
@@ -243,7 +341,9 @@ async function flushStats(storage: StorageShape) {
         await postJson('/api/events', { vocabularies, words, events: batch })
         const latest = await getPendingEvents()
         await chrome.storage.local.set({
-          [PENDING_EVENTS_KEY]: latest.slice(Math.min(batch.length, latest.length)),
+          [PENDING_EVENTS_KEY]: latest.slice(
+            Math.min(batch.length, latest.length),
+          ),
         })
         log('events request succeeded', {
           sent: batch.length,
@@ -272,7 +372,9 @@ async function flushStats(storage: StorageShape) {
   }
 }
 
-async function buildSnapshot(storage: StorageShape): Promise<SnapshotRequest> {
+async function buildSnapshot(
+  storage: StorageShape,
+): Promise<AnalyticsSnapshotRequest> {
   return {
     vocabularies: mapVocabularies(storage.vocabularies),
     words: mapWords(storage.vocabularies),
@@ -282,7 +384,9 @@ async function buildSnapshot(storage: StorageShape): Promise<SnapshotRequest> {
 }
 
 async function getClientUuid() {
-  const current = (await chrome.storage.local.get([CLIENT_UUID_KEY])) as StatsStorage
+  const current = (await chrome.storage.local.get([
+    CLIENT_UUID_KEY,
+  ])) as StatsStorage
   if (current.statsClientUuid) return current.statsClientUuid
 
   const uuid = crypto.randomUUID()
@@ -291,16 +395,29 @@ async function getClientUuid() {
 }
 
 async function getPendingEvents() {
-  const current = (await chrome.storage.local.get([PENDING_EVENTS_KEY])) as StatsStorage
-  return Array.isArray(current.statsPendingEvents) ? current.statsPendingEvents : []
+  const current = (await chrome.storage.local.get([
+    PENDING_EVENTS_KEY,
+  ])) as StatsStorage
+  return Array.isArray(current.statsPendingEvents)
+    ? current.statsPendingEvents
+    : []
 }
 
 async function getPendingSnapshots() {
-  const current = (await chrome.storage.local.get([PENDING_SNAPSHOTS_KEY])) as StatsStorage
-  return Array.isArray(current.statsPendingSnapshots) ? current.statsPendingSnapshots : []
+  const current = (await chrome.storage.local.get([
+    PENDING_SNAPSHOTS_KEY,
+  ])) as StatsStorage
+  return Array.isArray(current.statsPendingSnapshots)
+    ? current.statsPendingSnapshots
+    : []
 }
 
-async function postJson(path: string, body: unknown) {
+// The only analytics network sender. It accepts only the two documented
+// endpoint/body pairs above and never receives page URLs or page content.
+async function postJson<TPath extends AnalyticsEndpoint>(
+  path: TPath,
+  body: AnalyticsRequestBody[TPath],
+) {
   log('request started', { method: 'POST', url: `${STATS_BASE_URL}${path}` })
   const response = await fetch(`${STATS_BASE_URL}${path}`, {
     method: 'POST',
@@ -316,64 +433,77 @@ async function postJson(path: string, body: unknown) {
   if (!response.ok) throw new Error(`Stats request failed: ${response.status}`)
 }
 
-function mapVocabularies(vocabularies: Vocabulary[]) {
-  return vocabularies.map((vocabulary) => ({
-    id: vocabulary.id,
-    name: vocabulary.name,
-    is_builtin: vocabulary.isBuiltin,
-    is_remote: false,
-    remote_version: null,
-    created_at: vocabulary.createdAt,
-    updated_at: vocabulary.updatedAt,
-  }))
+function mapVocabularies(vocabularies: Vocabulary[]): AnalyticsVocabulary[] {
+  return vocabularies
+    .filter((vocabulary) => vocabulary.isBuiltin)
+    .map((vocabulary) => ({
+      id: vocabulary.id,
+      name: vocabulary.name,
+      is_builtin: true,
+      is_remote: false,
+      remote_version: null,
+      created_at: vocabulary.createdAt,
+      updated_at: vocabulary.updatedAt,
+    }))
 }
 
-function mapWords(vocabularies: Vocabulary[]) {
+function mapWords(vocabularies: Vocabulary[]): AnalyticsWord[] {
   return vocabularies.flatMap((vocabulary) =>
-    vocabulary.words.map((word) => ({
-      id: word.id,
-      vocabulary_id: vocabulary.id,
-      kk: word.sourceText,
-      ru: word.targetText,
-      level: word.level,
-      created_at: vocabulary.createdAt,
-    })),
+    vocabulary.isBuiltin
+      ? vocabulary.words.map((word) => ({
+          id: word.id,
+          vocabulary_id: vocabulary.id,
+          kk: word.sourceText,
+          ru: word.targetText,
+          level: word.level,
+          created_at: vocabulary.createdAt,
+        }))
+      : [],
   )
 }
 
-async function mapWordProgress(vocabularies: Vocabulary[]) {
+async function mapWordProgress(
+  vocabularies: Vocabulary[],
+): Promise<AnalyticsWordProgress[]> {
   const uuid = await getClientUuid()
   return vocabularies.flatMap((vocabulary) =>
-    vocabulary.words.map((word) => ({
-      uuid,
-      word_id: word.id,
-      vocabulary_id: vocabulary.id,
-      repetition: word.srs.repetition,
-      interval: word.srs.interval,
-      ease_factor: word.srs.easeFactor,
-      next_review: word.srs.nextReview,
-      last_reviewed_at: word.srs.lastReviewedAt ?? null,
-      first_seen_at: null,
-      mastered: word.srs.repetition >= 3 && word.srs.interval > 7,
-    })),
+    vocabulary.isBuiltin
+      ? vocabulary.words.map((word) => ({
+          uuid,
+          word_id: word.id,
+          vocabulary_id: vocabulary.id,
+          repetition: word.srs.repetition,
+          interval: word.srs.interval,
+          ease_factor: word.srs.easeFactor,
+          next_review: word.srs.nextReview,
+          last_reviewed_at: word.srs.lastReviewedAt ?? null,
+          first_seen_at: null,
+          mastered: word.srs.repetition >= 3 && word.srs.interval > 7,
+        }))
+      : [],
   )
 }
 
-async function mapVocabularyProgress(vocabularies: Vocabulary[]) {
+async function mapVocabularyProgress(
+  vocabularies: Vocabulary[],
+): Promise<AnalyticsVocabularyProgress[]> {
   const uuid = await getClientUuid()
   const snapshottedAt = Date.now()
   return vocabularies.map((vocabulary) => {
+    const vocabularyId = vocabulary.isBuiltin ? vocabulary.id : 'custom'
     const total = vocabulary.words.length
     const mastered = vocabulary.words.filter(
       (word) => word.srs.repetition >= 3 && word.srs.interval > 7,
     ).length
     const inProgress = vocabulary.words.filter(
-      (word) => word.srs.lastReviewedAt && !(word.srs.repetition >= 3 && word.srs.interval > 7),
+      (word) =>
+        word.srs.lastReviewedAt &&
+        !(word.srs.repetition >= 3 && word.srs.interval > 7),
     ).length
 
     return {
       uuid,
-      vocabulary_id: vocabulary.id,
+      vocabulary_id: vocabularyId,
       total,
       mastered,
       in_progress: inProgress,
@@ -382,4 +512,21 @@ async function mapVocabularyProgress(vocabularies: Vocabulary[]) {
       snapshotted_at: snapshottedAt,
     }
   })
+}
+
+function toAnalyticsWordRef(
+  vocabulary: Vocabulary,
+  wordId: string,
+): AnalyticsWordRef {
+  if (vocabulary.isBuiltin) {
+    return {
+      vocabularyId: vocabulary.id,
+      wordId,
+    }
+  }
+
+  return {
+    vocabularyId: 'custom',
+    wordId: 'custom',
+  }
 }

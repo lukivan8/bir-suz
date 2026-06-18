@@ -1,0 +1,134 @@
+Bir Soz Chrome Web Store review note: analytics API contract
+
+Analytics default and consent
+- Usage analytics are disabled by default.
+- The user can enable analytics from the first-install dashboard disclosure or
+  from dashboard settings.
+- All analytics queueing and sending is gated by settings.analyticsEnabled.
+- If analytics are disabled, the background worker skips snapshot maintenance,
+  timer flushes, challenge events, and settings events.
+
+Only analytics network destination
+- https://api.lukivan8.com/api/events
+- https://api.lukivan8.com/api/snapshot
+
+Only analytics network sender
+- postJson(path, body) in the generated background bundle.
+- It only posts JSON to the two endpoint paths above.
+
+Events request shape: POST /api/events
+{
+  "vocabularies": [
+    {
+      "id": "builtin-basic",
+      "name": "Built-in vocabulary name",
+      "is_builtin": true,
+      "is_remote": false,
+      "remote_version": null,
+      "created_at": 0,
+      "updated_at": 0
+    }
+  ],
+  "words": [
+    {
+      "id": "kz_080",
+      "vocabulary_id": "builtin-basic",
+      "kk": "soz",
+      "ru": "word",
+      "level": "A2",
+      "created_at": 0
+    }
+  ],
+  "events": [
+    {
+      "id": "event-random-uuid",
+      "uuid": "installation-random-uuid",
+      "vocabulary_id": "builtin-basic",
+      "word_id": "kz_080",
+      "event_type": "answered",
+      "correct": true,
+      "response_ms": 2100,
+      "ts": 1781740800000
+    }
+  ]
+}
+
+Snapshot request shape: POST /api/snapshot
+{
+  "vocabularies": [
+    {
+      "id": "builtin-basic",
+      "name": "Built-in vocabulary name",
+      "is_builtin": true,
+      "is_remote": false,
+      "remote_version": null,
+      "created_at": 0,
+      "updated_at": 0
+    }
+  ],
+  "words": [
+    {
+      "id": "kz_080",
+      "vocabulary_id": "builtin-basic",
+      "kk": "soz",
+      "ru": "word",
+      "level": "A2",
+      "created_at": 0
+    }
+  ],
+  "word_progress": [
+    {
+      "uuid": "installation-random-uuid",
+      "word_id": "kz_080",
+      "vocabulary_id": "builtin-basic",
+      "repetition": 2,
+      "interval": 6,
+      "ease_factor": 2.5,
+      "next_review": 1781827200000,
+      "last_reviewed_at": 1781740800000,
+      "first_seen_at": null,
+      "mastered": false
+    }
+  ],
+  "vocabulary_progress": [
+    {
+      "uuid": "installation-random-uuid",
+      "vocabulary_id": "builtin-basic-or-custom",
+      "total": 100,
+      "mastered": 12,
+      "in_progress": 38,
+      "new": 50,
+      "completion": 12,
+      "snapshotted_at": 1781740800000
+    }
+  ]
+}
+
+Data deliberately not included
+- visited page URLs
+- clicked link URLs
+- CSS selectors
+- link text
+- page content
+- form inputs
+- cookies
+- passwords
+- screenshots
+- browsing history
+- advertising identifiers
+- Google account ID
+- email
+- device hardware ID
+
+Custom vocabulary handling
+- Custom vocabulary names, custom word text, and custom word IDs are not sent.
+- Custom words are not included in words or word_progress.
+- Custom vocabulary appears only as aggregate vocabulary_progress with the
+  generic vocabulary_id "custom".
+
+Dist inspection hints
+- Search the generated background bundle for "STATS_BASE_URL",
+  "analyticsEnabled", "/api/events", "/api/snapshot", "mapWords",
+  "mapWordProgress", and "mapVocabularyProgress".
+- The generated background bundle should show mapWords and mapWordProgress
+  filtering to built-in vocabularies only.

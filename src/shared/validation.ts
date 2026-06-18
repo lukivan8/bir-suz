@@ -111,6 +111,7 @@ export function isAppSettings(value: unknown): value is AppSettings {
     typeof candidate.frequency === 'number' &&
     typeof candidate.newTabTriggerEnabled === 'boolean' &&
     typeof candidate.navigationTriggerEnabled === 'boolean' &&
+    typeof candidate.analyticsEnabled === 'boolean' &&
     typeof candidate.cooldownMinutes === 'number' &&
     isQuietHours(candidate.quietHours) &&
     optionalNumber(candidate.disabledUntil)

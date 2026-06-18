@@ -1,0 +1,35 @@
+Bir Soz Chrome Web Store review note: content script access
+
+Why the extension matches http://*/* and https://*/*
+Bir Soz shows a small Kazakh vocabulary prompt while the user browses normal
+webpages. The content script needs page access only to attach that overlay and
+to notice that generic page activity/navigation happened.
+
+What the content script sends to the extension background worker
+- bir-soz:content-ready
+- bir-soz:page-activity
+- bir-soz:submit-result with the result of the user's answer/skip action inside
+  the Bir Soz overlay
+
+What the content script does not read or send
+- page URL
+- page title
+- page text or HTML
+- form inputs
+- passwords
+- cookies
+- clicked links
+- CSS selectors
+- screenshots
+- browsing history
+
+Dist inspection hints
+- dist/manifest.json sets web_accessible_resources.use_dynamic_url to true so
+  web-accessible chunk URLs are dynamic instead of stable static URLs.
+- The generated content script bundle contains the strings
+  "bir-soz:content-ready", "bir-soz:page-activity", and
+  "bir-soz:submit-result".
+- The generated content script bundle observes History API/hash/navigation
+  events only to send the payload-free "bir-soz:page-activity" message.
+- Analytics network sending is separate from the content script and is gated by
+  the user's opt-in "Usage statistics" setting.

@@ -30,6 +30,7 @@ const defaultSettings: AppSettings = {
   frequency: 5,
   newTabTriggerEnabled: true,
   navigationTriggerEnabled: true,
+  analyticsEnabled: false,
   cooldownMinutes: 3,
   quietHours: {
     enabled: false,
@@ -107,6 +108,7 @@ function buildStoragePatch(current: LegacyStorageShape): Partial<StorageShape> {
   if (
     !isAppSettings(current.settings) ||
     current.settings.navigationTriggerEnabled === undefined ||
+    current.settings.analyticsEnabled === undefined ||
     current.settings.uiLanguage !== 'ru'
   ) {
     patch.settings = normalized.settings
@@ -218,6 +220,10 @@ function normalizeSettings(settings: unknown): AppSettings {
       typeof settings.navigationTriggerEnabled === 'boolean'
         ? settings.navigationTriggerEnabled
         : defaultSettings.navigationTriggerEnabled,
+    analyticsEnabled:
+      typeof settings.analyticsEnabled === 'boolean'
+        ? settings.analyticsEnabled
+        : defaultSettings.analyticsEnabled,
     cooldownMinutes:
       typeof settings.cooldownMinutes === 'number'
         ? settings.cooldownMinutes
