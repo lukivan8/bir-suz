@@ -28,8 +28,8 @@ const manifest = {
     },
   ],
   options_page: 'dashboard.html',
-  permissions: ['storage', 'tabs'],
-  host_permissions: ['http://*/*', 'https://*/*'],
+  permissions: ['storage', 'tabs', 'alarms'],
+  host_permissions: ['http://*/*', 'https://*/*', 'https://api.lukivan8.com/*'],
   commands: {
     'demo-trigger': {
       suggested_key: {
