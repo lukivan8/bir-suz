@@ -19,9 +19,26 @@ export interface WordItem {
   targetLabel: string
   sourceVariants?: ScriptVariant[]
   targetVariants?: ScriptVariant[]
-  distractors: string[]
   level: 'A1' | 'A2'
   srs: SrsData
+}
+
+export type VocabularyCategory =
+  | 'nouns'
+  | 'verbs'
+  | 'grammar'
+  | 'mixed'
+  | 'custom'
+
+export interface Vocabulary {
+  id: string
+  name: string
+  description?: string
+  category: VocabularyCategory
+  isBuiltin: boolean
+  createdAt: number
+  updatedAt: number
+  words: WordItem[]
 }
 
 export interface DailyReviewEntry {
@@ -59,7 +76,8 @@ export interface AppSettings {
 }
 
 export interface StorageShape {
-  wordBank: WordItem[]
+  vocabularies: Vocabulary[]
+  activeVocabularyId: string
   userStats: UserStats
   settings: AppSettings
   newTabCount: number
@@ -67,10 +85,7 @@ export interface StorageShape {
   pendingTrigger?: TriggerSource | null | undefined
 }
 
-export type TriggerSource =
-  | 'new-tab'
-  | 'navigation'
-  | 'demo-hotkey'
+export type TriggerSource = 'new-tab' | 'navigation' | 'demo-hotkey'
 
 export interface ChallengePayload {
   source: TriggerSource

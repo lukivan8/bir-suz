@@ -12,6 +12,7 @@ import {
   updateStorage,
 } from './shared/storage'
 import type { ChallengeResult, TriggerSource } from './shared/types'
+import { getActiveWords } from './shared/vocabularies'
 
 const COMMAND_NAME = 'demo-trigger'
 const LOG_PREFIX = '[Bir Söz background]'
@@ -57,7 +58,10 @@ chrome.tabs.onCreated.addListener(async (tab) => {
     return
   }
   if (nextCount % storage.settings.frequency !== 0) {
-    log('new-tab skipped: frequency gate', { nextCount, frequency: storage.settings.frequency })
+    log('new-tab skipped: frequency gate', {
+      nextCount,
+      frequency: storage.settings.frequency,
+    })
     return
   }
 
@@ -65,7 +69,7 @@ chrome.tabs.onCreated.addListener(async (tab) => {
     log('new-tab skipped: user settings blocked', blockDetails(storage))
     return
   }
-  if (!pickDueWord(storage.wordBank)) {
+  if (!pickDueWord(getActiveWords(storage))) {
     log('new-tab skipped: no due word')
     return
   }
@@ -132,7 +136,11 @@ chrome.runtime.onMessage.addListener(
       }
 
       if (message.type === 'bir-soz:navigation-click') {
-        const triggered = await handleNavigationClick(message.href, _sender.tab?.id, _sender.url)
+        const triggered = await handleNavigationClick(
+          message.href,
+          _sender.tab?.id,
+          _sender.url,
+        )
         sendResponse({ triggered })
         return
       }
@@ -167,14 +175,21 @@ async function maybeTriggerChallenge(
 
   if (!bypassCooldown) {
     if (shouldBlockForUserSettings(storage)) {
-      log('challenge blocked by user settings', { source, ...blockDetails(storage) })
+      log('challenge blocked by user settings', {
+        source,
+        ...blockDetails(storage),
+      })
       return false
     }
   }
 
-  const word = pickDueWord(storage.wordBank)
+  const vocabularyWords = getActiveWords(storage)
+  const word = pickDueWord(vocabularyWords)
   if (!word) {
-    log('challenge blocked: no due word', { source, wordCount: storage.wordBank.length })
+    log('challenge blocked: no due word', {
+      source,
+      wordCount: vocabularyWords.length,
+    })
     return false
   }
 
@@ -183,7 +198,12 @@ async function maybeTriggerChallenge(
     : await chrome.tabs.query({ active: true, currentWindow: true })
   const tabId = targetTabId ?? activeTab?.id
   const url = targetUrl ?? activeTab?.url
-  log('tab resolved for challenge', { source, tabId, url, targeted: Boolean(targetTabId) })
+  log('tab resolved for challenge', {
+    source,
+    tabId,
+    url,
+    targeted: Boolean(targetTabId),
+  })
   if (!tabId) {
     log('challenge blocked: no tab id', { source })
     return false
@@ -193,19 +213,13 @@ async function maybeTriggerChallenge(
     return false
   }
 
-  const payload = buildChallengePayload(source, word)
+  const payload = buildChallengePayload(source, word, vocabularyWords)
   log('sending challenge to content script', { source, tabId, wordId: word.id })
 
   try {
     await chrome.tabs.sendMessage(tabId, {
       type: 'bir-soz:show-challenge',
       payload,
-    })
-    await updateStorage({
-      userStats: {
-        ...storage.userStats,
-        lastChallengeAt: Date.now(),
-      },
     })
     log('challenge sent successfully', { source, tabId, wordId: word.id })
     return true
@@ -245,31 +259,40 @@ async function handleNavigationClick(
     return false
   }
   if (nextCount < storage.settings.frequency) {
-    log('navigation skipped: frequency gate', { nextCount, frequency: storage.settings.frequency })
+    log('navigation skipped: frequency gate', {
+      nextCount,
+      frequency: storage.settings.frequency,
+    })
     return false
   }
 
   if (shouldBlockForUserSettings(storage)) {
     await updateStorage({ navigationCount: 0, pendingTrigger: null })
-    log('navigation threshold reached but skipped: user settings blocked; reset counter without queuing', {
+    log(
+      'navigation threshold reached but skipped: user settings blocked; reset counter without queuing',
+      {
+        href,
+        senderTabId,
+        senderUrl,
+        previousCount: nextCount,
+        nextCount: 0,
+        ...blockDetails(storage),
+      },
+    )
+    return false
+  }
+
+  await updateStorage({ navigationCount: 0, pendingTrigger: 'navigation' })
+  log(
+    'navigation threshold reached: queued challenge for destination page and reset counter',
+    {
       href,
       senderTabId,
       senderUrl,
       previousCount: nextCount,
       nextCount: 0,
-      ...blockDetails(storage),
-    })
-    return false
-  }
-
-  await updateStorage({ navigationCount: 0, pendingTrigger: 'navigation' })
-  log('navigation threshold reached: queued challenge for destination page and reset counter', {
-    href,
-    senderTabId,
-    senderUrl,
-    previousCount: nextCount,
-    nextCount: 0,
-  })
+    },
+  )
   return false
 }
 
@@ -277,7 +300,10 @@ function blockDetails(storage: Awaited<ReturnType<typeof getStorage>>) {
   const now = Date.now()
   return {
     disabledUntil: storage.settings.disabledUntil,
-    triggerOffRemainingMs: Math.max(0, (storage.settings.disabledUntil ?? 0) - now),
+    triggerOffRemainingMs: Math.max(
+      0,
+      (storage.settings.disabledUntil ?? 0) - now,
+    ),
     quietHoursEnabled: storage.settings.quietHours.enabled,
     quietHours: storage.settings.quietHours,
     cooldownMinutes: storage.settings.cooldownMinutes,

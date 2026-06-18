@@ -1,5 +1,20 @@
-import { defaultWords } from './learning-content'
-import type { AppSettings, StorageShape, UserStats, WordItem } from './types'
+import { seedVocabularies, seedVocabularyId } from './learning-content'
+import type {
+  AppSettings,
+  QuietHours,
+  StorageShape,
+  UserStats,
+  Vocabulary,
+  WordItem,
+} from './types'
+import {
+  isAppSettings,
+  isDailyReviewEntry,
+  isTriggerSource,
+  isUserStats,
+  isVocabulary,
+  isWordItem,
+} from './validation'
 
 const defaultStats: UserStats = {
   currentStreak: 0,
@@ -24,7 +39,8 @@ const defaultSettings: AppSettings = {
 }
 
 export const defaultStorage: StorageShape = {
-  wordBank: defaultWords,
+  vocabularies: seedVocabularies,
+  activeVocabularyId: seedVocabularyId,
   userStats: defaultStats,
   settings: defaultSettings,
   newTabCount: 0,
@@ -32,14 +48,26 @@ export const defaultStorage: StorageShape = {
   pendingTrigger: null,
 }
 
+type LegacyStorageShape = Partial<StorageShape> & {
+  wordBank?: unknown
+}
+
+const storageKeys = [
+  'vocabularies',
+  'activeVocabularyId',
+  'userStats',
+  'settings',
+  'newTabCount',
+  'navigationCount',
+  'pendingTrigger',
+  'wordBank',
+] satisfies (keyof LegacyStorageShape)[]
+
 export async function ensureStorage() {
-  const storageKeys = Object.keys(defaultStorage) as (keyof StorageShape)[]
-  const current = await chrome.storage.local.get(storageKeys)
-  const patch = Object.fromEntries(
-    Object.entries(defaultStorage).filter(
-      ([key]) => current[key] === undefined,
-    ),
-  )
+  const current = (await chrome.storage.local.get(
+    storageKeys,
+  )) as LegacyStorageShape
+  const patch = buildStoragePatch(current)
 
   if (Object.keys(patch).length > 0) {
     await chrome.storage.local.set(patch)
@@ -48,63 +76,217 @@ export async function ensureStorage() {
 
 export async function getStorage(): Promise<StorageShape> {
   await ensureStorage()
-  const storageKeys = Object.keys(defaultStorage) as (keyof StorageShape)[]
-  const storage = (await chrome.storage.local.get(storageKeys)) as StorageShape
+  const storage = (await chrome.storage.local.get(
+    storageKeys,
+  )) as LegacyStorageShape
+  const normalized = normalizeStorage(storage)
 
-  const nextSettings = { ...defaultSettings, ...storage.settings, uiLanguage: 'ru' as const }
-  if (
-    storage.settings?.navigationTriggerEnabled === undefined ||
-    storage.settings?.uiLanguage !== 'ru'
-  ) {
-    storage.settings = nextSettings
-    await chrome.storage.local.set({ settings: nextSettings })
-  }
+  return normalized
+}
 
-  if (typeof storage.navigationCount !== 'number') {
-    storage.navigationCount = 0
-    await chrome.storage.local.set({ navigationCount: 0 })
-  }
+function buildStoragePatch(current: LegacyStorageShape): Partial<StorageShape> {
+  const normalized = normalizeStorage(current)
+  const patch: Partial<StorageShape> = {}
 
-  if (!Array.isArray(storage.userStats.dailyReviewHistory)) {
-    storage.userStats = {
-      ...defaultStats,
-      ...storage.userStats,
-      dailyReviewHistory: [],
-    }
-    await chrome.storage.local.set({ userStats: storage.userStats })
+  if (!areValidVocabularies(current.vocabularies)) {
+    patch.vocabularies = normalized.vocabularies
   }
 
   if (
-    !Array.isArray(storage.wordBank) ||
-    !storage.wordBank.every(isCurrentWordShape) ||
-    !storage.wordBank.every((word) => word.id.startsWith('kz_'))
+    typeof current.activeVocabularyId !== 'string' ||
+    !normalized.vocabularies.some(
+      (vocabulary) => vocabulary.id === current.activeVocabularyId,
+    )
   ) {
-    storage.wordBank = defaultWords
-    await chrome.storage.local.set({ wordBank: defaultWords })
+    patch.activeVocabularyId = normalized.activeVocabularyId
   }
 
-  return storage
+  if (
+    !isAppSettings(current.settings) ||
+    current.settings.navigationTriggerEnabled === undefined ||
+    current.settings.uiLanguage !== 'ru'
+  ) {
+    patch.settings = normalized.settings
+  }
+
+  if (!isUserStats(current.userStats)) {
+    patch.userStats = normalized.userStats
+  }
+
+  if (typeof current.newTabCount !== 'number') {
+    patch.newTabCount = normalized.newTabCount
+  }
+
+  if (typeof current.navigationCount !== 'number') {
+    patch.navigationCount = normalized.navigationCount
+  }
+
+  if (current.pendingTrigger === undefined) {
+    patch.pendingTrigger = normalized.pendingTrigger
+  }
+
+  return patch
+}
+
+function normalizeStorage(storage: LegacyStorageShape): StorageShape {
+  const vocabularies = normalizeVocabularies(storage)
+  const activeVocabularyId = vocabularies.some(
+    (vocabulary) => vocabulary.id === storage.activeVocabularyId,
+  )
+    ? (storage.activeVocabularyId as string)
+    : (vocabularies[0]?.id ?? seedVocabularyId)
+
+  return {
+    vocabularies,
+    activeVocabularyId,
+    userStats: normalizeUserStats(storage.userStats),
+    settings: normalizeSettings(storage.settings),
+    newTabCount:
+      typeof storage.newTabCount === 'number' ? storage.newTabCount : 0,
+    navigationCount:
+      typeof storage.navigationCount === 'number' ? storage.navigationCount : 0,
+    pendingTrigger: isTriggerSource(storage.pendingTrigger)
+      ? storage.pendingTrigger
+      : null,
+  }
+}
+
+function normalizeVocabularies(storage: LegacyStorageShape): Vocabulary[] {
+  if (areValidVocabularies(storage.vocabularies)) {
+    return storage.vocabularies
+  }
+
+  if (
+    Array.isArray(storage.wordBank) &&
+    storage.wordBank.every(isCurrentWordShape)
+  ) {
+    const now = Date.now()
+    const seedVocabulary = seedVocabularies[0]
+    return [
+      {
+        id: seedVocabulary?.id ?? seedVocabularyId,
+        name: seedVocabulary?.name ?? 'Базовый словарь',
+        ...(seedVocabulary?.description
+          ? { description: seedVocabulary.description }
+          : {}),
+        category: seedVocabulary?.category ?? 'mixed',
+        isBuiltin: seedVocabulary?.isBuiltin ?? true,
+        createdAt: now,
+        updatedAt: now,
+        words: storage.wordBank.map(removeLegacyDistractors),
+      },
+    ]
+  }
+
+  return seedVocabularies
+}
+
+function normalizeSettings(settings: unknown): AppSettings {
+  if (!isMaybeSettings(settings)) return defaultSettings
+
+  const quietHours = normalizeQuietHours(settings.quietHours)
+
+  return {
+    uiLanguage: 'ru',
+    frequency:
+      typeof settings.frequency === 'number'
+        ? settings.frequency
+        : defaultSettings.frequency,
+    newTabTriggerEnabled:
+      typeof settings.newTabTriggerEnabled === 'boolean'
+        ? settings.newTabTriggerEnabled
+        : defaultSettings.newTabTriggerEnabled,
+    navigationTriggerEnabled:
+      typeof settings.navigationTriggerEnabled === 'boolean'
+        ? settings.navigationTriggerEnabled
+        : defaultSettings.navigationTriggerEnabled,
+    cooldownMinutes:
+      typeof settings.cooldownMinutes === 'number'
+        ? settings.cooldownMinutes
+        : defaultSettings.cooldownMinutes,
+    quietHours,
+    ...(typeof settings.disabledUntil === 'number'
+      ? { disabledUntil: settings.disabledUntil }
+      : {}),
+  }
+}
+
+function normalizeQuietHours(quietHours: unknown): QuietHours {
+  if (!isMaybeQuietHours(quietHours)) return defaultSettings.quietHours
+
+  return {
+    enabled:
+      typeof quietHours.enabled === 'boolean'
+        ? quietHours.enabled
+        : defaultSettings.quietHours.enabled,
+    startHour:
+      typeof quietHours.startHour === 'number'
+        ? quietHours.startHour
+        : defaultSettings.quietHours.startHour,
+    endHour:
+      typeof quietHours.endHour === 'number'
+        ? quietHours.endHour
+        : defaultSettings.quietHours.endHour,
+  }
+}
+
+function normalizeUserStats(userStats: unknown): UserStats {
+  if (!isMaybeUserStats(userStats)) return defaultStats
+
+  return {
+    currentStreak:
+      typeof userStats.currentStreak === 'number'
+        ? userStats.currentStreak
+        : defaultStats.currentStreak,
+    bestStreak:
+      typeof userStats.bestStreak === 'number'
+        ? userStats.bestStreak
+        : defaultStats.bestStreak,
+    totalExposures:
+      typeof userStats.totalExposures === 'number'
+        ? userStats.totalExposures
+        : defaultStats.totalExposures,
+    totalCorrect:
+      typeof userStats.totalCorrect === 'number'
+        ? userStats.totalCorrect
+        : defaultStats.totalCorrect,
+    timeInLanguageContactMs:
+      typeof userStats.timeInLanguageContactMs === 'number'
+        ? userStats.timeInLanguageContactMs
+        : defaultStats.timeInLanguageContactMs,
+    dailyReviewHistory: Array.isArray(userStats.dailyReviewHistory)
+      ? userStats.dailyReviewHistory.filter(isDailyReviewEntry)
+      : [],
+    ...(typeof userStats.lastChallengeAt === 'number'
+      ? { lastChallengeAt: userStats.lastChallengeAt }
+      : {}),
+  }
+}
+
+function areValidVocabularies(value: unknown): value is Vocabulary[] {
+  return Array.isArray(value) && value.length > 0 && value.every(isVocabulary)
 }
 
 function isCurrentWordShape(word: unknown): word is WordItem {
-  return (
-    isWordLike(word) &&
-    typeof word.sourceText === 'string' &&
-    typeof word.targetText === 'string' &&
-    typeof word.sourceLabel === 'string' &&
-    typeof word.targetLabel === 'string' &&
-    Array.isArray(word.distractors) &&
-    word.distractors.length >= 3
-  )
+  return isWordItem(word)
 }
 
-function isWordLike(value: unknown): value is {
-  sourceText?: unknown
-  targetText?: unknown
-  sourceLabel?: unknown
-  targetLabel?: unknown
-  distractors?: unknown
-} {
+function removeLegacyDistractors(word: WordItem): WordItem {
+  const { distractors: _distractors, ...currentWord } = word as WordItem & {
+    distractors?: string[]
+  }
+  return currentWord
+}
+
+function isMaybeSettings(value: unknown): value is Partial<AppSettings> {
+  return typeof value === 'object' && value !== null
+}
+
+function isMaybeQuietHours(value: unknown): value is Partial<QuietHours> {
+  return typeof value === 'object' && value !== null
+}
+
+function isMaybeUserStats(value: unknown): value is Partial<UserStats> {
   return typeof value === 'object' && value !== null
 }
 

@@ -1,11 +1,25 @@
-import { createEffect, createResource, createSignal, onCleanup, Show } from 'solid-js'
-import type { RuntimeMessage } from './shared/messages'
-import type { AppSettings, StorageShape } from './shared/types'
+import {
+  createEffect,
+  createResource,
+  createSignal,
+  onCleanup,
+  Show,
+} from 'solid-js'
+import type { RuntimeMessage, RuntimeResponseFor } from './shared/messages'
+import type { AppSettings } from './shared/types'
+import { isStorageShape } from './shared/validation'
+import { getActiveVocabulary } from './shared/vocabularies'
 
 async function getState() {
-  return (await sendRuntimeMessage({
+  const response = await sendRuntimeMessage({
     type: 'bir-soz:get-state',
-  })) as StorageShape
+  })
+
+  if (!isStorageShape(response)) {
+    throw new Error('Invalid storage state response')
+  }
+
+  return response
 }
 
 function App() {
@@ -47,7 +61,9 @@ function App() {
     const current = state()
     if (!current) return
     const isOff = (current.settings.disabledUntil ?? 0) > Date.now()
-    await updateSettings({ disabledUntil: isOff ? undefined : Date.now() + 30 * 60 * 1000 })
+    await updateSettings({
+      disabledUntil: isOff ? undefined : Date.now() + 30 * 60 * 1000,
+    })
     await refetch()
   }
 
@@ -67,7 +83,10 @@ function App() {
       setNow(nextNow)
 
       const current = state()
-      if (current?.settings.disabledUntil && current.settings.disabledUntil <= nextNow) {
+      if (
+        current?.settings.disabledUntil &&
+        current.settings.disabledUntil <= nextNow
+      ) {
         await updateSettings({ disabledUntil: undefined })
       }
     }, 1000)
@@ -90,26 +109,37 @@ function App() {
     )
   }
 
+  const activeVocabulary = () => {
+    const current = state()
+    return current ? getActiveVocabulary(current) : undefined
+  }
+
   const t = () => copy.ru
 
   return (
     <main class="min-w-80 space-y-4 bg-paper p-5 font-serif-body text-[17px] leading-[1.55] text-ink">
       <header>
         <h1 class="font-mono-editorial text-[11px] uppercase tracking-[0.2em] text-accent">
-          Bir sóz
+          Bir söz
         </h1>
       </header>
 
       <Show when={state()}>
         {(current) => (
           <>
-            <section class="flex gap-4 font-mono-editorial text-[11px] uppercase tracking-[0.12em] text-ink-faded">
-              <span>
-                {t().exposure}: {current().userStats.totalExposures}
-              </span>
-              <span>
-                {t().success}: {successRate()}%
-              </span>
+            <section class="space-y-1 font-mono-editorial text-[11px] uppercase tracking-[0.12em] text-ink-faded">
+              <div class="flex gap-4">
+                <span>
+                  {t().exposure}: {current().userStats.totalExposures}
+                </span>
+                <span>
+                  {t().success}: {successRate()}%
+                </span>
+              </div>
+              <p>
+                {t().vocabulary}: {activeVocabulary()?.name ?? '—'} ·{' '}
+                {activeVocabulary()?.words.length ?? 0} слов
+              </p>
             </section>
 
             <section class="space-y-3 border border-rule bg-paper-deep p-3">
@@ -180,7 +210,6 @@ function App() {
                 {t().openDashboard}
               </a>
             </section>
-
           </>
         )}
       </Show>
@@ -192,6 +221,7 @@ const copy = {
   ru: {
     exposure: 'Заданий',
     success: 'Верно',
+    vocabulary: 'Словарь',
     triggers: 'Когда показывать',
     newTab: 'Новая вкладка',
     everyTabs: (frequency: number) => `Каждые ${frequency} вкладки`,
@@ -232,8 +262,10 @@ function ToggleRow(props: {
         onClick={() => props.onChange(!props.checked)}
       >
         <span
-          class="absolute left-1 top-1 h-5 w-5 bg-ink-faded transition-transform aria-checked:translate-x-7 aria-checked:bg-paper"
-          aria-checked={props.checked}
+          class="absolute left-1 top-1 h-5 w-5 bg-ink-faded transition-transform"
+          classList={{
+            'translate-x-7 bg-paper': props.checked,
+          }}
         />
         <span class="sr-only">{props.checked ? 'On' : 'Off'}</span>
       </button>
@@ -269,8 +301,9 @@ function RangeField(props: {
   )
 }
 
-
-function sendRuntimeMessage(message: RuntimeMessage) {
+function sendRuntimeMessage<TMessage extends RuntimeMessage>(
+  message: TMessage,
+): Promise<RuntimeResponseFor<TMessage>> {
   return chrome.runtime.sendMessage(message)
 }
 

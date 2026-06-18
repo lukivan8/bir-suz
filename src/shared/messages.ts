@@ -1,4 +1,5 @@
-import type { ChallengePayload, ChallengeResult } from './types'
+import type { ChallengePayload, ChallengeResult, StorageShape } from './types'
+import { isChallengePayload, isChallengeResult, isRecord } from './validation'
 
 export type RuntimeMessage =
   | { type: 'bir-soz:content-ready' }
@@ -9,9 +10,19 @@ export type RuntimeMessage =
   | { type: 'bir-soz:force-trigger' }
 
 export type RuntimeResponse =
+  | StorageShape
   | { ok: true }
   | { ok: false }
   | { triggered: boolean }
+
+export type RuntimeResponseFor<TMessage extends RuntimeMessage> =
+  TMessage extends { type: 'bir-soz:get-state' }
+    ? StorageShape
+    : TMessage extends {
+          type: 'bir-soz:navigation-click' | 'bir-soz:force-trigger'
+        }
+      ? { triggered: boolean }
+      : { ok: boolean }
 
 export function isRuntimeMessage(message: unknown): message is RuntimeMessage {
   if (!isMessageLike(message) || typeof message.type !== 'string') return false
@@ -23,7 +34,7 @@ export function isRuntimeMessage(message: unknown): message is RuntimeMessage {
     case 'bir-soz:force-trigger':
       return true
     case 'bir-soz:show-challenge':
-      return isRecord(message.payload)
+      return isChallengePayload(message.payload)
     case 'bir-soz:submit-result':
       return isChallengeResult(message.payload)
     default:
@@ -31,36 +42,9 @@ export function isRuntimeMessage(message: unknown): message is RuntimeMessage {
   }
 }
 
-function isChallengeResult(value: unknown): value is ChallengeResult {
-  return (
-    isChallengeResultLike(value) &&
-    typeof value.wordId === 'string' &&
-    typeof value.source === 'string' &&
-    typeof value.elapsedMs === 'number' &&
-    typeof value.wasSkipped === 'boolean' &&
-    typeof value.wasCorrect === 'boolean' &&
-    typeof value.timedOut === 'boolean'
-  )
-}
-
 function isMessageLike(value: unknown): value is {
   type?: unknown
   payload?: unknown
 } {
   return isRecord(value)
-}
-
-function isChallengeResultLike(value: unknown): value is {
-  wordId?: unknown
-  source?: unknown
-  elapsedMs?: unknown
-  wasSkipped?: unknown
-  wasCorrect?: unknown
-  timedOut?: unknown
-} {
-  return isRecord(value)
-}
-
-function isRecord(value: unknown): value is object {
-  return typeof value === 'object' && value !== null
 }

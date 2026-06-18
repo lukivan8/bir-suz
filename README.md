@@ -1,23 +1,42 @@
 # Bir Söz
 
-Bir Söz is a Manifest v3 Chrome extension for low-friction language retention. It injects a small, skippable vocabulary popup into normal browsing moments instead of asking the learner to open a separate study app.
+Bir Söz — Chrome-расширение для ненавязчивого повторения слов во время обычного браузинга. Оно иногда показывает небольшую карточку с вопросом по словарю, вместо того чтобы заставлять открывать отдельное приложение для учёбы.
 
-Current MVP content is English → Russian multiple-choice vocabulary for fast iteration. The data model keeps source/target labels and room for future Kazakh Cyrillic/Latin variants.
+Цель проекта — помогать регулярно возвращаться к казахскому языку без отдельного учебного приложения. Сейчас фокус — словарь казахских слов с вариантами ответа для быстрого повторения.
 
-## Current behavior
+## Установка
 
-- Triggers can appear on:
-  - every N-th new tab
-  - every N-th link click
-- If a new-tab page cannot be injected into, the challenge is deferred until the next eligible HTTP(S) page.
-- The challenge popup is a small editorial paper card, not a blocking page.
-- The popup is skippable with **Skip** or **Escape**.
-- There is no countdown/progress bar.
-- Answer speed and correctness feed SM-2-style SRS scheduling.
-- Settings and progress are stored locally in `chrome.storage.local`.
-- Dashboard is internal to the extension at `dashboard.html`.
+Расширение загружается из папки `dist/`. Готовая сборка в репозиторий не включена — её нужно собрать самостоятельно.
 
-## Commands
+```bash
+npm install
+npm run build
+```
+
+Затем:
+
+1. Откройте `chrome://extensions`.
+2. Включите **Developer mode** / «Режим разработчика».
+3. Нажмите **Load unpacked** / «Загрузить распакованное расширение».
+4. Выберите папку `dist/`.
+5. Откройте любую HTTP(S)-страницу и проверьте расширение через кнопку **Demo Trigger** во всплывающем окне расширения.
+
+## Как это работает
+
+- Карточка может появляться при открытии новых вкладок или переходах по ссылкам.
+- Вопрос можно пропустить кнопкой **Skip** или клавишей **Escape**.
+- Ответы и скорость ответа влияют на расписание повторения слов.
+- Настройки и прогресс хранятся локально в `chrome.storage.local`.
+- Внутренняя статистика доступна на странице `dashboard.html`.
+
+## Важные ограничения
+
+- Это MVP, а не полноценный учебный продукт.
+- Контент сейчас сфокусирован на казахском словаре.
+- На некоторых страницах Chrome не разрешает внедрять расширения; в таком случае показ откладывается до следующей подходящей HTTP(S)-страницы.
+- Данные хранятся только локально и не синхронизируются между устройствами.
+
+## Команды
 
 ```bash
 npm run dev
@@ -25,39 +44,3 @@ npm run build
 npm run lint
 npm run check:write
 ```
-
-## Load in Chrome
-
-1. Run `npm run build`.
-2. Open `chrome://extensions`.
-3. Enable **Developer mode**.
-4. Click **Load unpacked**.
-5. Select `dist/`.
-6. Open any HTTP(S) page and use the extension popup **Demo Trigger** button or hotkey to test the overlay.
-
-## Manual test checklist
-
-After loading `dist/`:
-
-- Open extension popup and change frequency/cooldown/theme settings.
-- Use **Demo Trigger** on an HTTP(S) page.
-- Confirm answer buttons submit and update stats.
-- Confirm **Skip** and **Escape** dismiss the popup.
-- Confirm cooldown prevents repeated normal triggers.
-- Open `dashboard.html` and confirm streak, graph, vocabulary metrics, and mastered list render.
-
-## Key files
-
-- `manifest.config.ts` — extension manifest config
-- `src/background.ts` — trigger orchestration and storage updates
-- `src/content.tsx` — injected challenge overlay
-- `src/content.css` — challenge overlay editorial design
-- `src/App.tsx` — extension action popup/settings
-- `src/dashboard.tsx` — dashboard logic
-- `src/index.css` — dashboard editorial design
-- `src/shared/learning-content.ts` — static MVP vocabulary
-- `src/shared/challenge.ts` — challenge/SRS helper logic
-- `src/shared/srs.ts` — SM-2-style scheduling
-- `SPECIFICATION.md` — product specification
-- `IMPLEMENTATION_CHECKLIST.md` — implementation plan
-- `POPUP_DESIGN.md` — popup design notes

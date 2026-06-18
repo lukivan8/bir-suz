@@ -2,8 +2,10 @@ import { createResource, createSignal, For, Show } from 'solid-js'
 import { render } from 'solid-js/web'
 import './index.css'
 import { calculateCurrentStreak } from './shared/challenge'
-import type { RuntimeMessage } from './shared/messages'
+import type { RuntimeMessage, RuntimeResponseFor } from './shared/messages'
 import type { StorageShape, WordItem } from './shared/types'
+import { isStorageShape } from './shared/validation'
+import { getActiveVocabulary, getActiveWords } from './shared/vocabularies'
 
 const DAY_MS = 24 * 60 * 60 * 1000
 const HEATMAP_WEEKS = 13
@@ -17,9 +19,15 @@ interface ActivityDay {
 }
 
 async function getState() {
-  return (await sendRuntimeMessage({
+  const response = await sendRuntimeMessage({
     type: 'bir-soz:get-state',
-  })) as StorageShape
+  })
+
+  if (!isStorageShape(response)) {
+    throw new Error('Invalid storage state response')
+  }
+
+  return response
 }
 
 function Dashboard() {
@@ -59,6 +67,10 @@ function Dashboard() {
   const activityDays = () => buildActivityDays(state())
   const activityMonths = () => buildActivityMonths(activityDays())
   const activityWeekdays = () => buildActivityWeekdays()
+  const activeVocabulary = () => {
+    const current = state()
+    return current ? getActiveVocabulary(current) : undefined
+  }
   const dictionaryWords = () => getDictionaryWords(state(), masteryFilter())
   const masteredWordCount = () => countWordsByMastery(state(), 'mastered')
   const activeWordCount = () => countWordsByMastery(state(), 'in-progress')
@@ -72,7 +84,7 @@ function Dashboard() {
           {(current) => (
             <>
               <div class="dashboard-actions">
-                <div class="dashboard-wordmark">Bir sóz</div>
+                <div class="dashboard-wordmark">Bir söz</div>
                 <button
                   type="button"
                   class="advanced-settings-button"
@@ -112,7 +124,11 @@ function Dashboard() {
                           {(day) => <span>{day}</span>}
                         </For>
                       </div>
-                      <div class="activity-heatmap" aria-label="Активность за последние 13 недель">
+                      <div
+                        class="activity-heatmap"
+                        role="img"
+                        aria-label="Активность за последние 13 недель"
+                      >
                         <For each={activityDays()}>
                           {(day) => (
                             <button
@@ -121,9 +137,12 @@ function Dashboard() {
                               classList={{
                                 today: day.isToday,
                                 'level-1': day.correct > 0 && day.correct < 10,
-                                'level-2': day.correct >= 10 && day.correct < 25,
-                                'level-3': day.correct >= 25 && day.correct < 50,
-                                'level-4': day.correct >= 50 && day.correct < 100,
+                                'level-2':
+                                  day.correct >= 10 && day.correct < 25,
+                                'level-3':
+                                  day.correct >= 25 && day.correct < 50,
+                                'level-4':
+                                  day.correct >= 50 && day.correct < 100,
                                 'level-5': day.correct >= 100,
                               }}
                               data-tooltip={`${day.label}: ${day.count} заданий, ${day.correct} решено`}
@@ -140,9 +159,12 @@ function Dashboard() {
                 <span class="section-num">02 — Словарь</span>
                 <div class="section-heading-row">
                   <h2 class="section-heading">
-                    Весь словарь, <em>по уровню освоения</em>.
+                    {activeVocabulary()?.name ?? 'Словарь'},{' '}
+                    <em>по уровню освоения</em>.
                   </h2>
-                  <span class="table-count">{dictionaryWords().length} слов</span>
+                  <span class="table-count">
+                    {dictionaryWords().length} слов
+                  </span>
                 </div>
                 <div class="vocab-grid compact-vocab-grid">
                   <MetricPanel
@@ -164,9 +186,12 @@ function Dashboard() {
                     Уровень освоения
                     <select
                       value={masteryFilter()}
-                      onChange={(event) =>
-                        setMasteryFilter(event.currentTarget.value as MasteryFilter)
-                      }
+                      onChange={(event) => {
+                        const value = event.currentTarget.value
+                        if (isMasteryFilter(value)) {
+                          setMasteryFilter(value)
+                        }
+                      }}
                     >
                       <option value="all">Все</option>
                       <option value="mastered">Освоенные</option>
@@ -207,7 +232,6 @@ function Dashboard() {
             </>
           )}
         </Show>
-
       </div>
     </main>
   )
@@ -254,10 +278,23 @@ function AdvancedSettingsModal(props: {
   ) => void
 }) {
   return (
-    <div class="modal-backdrop" onClick={props.onClose}>
-      <div class="advanced-modal" onClick={(event) => event.stopPropagation()}>
+    <div class="modal-backdrop">
+      <button
+        type="button"
+        class="modal-backdrop-button"
+        aria-label="Закрыть доп. настройки"
+        onClick={props.onClose}
+      />
+      <section
+        class="advanced-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="advanced-settings-title"
+      >
         <div class="section-heading-row">
-          <h2 class="section-heading">Доп. настройки</h2>
+          <h2 id="advanced-settings-title" class="section-heading">
+            Доп. настройки
+          </h2>
           <button type="button" class="modal-close" onClick={props.onClose}>
             Закрыть
           </button>
@@ -288,7 +325,7 @@ function AdvancedSettingsModal(props: {
             onChange={(endHour) => props.onQuietHoursChange({ endHour })}
           />
         </div>
-      </div>
+      </section>
     </div>
   )
 }
@@ -322,18 +359,20 @@ function SettingsNumber(props: {
 }
 
 function buildActivityMonths(days: ActivityDay[]) {
-  return days.filter((_, index) => index % 7 === 0).map((day, index, weeks) => {
-    const month = new Intl.DateTimeFormat('ru-RU', { month: 'short' }).format(
-      dateFromKey(day.key),
-    )
-    if (index === 0) return month
+  return days
+    .filter((_, index) => index % 7 === 0)
+    .map((day, index, weeks) => {
+      const month = new Intl.DateTimeFormat('ru-RU', { month: 'short' }).format(
+        dateFromKey(day.key),
+      )
+      if (index === 0) return month
 
-    const previousMonth = new Intl.DateTimeFormat('ru-RU', {
-      month: 'short',
-    }).format(dateFromKey(weeks[index - 1]?.key ?? day.key))
+      const previousMonth = new Intl.DateTimeFormat('ru-RU', {
+        month: 'short',
+      }).format(dateFromKey(weeks[index - 1]?.key ?? day.key))
 
-    return month === previousMonth ? '' : month
-  })
+      return month === previousMonth ? '' : month
+    })
 }
 
 function buildActivityWeekdays() {
@@ -374,26 +413,34 @@ function countWordsByMastery(
   state: StorageShape | undefined,
   level: Exclude<MasteryFilter, 'all'>,
 ) {
-  return (state?.wordBank ?? []).filter((word) => masteryLevel(word) === level)
-    .length
+  return getActiveWordsOrEmpty(state).filter(
+    (word) => masteryLevel(word) === level,
+  ).length
 }
 
 function getDictionaryWords(
   state: StorageShape | undefined,
   filter: MasteryFilter,
 ) {
-  return (state?.wordBank ?? [])
+  return getActiveWordsOrEmpty(state)
     .filter((word) => filter === 'all' || masteryLevel(word) === filter)
     .sort((a, b) => {
       const rankDiff = masteryRank(a) - masteryRank(b)
       if (rankDiff !== 0) return rankDiff
 
-      if (masteryLevel(a) === 'in-progress' && masteryLevel(b) === 'in-progress') {
+      if (
+        masteryLevel(a) === 'in-progress' &&
+        masteryLevel(b) === 'in-progress'
+      ) {
         return b.srs.repetition - a.srs.repetition
       }
 
       return a.sourceText.localeCompare(b.sourceText, 'ru')
     })
+}
+
+function getActiveWordsOrEmpty(state: StorageShape | undefined) {
+  return state ? getActiveWords(state) : []
 }
 
 function masteryLevel(word: WordItem): Exclude<MasteryFilter, 'all'> {
@@ -448,7 +495,13 @@ if (!root) {
   throw new Error('Root element not found')
 }
 
-function sendRuntimeMessage(message: RuntimeMessage) {
+function isMasteryFilter(value: string): value is MasteryFilter {
+  return ['all', 'mastered', 'in-progress', 'new'].includes(value)
+}
+
+function sendRuntimeMessage<TMessage extends RuntimeMessage>(
+  message: TMessage,
+): Promise<RuntimeResponseFor<TMessage>> {
   return chrome.runtime.sendMessage(message)
 }
 
