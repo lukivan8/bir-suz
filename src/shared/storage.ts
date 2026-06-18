@@ -13,6 +13,7 @@ const defaultSettings: AppSettings = {
   frequency: 3,
   idleTriggerEnabled: true,
   newTabTriggerEnabled: true,
+  navigationTriggerEnabled: true,
   cooldownMinutes: 5,
   quietHours: {
     enabled: false,
@@ -27,6 +28,7 @@ export const defaultStorage: StorageShape = {
   userStats: defaultStats,
   settings: defaultSettings,
   newTabCount: 0,
+  navigationCount: 0,
   pendingTrigger: undefined,
 }
 
@@ -49,7 +51,18 @@ export async function getStorage(): Promise<StorageShape> {
   const storageKeys = Object.keys(defaultStorage) as (keyof StorageShape)[]
   const storage = (await chrome.storage.local.get(storageKeys)) as StorageShape
 
-  if (!storage.wordBank.every(isCurrentWordShape)) {
+  const nextSettings = { ...defaultSettings, ...storage.settings }
+  if (storage.settings?.navigationTriggerEnabled === undefined) {
+    storage.settings = nextSettings
+    await chrome.storage.local.set({ settings: nextSettings })
+  }
+
+  if (typeof storage.navigationCount !== 'number') {
+    storage.navigationCount = 0
+    await chrome.storage.local.set({ navigationCount: 0 })
+  }
+
+  if (!Array.isArray(storage.wordBank) || !storage.wordBank.every(isCurrentWordShape)) {
     storage.wordBank = defaultWords
     await chrome.storage.local.set({ wordBank: defaultWords })
   }
@@ -57,13 +70,18 @@ export async function getStorage(): Promise<StorageShape> {
   return storage
 }
 
-function isCurrentWordShape(word: WordItem) {
+function isCurrentWordShape(word: unknown): word is WordItem {
   return (
-    typeof word.sourceText === 'string' &&
-    typeof word.targetText === 'string' &&
-    Array.isArray(word.distractors) &&
-    word.distractors.length >= 3
+    isRecord(word) &&
+    typeof word['sourceText'] === 'string' &&
+    typeof word['targetText'] === 'string' &&
+    Array.isArray(word['distractors']) &&
+    word['distractors'].length >= 3
   )
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null
 }
 
 export async function updateStorage(patch: Partial<StorageShape>) {

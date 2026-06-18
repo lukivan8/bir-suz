@@ -14,11 +14,12 @@
 
 .bir-soz-stage {
   position: fixed;
-  right: 22px;
-  bottom: 22px;
+  top: 50%;
+  left: 50%;
   z-index: 2147483647;
   width: 340px;
   pointer-events: none;
+  transform: translate(-50%, -50%);
 }
 
 .bir-soz-card {
@@ -32,7 +33,8 @@
   border-radius: 0;
   box-shadow: 0 2px 12px rgba(26, 22, 18, 0.12);
   pointer-events: auto;
-  transform: translateY(110%);
+  opacity: 0;
+  transform: translateY(10px) scale(0.98);
   animation: bir-soz-slide-in 160ms ease-out forwards;
 }
 
@@ -198,18 +200,22 @@
 
 @keyframes bir-soz-slide-in {
   from {
-    transform: translateY(110%);
+    opacity: 0;
+    transform: translateY(10px) scale(0.98);
   }
   to {
-    transform: translateY(0);
+    opacity: 1;
+    transform: translateY(0) scale(1);
   }
 }
 
 @keyframes bir-soz-slide-out {
   from {
-    transform: translateY(0);
+    opacity: 1;
+    transform: translateY(0) scale(1);
   }
   to {
-    transform: translateY(110%);
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
   }
 }

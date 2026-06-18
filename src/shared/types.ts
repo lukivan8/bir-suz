@@ -34,6 +34,7 @@ export interface AppSettings {
   frequency: number
   idleTriggerEnabled: boolean
   newTabTriggerEnabled: boolean
+  navigationTriggerEnabled: boolean
   cooldownMinutes: number
   quietHours: QuietHours
   disabledUntil?: number
@@ -45,10 +46,15 @@ export interface StorageShape {
   userStats: UserStats
   settings: AppSettings
   newTabCount: number
-  pendingTrigger?: TriggerSource
+  navigationCount: number
+  pendingTrigger?: TriggerSource | undefined
 }
 
-export type TriggerSource = 'new-tab' | 'idle-return' | 'demo-hotkey'
+export type TriggerSource =
+  | 'new-tab'
+  | 'idle-return'
+  | 'navigation'
+  | 'demo-hotkey'
 
 export interface ChallengePayload {
   source: TriggerSource

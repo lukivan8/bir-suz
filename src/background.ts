@@ -1,4 +1,10 @@
-import { calculateNextSrs, isDue } from './shared/srs'
+import {
+  applyChallengeResult,
+  buildChallengePayload,
+  pickDueWord,
+  shouldBlockForUserSettings,
+} from './shared/challenge'
+import { isRuntimeMessage } from './shared/messages'
 import {
   defaultStorage,
   ensureStorage,
@@ -6,10 +12,8 @@ import {
   updateStorage,
 } from './shared/storage'
 import type {
-  ChallengePayload,
   ChallengeResult,
   TriggerSource,
-  WordItem,
 } from './shared/types'
 
 const COMMAND_NAME = 'demo-trigger'
@@ -35,6 +39,9 @@ chrome.tabs.onCreated.addListener(async () => {
   if (!storage.settings.newTabTriggerEnabled) return
   if (nextCount % storage.settings.frequency !== 0) return
 
+  if (shouldBlockForUserSettings(storage)) return
+  if (!pickDueWord(storage.wordBank)) return
+
   const triggered = await maybeTriggerChallenge('new-tab')
   if (!triggered) {
     await updateStorage({ pendingTrigger: 'new-tab' })
@@ -56,8 +63,12 @@ chrome.commands.onCommand.addListener(async (command) => {
   }
 })
 
-chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+chrome.runtime.onMessage.addListener((message: unknown, _sender, sendResponse) => {
   void (async () => {
+    if (!isRuntimeMessage(message)) {
+      sendResponse({ ok: false })
+      return
+    }
     if (message.type === 'bir-soz:get-state') {
       sendResponse(await getStorage())
       return
@@ -75,8 +86,14 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
       return
     }
 
+    if (message.type === 'bir-soz:navigation-click') {
+      const triggered = await handleNavigationClick()
+      sendResponse({ triggered })
+      return
+    }
+
     if (message.type === 'bir-soz:submit-result') {
-      await handleChallengeResult(message.payload as ChallengeResult)
+      await handleChallengeResult(message.payload)
       sendResponse({ ok: true })
       return
     }
@@ -100,15 +117,7 @@ async function maybeTriggerChallenge(
   const storage = await getStorage()
 
   if (!bypassCooldown) {
-    if (isDisabled(storage.settings.disabledUntil)) return false
-    if (isQuietTime(storage.settings)) return false
-    if (
-      isCoolingDown(
-        storage.userStats.lastChallengeAt,
-        storage.settings.cooldownMinutes,
-      )
-    )
-      return false
+    if (shouldBlockForUserSettings(storage)) return false
   }
 
   const word = pickDueWord(storage.wordBank)
@@ -117,15 +126,7 @@ async function maybeTriggerChallenge(
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
   if (!tab?.id || !isEligiblePage(tab.url)) return false
 
-  const payload: ChallengePayload = {
-    source,
-    word,
-    options: shuffle([
-      word.targetText,
-      ...shuffle(word.distractors).slice(0, 3),
-    ]),
-    startedAt: Date.now(),
-  }
+  const payload = buildChallengePayload(source, word)
 
   try {
     await chrome.tabs.sendMessage(tab.id, {
@@ -148,61 +149,18 @@ function isEligiblePage(url?: string) {
   return url?.startsWith('http://') || url?.startsWith('https://')
 }
 
+async function handleNavigationClick() {
+  const storage = await getStorage()
+  const nextCount = storage.navigationCount + 1
+  await updateStorage({ navigationCount: nextCount })
+
+  if (!storage.settings.navigationTriggerEnabled) return false
+  if (nextCount % storage.settings.frequency !== 0) return false
+
+  return maybeTriggerChallenge('navigation')
+}
+
 async function handleChallengeResult(result: ChallengeResult) {
   const storage = await getStorage()
-  const now = Date.now()
-  const nextWords = storage.wordBank.map((word) => {
-    if (word.id !== result.wordId) return word
-    return {
-      ...word,
-      srs: calculateNextSrs(
-        word.srs,
-        result.wasCorrect && !result.timedOut && !result.wasSkipped,
-        now,
-      ),
-    }
-  })
-
-  const nextStats = {
-    ...storage.userStats,
-    totalExposures: storage.userStats.totalExposures + 1,
-    totalCorrect: storage.userStats.totalCorrect + (result.wasCorrect ? 1 : 0),
-    timeInLanguageContactMs:
-      storage.userStats.timeInLanguageContactMs + result.elapsedMs,
-  }
-
-  await updateStorage({ wordBank: nextWords, userStats: nextStats })
-}
-
-function pickDueWord(words: WordItem[]) {
-  const dueWords = words.filter((word) => isDue(word.srs.nextReview))
-  return dueWords[0] ?? words[0]
-}
-
-function isCoolingDown(
-  lastChallengeAt: number | undefined,
-  cooldownMinutes: number,
-) {
-  if (!lastChallengeAt) return false
-  return Date.now() - lastChallengeAt < cooldownMinutes * 60 * 1000
-}
-
-function isDisabled(disabledUntil?: number) {
-  return typeof disabledUntil === 'number' && disabledUntil > Date.now()
-}
-
-function isQuietTime(settings: typeof defaultStorage.settings) {
-  if (!settings.quietHours.enabled) return false
-  const hour = new Date().getHours()
-  const { startHour, endHour } = settings.quietHours
-
-  if (startHour < endHour) {
-    return hour >= startHour && hour < endHour
-  }
-
-  return hour >= startHour || hour < endHour
-}
-
-function shuffle<T>(items: T[]) {
-  return [...items].sort(() => Math.random() - 0.5)
+  await updateStorage(applyChallengeResult(storage, result))
 }

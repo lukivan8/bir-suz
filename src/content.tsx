@@ -1,22 +1,41 @@
 import { createSignal, For, onCleanup } from 'solid-js'
 import { render } from 'solid-js/web'
 import styles from './content.css?inline'
+import { isRuntimeMessage, type RuntimeMessage } from './shared/messages'
 import type { ChallengePayload, ChallengeResult } from './shared/types'
 
 const CONTAINER_ID = 'bir-soz-extension-root'
-const AUTO_DISMISS_MS = 5000
-const ANSWER_DISMISS_MS = 1200
+const ANSWER_DISMISS_MS = 1800
 const EXIT_MS = 120
 let removeOverlay: (() => void) | undefined
 
-void chrome.runtime.sendMessage({ type: 'bir-soz:content-ready' })
+void sendRuntimeMessage({ type: 'bir-soz:content-ready' })
 
-chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+document.addEventListener(
+  'click',
+  (event) => {
+    const target = event.target
+    if (!(target instanceof Element)) return
+    const link = target.closest('a[href]')
+    if (!link) return
+
+    void sendRuntimeMessage({ type: 'bir-soz:navigation-click' })
+  },
+  { capture: true },
+)
+
+chrome.runtime.onMessage.addListener((message: unknown, _sender, sendResponse) => {
+  if (!isRuntimeMessage(message)) return
+
   if (message.type === 'bir-soz:show-challenge') {
-    showOverlay(message.payload as ChallengePayload)
+    showOverlay(message.payload)
     sendResponse({ ok: true })
   }
 })
+
+function sendRuntimeMessage(message: RuntimeMessage) {
+  return chrome.runtime.sendMessage(message)
+}
 
 function showOverlay(payload: ChallengePayload) {
   removeOverlay?.()
@@ -50,12 +69,9 @@ function showOverlay(payload: ChallengePayload) {
 function Overlay(props: { payload: ChallengePayload; onClose: () => void }) {
   const startedAt = Date.now()
   const [selected, setSelected] = createSignal<string>()
+  const [feedback, setFeedback] = createSignal<string>()
   const [isExiting, setIsExiting] = createSignal(false)
   let hasSubmitted = false
-
-  const autoDismiss = window.setTimeout(() => {
-    void submit(false, true, true)
-  }, AUTO_DISMISS_MS)
 
   async function submit(
     correct: boolean,
@@ -64,7 +80,6 @@ function Overlay(props: { payload: ChallengePayload; onClose: () => void }) {
   ) {
     if (hasSubmitted) return
     hasSubmitted = true
-    window.clearTimeout(autoDismiss)
     window.removeEventListener('keydown', onKeyDown)
 
     const elapsedMs = Date.now() - startedAt
@@ -77,7 +92,11 @@ function Overlay(props: { payload: ChallengePayload; onClose: () => void }) {
       wasSkipped,
     }
 
-    await chrome.runtime.sendMessage({ type: 'bir-soz:submit-result', payload })
+    await sendRuntimeMessage({ type: 'bir-soz:submit-result', payload })
+
+    if (!wasSkipped) {
+      setFeedback(`Answered in ${(elapsedMs / 1000).toFixed(1)}s`)
+    }
 
     const delay = immediateExit || wasSkipped ? 0 : ANSWER_DISMISS_MS
     window.setTimeout(() => {
@@ -102,7 +121,6 @@ function Overlay(props: { payload: ChallengePayload; onClose: () => void }) {
 
   window.addEventListener('keydown', onKeyDown)
   onCleanup(() => {
-    window.clearTimeout(autoDismiss)
     window.removeEventListener('keydown', onKeyDown)
   })
 
@@ -147,7 +165,7 @@ function Overlay(props: { payload: ChallengePayload; onClose: () => void }) {
           </div>
 
           <footer class="bir-soz-bottom">
-            <span>•</span>
+            <span>{feedback() ?? '•'}</span>
             <button
               type="button"
               class="bir-soz-skip"

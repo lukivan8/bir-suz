@@ -1,10 +1,11 @@
 import { createResource, For } from 'solid-js'
 import { render } from 'solid-js/web'
 import './index.css'
+import type { RuntimeMessage } from './shared/messages'
 import type { StorageShape } from './shared/types'
 
 async function getState() {
-  return (await chrome.runtime.sendMessage({
+  return (await sendRuntimeMessage({
     type: 'bir-soz:get-state',
   })) as StorageShape
 }
@@ -94,6 +95,10 @@ const root = document.getElementById('root')
 
 if (!root) {
   throw new Error('Root element not found')
+}
+
+function sendRuntimeMessage(message: RuntimeMessage) {
+  return chrome.runtime.sendMessage(message)
 }
 
 render(() => <Dashboard />, root)

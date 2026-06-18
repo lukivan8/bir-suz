@@ -14,64 +14,64 @@ This checklist is the working implementation plan for aligning the project with 
 
 ## Phase 1 — Correct popup behavior
 
-- [ ] Remove hard 5-second timeout from challenge overlay.
-- [ ] Remove auto-failure/auto-skip on timeout.
-- [ ] Add small elapsed-time feedback after completion as a notification/status message.
-- [ ] Keep the challenge explicitly skippable.
-- [ ] Make overlay visually small, centered, and non-page-like.
-- [ ] Ensure it does not obscure the whole browser viewport unnecessarily.
-- [ ] Ensure Escape still skips/dismisses.
-- [ ] Ensure answer buttons submit normally.
-- [ ] Clean up keyboard listeners and intervals on close.
+- [x] Remove hard 5-second timeout from challenge overlay.
+- [x] Remove auto-failure/auto-skip on timeout.
+- [x] Add small elapsed-time feedback after completion as a notification/status message.
+- [x] Keep the challenge explicitly skippable.
+- [x] Make overlay visually small, centered, and non-page-like.
+- [x] Ensure it does not obscure the whole browser viewport unnecessarily.
+- [x] Ensure Escape still skips/dismisses.
+- [x] Ensure answer buttons submit normally.
+- [x] Clean up keyboard listeners and intervals on close.
 
 ## Phase 2 — Content expansion using English
 
-- [ ] Replace the current 4-word hardcoded list with a larger generated English-based learning set.
-- [ ] Use English → Russian multiple-choice translation.
-- [ ] Store content in a separate static data file instead of inline inside `storage.ts`.
-- [ ] Add at least 100 entries.
-- [ ] Ensure each entry has exactly one correct answer and at least three distractors.
-- [ ] Ensure challenge option generation always includes the correct answer.
-- [ ] Update types if needed to avoid hardcoding `kk`/`ru` semantics.
+- [x] Replace the current 4-word hardcoded list with a larger generated English-based learning set.
+- [x] Use English → Russian multiple-choice translation.
+- [x] Store content in a separate static data file instead of inline inside `storage.ts`.
+- [x] Add at least 100 entries.
+- [x] Ensure each entry has exactly one correct answer and at least three distractors.
+- [x] Ensure challenge option generation always includes the correct answer.
+- [x] Update types if needed to avoid hardcoding `kk`/`ru` semantics.
 
 ## Phase 3 — Reliable trigger behavior
 
-- [ ] Fix new-tab trigger so it uses the same small popup approach on top of pages where extension injection is allowed.
-- [ ] Do not add a custom extension new-tab page for MVP.
-- [ ] If `chrome://newtab` cannot be injected into, defer the popup until the next eligible HTTP(S) page.
-- [ ] Keep default interruption level low.
-- [ ] Preserve cooldown logic.
-- [ ] Preserve skip behavior.
+- [x] Fix new-tab trigger so it uses the same small popup approach on top of pages where extension injection is allowed.
+- [x] Do not add a custom extension new-tab page for MVP.
+- [x] If `chrome://newtab` cannot be injected into, defer the popup until the next eligible HTTP(S) page.
+- [x] Keep default interruption level low.
+- [x] Preserve cooldown logic.
+- [x] Preserve skip behavior.
 
 ## Phase 4 — Navigation trigger
 
-- [ ] Add navigation trigger support.
-- [ ] Implement link-click counting first, preferably via content-script click tracking if Manifest V3 allows the needed flow cleanly.
-- [ ] Defer page-load and SPA-route counting until later.
-- [ ] Add required manifest permissions only if needed.
-- [ ] Add navigation frequency counter.
-- [ ] Add navigation trigger setting.
-- [ ] Add `navigation` or equivalent value to `TriggerSource`.
-- [ ] Respect cooldown, quiet hours, and disabled-until settings.
+- [x] Add navigation trigger support.
+- [x] Implement link-click counting first, preferably via content-script click tracking if Manifest V3 allows the needed flow cleanly.
+- [x] Defer page-load and SPA-route counting until later.
+- [x] Add required manifest permissions only if needed.
+- [x] Add navigation frequency counter.
+- [x] Add navigation trigger setting.
+- [x] Add `navigation` or equivalent value to `TriggerSource`.
+- [x] Respect cooldown, quiet hours, and disabled-until settings.
 
 ## Phase 5 — User-facing settings
 
-- [ ] Add UI to change challenge frequency.
-- [ ] Add UI to enable/disable idle trigger.
-- [ ] Add UI to enable/disable navigation trigger.
-- [ ] Add UI to configure quiet hours.
-- [ ] Add UI to change cooldown duration.
-- [ ] Add UI to pause/disable for a chosen duration.
-- [ ] Ensure all settings persist in `chrome.storage.local`.
+- [x] Add UI to change challenge frequency.
+- [x] Add UI to enable/disable idle trigger.
+- [x] Add UI to enable/disable navigation trigger.
+- [x] Add UI to configure quiet hours.
+- [x] Add UI to change cooldown duration.
+- [x] Add UI to pause/disable for a chosen duration.
+- [x] Ensure all settings persist in `chrome.storage.local`.
 
 ## Phase 6 — SRS correctness
 
-- [ ] Replace simplified boolean SRS with closer SM-2-style logic.
-- [ ] Map challenge result to SM-2 quality score using correctness, skips, and answer speed.
-- [ ] Use answer speed as part of quality score.
-- [ ] Keep skip and wrong answers as failed reviews.
-- [ ] Add tests or documented examples for interval progression.
-- [ ] Ensure due-word selection does not always pick the first due word.
+- [x] Replace simplified boolean SRS with closer SM-2-style logic.
+- [x] Map challenge result to SM-2 quality score using correctness, skips, and answer speed.
+- [x] Use answer speed as part of quality score.
+- [x] Keep skip and wrong answers as failed reviews.
+- [x] Add tests or documented examples for interval progression.
+- [x] Ensure due-word selection does not always pick the first due word.
 
 ## Phase 7 — Dashboard completion
 
