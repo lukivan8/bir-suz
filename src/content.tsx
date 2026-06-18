@@ -1,4 +1,4 @@
-import { createSignal, For, onCleanup } from 'solid-js'
+import { createEffect, createSignal, For, onCleanup, onMount } from 'solid-js'
 import { render } from 'solid-js/web'
 import styles from './content.css?inline'
 import {
@@ -135,6 +135,9 @@ function Overlay(props: { payload: ChallengePayload; onClose: () => void }) {
   const [selected, setSelected] = createSignal<string>()
   const [feedback, setFeedback] = createSignal<string>()
   const [isExiting, setIsExiting] = createSignal(false)
+  const [wordFontSize, setWordFontSize] = createSignal(52)
+  const [isWordWrapped, setIsWordWrapped] = createSignal(false)
+  let wordElement: HTMLHeadingElement | undefined
   let hasSubmitted = false
 
   async function submit(
@@ -159,7 +162,7 @@ function Overlay(props: { payload: ChallengePayload; onClose: () => void }) {
     await sendRuntimeMessage({ type: 'bir-soz:submit-result', payload })
 
     if (!wasSkipped) {
-      setFeedback(`Answered in ${(elapsedMs / 1000).toFixed(1)}s`)
+      setFeedback(`Ответ за ${(elapsedMs / 1000).toFixed(1)} с`)
     }
 
     const delay = immediateExit || wasSkipped ? 0 : ANSWER_DISMISS_MS
@@ -178,10 +181,47 @@ function Overlay(props: { payload: ChallengePayload; onClose: () => void }) {
   const optionState = (option: string) => {
     const current = selected()
     if (!current) return 'neutral'
-    if (option === props.payload.word.targetText) return 'correct'
+    if (option === props.payload.answerText) return 'correct'
     if (option === current) return 'wrong'
     return 'muted'
   }
+
+  const promptCopy = () =>
+    props.payload.direction === 'target-to-source'
+      ? 'Qazaq tilindegi audarmany tañdañyz'
+      : 'Orys tilindegi audarmany tañdañyz'
+
+  function fitWord() {
+    const element = wordElement
+    if (!element) return
+
+    element.classList.remove('is-wrapped')
+
+    let size = 52
+    element.style.setProperty('--bir-soz-word-size', `${size}px`)
+
+    while (size > 32 && element.scrollWidth > element.clientWidth) {
+      size -= 1
+      element.style.setProperty('--bir-soz-word-size', `${size}px`)
+    }
+
+    const shouldWrap = element.scrollWidth > element.clientWidth
+    element.classList.toggle('is-wrapped', shouldWrap)
+    setWordFontSize(size)
+    setIsWordWrapped(shouldWrap)
+  }
+
+  createEffect(() => {
+    props.payload.promptText
+    const frame = window.requestAnimationFrame(fitWord)
+    onCleanup(() => window.cancelAnimationFrame(frame))
+  })
+
+  onMount(() => {
+    const observer = new ResizeObserver(fitWord)
+    if (wordElement) observer.observe(wordElement)
+    onCleanup(() => observer.disconnect())
+  })
 
   window.addEventListener('keydown', onKeyDown)
   onCleanup(() => {
@@ -209,13 +249,18 @@ function Overlay(props: { payload: ChallengePayload; onClose: () => void }) {
           </header>
 
           <section>
-            <h2 class="bir-soz-word">
-              {props.payload.word.sourceText}
-              {selected() === props.payload.word.targetText && (
+            <h2
+              ref={wordElement}
+              class="bir-soz-word"
+              classList={{ 'is-wrapped': isWordWrapped() }}
+              style={`--bir-soz-word-size: ${wordFontSize()}px`}
+            >
+              {props.payload.promptText}
+              {selected() === props.payload.answerText && (
                 <span class="bir-soz-glyph">+</span>
               )}
             </h2>
-            <p class="bir-soz-prompt">Orys tilindegi audarmany tañdañyz</p>
+            <p class="bir-soz-prompt">{promptCopy()}</p>
           </section>
 
           <div class="bir-soz-rule" />
@@ -229,7 +274,7 @@ function Overlay(props: { payload: ChallengePayload; onClose: () => void }) {
                   disabled={Boolean(selected())}
                   onClick={() => {
                     setSelected(option)
-                    void submit(option === props.payload.word.targetText)
+                    void submit(option === props.payload.answerText)
                   }}
                 >
                   {option}
@@ -245,7 +290,7 @@ function Overlay(props: { payload: ChallengePayload; onClose: () => void }) {
               class="bir-soz-skip"
               onClick={() => void submit(false, true, true)}
             >
-              Skip
+              Пропустить
             </button>
           </footer>
         </div>

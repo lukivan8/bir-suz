@@ -130,7 +130,7 @@
   max-width: 100%;
   color: var(--ink);
   font-family: var(--serif-display);
-  font-size: 52px;
+  font-size: var(--bir-soz-word-size, 52px);
   font-style: italic;
   font-weight: 300;
   font-variation-settings:
@@ -140,6 +140,16 @@
   line-height: 0.92;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.bir-soz-word.is-wrapped {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  overflow-wrap: anywhere;
+  text-overflow: clip;
+  white-space: normal;
 }
 
 .bir-soz-glyph {

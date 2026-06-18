@@ -529,6 +529,42 @@ a {
   margin: -14px 0 14px;
 }
 
+.overview-actions {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+
+.overview-actions button {
+  padding: 0;
+  color: var(--accent);
+  background: transparent;
+  border: 0;
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+}
+
+.vocabulary-title-actions {
+  justify-content: flex-end;
+  margin: 0 0 32px;
+}
+
+.vocabulary-heading-with-action {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+}
+
+.vocabulary-heading-with-action button {
+  padding: 0;
+  color: var(--accent);
+  background: transparent;
+  border: 0;
+  font-size: 20px;
+  line-height: 1;
+}
+
 .table-tools label {
   display: flex;
   align-items: center;
@@ -555,6 +591,11 @@ a {
   font: inherit;
   letter-spacing: inherit;
   text-transform: inherit;
+}
+
+.table-tools button:disabled {
+  color: var(--ink-faded);
+  cursor: default;
 }
 
 .modal-backdrop {
@@ -594,6 +635,115 @@ a {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   gap: 16px;
+}
+
+.word-modal {
+  display: grid;
+  gap: 16px;
+}
+
+.word-modal .modal-close {
+  justify-self: end;
+}
+
+.modal-note,
+.form-error {
+  margin: -8px 0 4px;
+  color: var(--ink-faded);
+  font-family: var(--serif-body);
+}
+
+.form-error {
+  color: var(--accent);
+}
+
+.word-field {
+  display: grid;
+  gap: 8px;
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.word-field input {
+  width: 100%;
+  padding: 10px 12px;
+  color: var(--ink);
+  background: var(--paper-deep);
+  border: 1px solid var(--rule);
+  font-family: var(--serif-body);
+  font-size: 18px;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.modal-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding-top: 8px;
+}
+
+.modal-actions button,
+.csv-upload-button {
+  color: var(--accent);
+  background: transparent;
+  border: 0;
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.csv-upload-button {
+  font-size: 10px;
+}
+
+.csv-upload-button input {
+  display: none;
+}
+
+.danger-zone {
+  display: grid;
+  gap: 10px;
+  padding-top: 16px;
+  border-top: 1px dashed var(--rule);
+}
+
+.danger-zone input {
+  width: 100%;
+  padding: 10px 12px;
+  color: var(--ink);
+  background: var(--paper-deep);
+  border: 1px solid var(--rule);
+  font-family: var(--serif-body);
+  font-size: 18px;
+}
+
+.danger-zone button {
+  justify-self: end;
+  color: var(--accent);
+  background: transparent;
+  border: 0;
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.danger-zone .danger-button {
+  padding: 8px 10px;
+  color: var(--paper);
+  background: var(--accent);
+}
+
+.modal-actions button:disabled,
+.danger-zone button:disabled {
+  color: var(--ink-faded);
+  cursor: default;
 }
 
 .settings-number {
@@ -636,6 +786,34 @@ a {
   border-top: 1px solid var(--ink);
 }
 
+.dictionary-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  margin: 8px 0 16px;
+}
+
+.dictionary-actions button {
+  padding: 0;
+  color: var(--accent);
+  background: transparent;
+  border: 0;
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+}
+
+.dictionary-actions small {
+  max-width: 620px;
+  color: var(--ink-faded);
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-align: right;
+  text-transform: uppercase;
+}
+
 .dictionary-table-scroll {
   max-height: 493px;
   overflow-y: auto;
@@ -646,13 +824,23 @@ a {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 140px;
   gap: 24px;
+  width: 100%;
   padding: 10px 0;
+  color: inherit;
+  text-align: left;
+  background: transparent;
+  border: 0;
   border-bottom: 1px dashed var(--rule-soft);
-  transition: background 80ms;
+  transition: background 80ms, padding 80ms;
 }
 
-.mastered-row:hover {
+.mastered-row:hover,
+.mastered-row:focus-visible {
+  padding-inline: 8px;
   color: var(--ink);
+  background: var(--paper-deep);
+  outline: 1px solid var(--rule);
+  cursor: pointer;
 }
 
 .mastered-row span:first-child {
@@ -673,6 +861,10 @@ a {
   letter-spacing: 0.12em;
   text-align: right;
   white-space: nowrap;
+}
+
+.danger-link {
+  color: var(--accent);
 }
 
 .empty-state {

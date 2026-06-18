@@ -27,10 +27,10 @@ const defaultStats: UserStats = {
 
 const defaultSettings: AppSettings = {
   uiLanguage: 'ru',
-  frequency: 3,
+  frequency: 5,
   newTabTriggerEnabled: true,
   navigationTriggerEnabled: true,
-  cooldownMinutes: 5,
+  cooldownMinutes: 3,
   quietHours: {
     enabled: false,
     startHour: 22,
@@ -88,7 +88,10 @@ function buildStoragePatch(current: LegacyStorageShape): Partial<StorageShape> {
   const normalized = normalizeStorage(current)
   const patch: Partial<StorageShape> = {}
 
-  if (!areValidVocabularies(current.vocabularies)) {
+  if (
+    !areValidVocabularies(current.vocabularies) ||
+    !hasAllSeedVocabularies(current.vocabularies)
+  ) {
     patch.vocabularies = normalized.vocabularies
   }
 
@@ -153,7 +156,7 @@ function normalizeStorage(storage: LegacyStorageShape): StorageShape {
 
 function normalizeVocabularies(storage: LegacyStorageShape): Vocabulary[] {
   if (areValidVocabularies(storage.vocabularies)) {
-    return storage.vocabularies
+    return appendMissingSeedVocabularies(storage.vocabularies)
   }
 
   if (
@@ -162,7 +165,7 @@ function normalizeVocabularies(storage: LegacyStorageShape): Vocabulary[] {
   ) {
     const now = Date.now()
     const seedVocabulary = seedVocabularies[0]
-    return [
+    return appendMissingSeedVocabularies([
       {
         id: seedVocabulary?.id ?? seedVocabularyId,
         name: seedVocabulary?.name ?? 'Базовый словарь',
@@ -175,10 +178,25 @@ function normalizeVocabularies(storage: LegacyStorageShape): Vocabulary[] {
         updatedAt: now,
         words: storage.wordBank.map(removeLegacyDistractors),
       },
-    ]
+    ])
   }
 
   return seedVocabularies
+}
+
+function appendMissingSeedVocabularies(vocabularies: Vocabulary[]) {
+  const existingIds = new Set(vocabularies.map((vocabulary) => vocabulary.id))
+  const missingSeedVocabularies = seedVocabularies.filter(
+    (vocabulary) => !existingIds.has(vocabulary.id),
+  )
+
+  return [...vocabularies, ...missingSeedVocabularies]
+}
+
+function hasAllSeedVocabularies(vocabularies: unknown) {
+  if (!areValidVocabularies(vocabularies)) return false
+  const existingIds = new Set(vocabularies.map((vocabulary) => vocabulary.id))
+  return seedVocabularies.every((vocabulary) => existingIds.has(vocabulary.id))
 }
 
 function normalizeSettings(settings: unknown): AppSettings {

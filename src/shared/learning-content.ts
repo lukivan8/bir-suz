@@ -13,7 +13,7 @@ type LearningEntry = readonly [
   targetText: string,
 ]
 
-const entries = [
+const basicEntries = [
   ['kz_001', 'otbasy', 'семья'],
   ['kz_002', 'ata-ana', 'родители'],
   ['kz_003', 'ağa', 'старший брат'],
@@ -116,10 +116,18 @@ const entries = [
   ['kz_100', 'tüsinu', 'понимать'],
 ] as const satisfies readonly LearningEntry[]
 
+const verbEntries = [
+  ['kz_verbs_001', 'oqu', 'читать'],
+  ['kz_verbs_002', 'jazu', 'писать'],
+  ['kz_verbs_003', 'aitu', 'говорить'],
+  ['kz_verbs_004', 'tyñdau', 'слушать'],
+  ['kz_verbs_005', 'köru', 'видеть'],
+] as const satisfies readonly LearningEntry[]
+
 export const seedVocabularyId = 'builtin-basic'
 
-export const seedWords: WordItem[] = entries.map(
-  ([id, sourceText, targetText]) => ({
+const buildWords = (entries: readonly LearningEntry[]): WordItem[] =>
+  entries.map(([id, sourceText, targetText]) => ({
     id,
     sourceText,
     targetText,
@@ -127,8 +135,11 @@ export const seedWords: WordItem[] = entries.map(
     targetLabel: 'orys tili',
     level: 'A2',
     srs: srs(),
-  }),
-)
+  }))
+
+export const seedWords: WordItem[] = buildWords(basicEntries)
+
+const seedVerbWords: WordItem[] = buildWords(verbEntries)
 
 export const seedVocabularies: Vocabulary[] = [
   {
@@ -141,4 +152,15 @@ export const seedVocabularies: Vocabulary[] = [
     updatedAt: 0,
     words: seedWords,
   },
+  {
+    id: 'builtin-verbs-mini',
+    name: 'Глаголы: мини-набор',
+    description: 'Короткий словарь для проверки переключения между наборами.',
+    category: 'verbs',
+    isBuiltin: true,
+    createdAt: 0,
+    updatedAt: 0,
+    words: seedVerbWords,
+  },
 ]
+

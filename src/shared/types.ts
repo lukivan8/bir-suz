@@ -87,9 +87,14 @@ export interface StorageShape {
 
 export type TriggerSource = 'new-tab' | 'navigation' | 'demo-hotkey'
 
+export type ChallengeDirection = 'source-to-target' | 'target-to-source'
+
 export interface ChallengePayload {
   source: TriggerSource
   word: WordItem
+  direction: ChallengeDirection
+  promptText: string
+  answerText: string
   options: string[]
   startedAt: number
 }
