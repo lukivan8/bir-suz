@@ -4,7 +4,8 @@ const manifest = {
   manifest_version: 3,
   name: 'Bir Söz',
   version: '0.1.0',
-  description: 'Qazaq sózderin úırenýge arnalǵan braýzer keńeıtimi.',
+  description:
+    'Расширение для создания казахской языковой среды в браузере за одну установку.',
   icons: {
     16: 'favicon-16x16.png',
     32: 'favicon-32x32.png',
@@ -38,7 +39,7 @@ const manifest = {
         default: 'Ctrl+Shift+K',
         mac: 'Command+Shift+K',
       },
-      description: 'Mysal tapsyrmany kórsetý',
+      description: 'Показать пример задания',
     },
   },
 } satisfies chrome.runtime.ManifestV3
