@@ -9,13 +9,13 @@ import {
 import { render } from 'solid-js/web'
 import './index.css'
 import { calculateCurrentStreak } from './shared/challenge'
-import { kazakhCyrillicToLatinText } from './shared/latin'
 import type { RuntimeMessage, RuntimeResponseFor } from './shared/messages'
 import type { StorageShape, Vocabulary, WordItem } from './shared/types'
-import { isStorageShape } from './shared/validation'
+import { normalizeStorageShape } from './shared/validation'
 
 const DAY_MS = 24 * 60 * 60 * 1000
 const HEATMAP_WEEKS = 13
+const DASHBOARD_EXTENSION_HINT_DISMISSED_KEY = 'dashboardExtensionHintDismissed'
 type MasteryFilter = 'all' | 'mastered' | 'in-progress' | 'new'
 interface PendingDelete {
   vocabularyId: string
@@ -38,11 +38,12 @@ async function getState() {
     type: 'bir-soz:get-state',
   })
 
-  if (!isStorageShape(response)) {
+  const state = normalizeStorageShape(response)
+  if (!state) {
     throw new Error('Invalid storage state response')
   }
 
-  return response
+  return state
 }
 
 function Dashboard() {
@@ -54,6 +55,7 @@ function Dashboard() {
     new URLSearchParams(window.location.search).get('welcome') === 'analytics',
   )
   const [isSettingsOpen, setIsSettingsOpen] = createSignal(false)
+  const [isExtensionHintOpen, setIsExtensionHintOpen] = createSignal(false)
   const [isAddWordOpen, setIsAddWordOpen] = createSignal(false)
   const [editingWordId, setEditingWordId] = createSignal<string>()
   const [pendingDelete, setPendingDelete] = createSignal<PendingDelete>()
@@ -73,6 +75,23 @@ function Dashboard() {
   const closeAnalyticsWelcome = () => {
     setIsAnalyticsWelcomeOpen(false)
     window.history.replaceState(null, '', 'dashboard.html')
+  }
+
+  onMount(() => {
+    void chrome.storage.local
+      .get(DASHBOARD_EXTENSION_HINT_DISMISSED_KEY)
+      .then((stored) => {
+        if (!stored[DASHBOARD_EXTENSION_HINT_DISMISSED_KEY]) {
+          setIsExtensionHintOpen(true)
+        }
+      })
+  })
+
+  const dismissExtensionHint = () => {
+    setIsExtensionHintOpen(false)
+    void chrome.storage.local.set({
+      [DASHBOARD_EXTENSION_HINT_DISMISSED_KEY]: true,
+    })
   }
 
   const updateAnalyticsEnabled = async (analyticsEnabled: boolean) => {
@@ -115,6 +134,7 @@ function Dashboard() {
       ...current,
       vocabularies: [vocabulary, ...current.vocabularies],
       activeVocabularyId: vocabulary.id,
+      activeVocabularyIds: [vocabulary.id],
     }
 
     mutate(next)
@@ -123,6 +143,7 @@ function Dashboard() {
     await chrome.storage.local.set({
       vocabularies: next.vocabularies,
       activeVocabularyId: next.activeVocabularyId,
+      activeVocabularyIds: next.activeVocabularyIds,
     })
   }
 
@@ -171,7 +192,7 @@ function Dashboard() {
         word.id === wordId
           ? {
               ...word,
-              sourceText: kazakhCyrillicToLatinText(sourceText.trim()),
+              sourceText: sourceText.trim(),
               targetText: targetText.trim(),
             }
           : word,
@@ -191,7 +212,7 @@ function Dashboard() {
     sourceText: string,
     targetText: string,
   ) => {
-    const nextSourceText = kazakhCyrillicToLatinText(sourceText.trim())
+    const nextSourceText = sourceText.trim()
     const nextTargetText = targetText.trim()
     if (!nextSourceText || !nextTargetText) return
 
@@ -233,15 +254,19 @@ function Dashboard() {
     const nextVocabularies = current.vocabularies.filter(
       (vocabulary) => vocabulary.id !== vocabularyId,
     )
-    const nextActiveVocabularyId = nextVocabularies.some(
-      (vocabulary) => vocabulary.id === current.activeVocabularyId,
+    const nextActiveVocabularyIds = current.activeVocabularyIds.filter(
+      (id) => id !== vocabularyId,
     )
-      ? current.activeVocabularyId
-      : (nextVocabularies[0]?.id ?? current.activeVocabularyId)
+    if (nextActiveVocabularyIds.length === 0 && nextVocabularies[0]) {
+      nextActiveVocabularyIds.push(nextVocabularies[0].id)
+    }
+    const nextActiveVocabularyId =
+      nextActiveVocabularyIds[0] ?? current.activeVocabularyId
     const next = {
       ...current,
       vocabularies: nextVocabularies,
       activeVocabularyId: nextActiveVocabularyId,
+      activeVocabularyIds: nextActiveVocabularyIds,
     }
 
     mutate(next)
@@ -250,20 +275,31 @@ function Dashboard() {
     await chrome.storage.local.set({
       vocabularies: next.vocabularies,
       activeVocabularyId: next.activeVocabularyId,
+      activeVocabularyIds: next.activeVocabularyIds,
     })
   }
 
-  const makeVocabularyActive = async (vocabularyId: string) => {
+  const toggleVocabularyActive = async (vocabularyId: string) => {
     const current = state()
     if (!current) return
 
+    const isActive = current.activeVocabularyIds.includes(vocabularyId)
+    if (isActive && current.activeVocabularyIds.length === 1) return
+
+    const activeVocabularyIds = isActive
+      ? current.activeVocabularyIds.filter((id) => id !== vocabularyId)
+      : [...current.activeVocabularyIds, vocabularyId]
     const next = {
       ...current,
-      activeVocabularyId: vocabularyId,
+      activeVocabularyId: activeVocabularyIds[0] ?? current.activeVocabularyId,
+      activeVocabularyIds,
     }
 
     mutate(next)
-    await chrome.storage.local.set({ activeVocabularyId: vocabularyId })
+    await chrome.storage.local.set({
+      activeVocabularyId: next.activeVocabularyId,
+      activeVocabularyIds: next.activeVocabularyIds,
+    })
   }
 
   return (
@@ -282,6 +318,33 @@ function Dashboard() {
                   Настройки
                 </button>
               </div>
+
+              <Show when={isExtensionHintOpen()}>
+                <aside
+                  class="extension-return-hint"
+                  aria-label="Как вернуться в Bir söz"
+                >
+                  <div class="extension-return-hint-icon" aria-hidden="true">
+                    <svg viewBox="0 0 64 64">
+                      <title>Значок расширений</title>
+                      <path d="M17 12h14v9a7 7 0 1 0 14 0v-9h4a6 6 0 0 1 6 6v28a6 6 0 0 1-6 6H17a6 6 0 0 1-6-6V18a6 6 0 0 1 6-6Zm14 18a3 3 0 1 1 6 0v5h-6v-5Z" />
+                    </svg>
+                  </div>
+                  <p>
+                    Управляйте расширением и возвращайтесь сюда в любой момент:
+                    нажмите значок расширений в панели браузера, затем{' '}
+                    <em class="extension-return-hint-name">Bir söz</em>.
+                  </p>
+                  <button
+                    type="button"
+                    class="extension-return-hint-dismiss"
+                    aria-label="Скрыть подсказку"
+                    onClick={dismissExtensionHint}
+                  >
+                    ×
+                  </button>
+                </aside>
+              </Show>
 
               <Show when={isAnalyticsWelcomeOpen()}>
                 <AnalyticsWelcomeModal
@@ -371,6 +434,7 @@ function Dashboard() {
                           setSelectedVocabularyId(vocabularyId)
                           setMasteryFilter('all')
                         }}
+                        onToggleActive={toggleVocabularyActive}
                       />
                       <Show when={isAddVocabularyOpen()}>
                         <AddVocabularyModal
@@ -407,19 +471,15 @@ function Dashboard() {
                           >
                             ← Все словари
                           </button>
-                          <button
-                            type="button"
-                            disabled={
-                              current().activeVocabularyId === vocabulary().id
+                          <DashboardSwitch
+                            label="Активен в заданиях"
+                            checked={current().activeVocabularyIds.includes(
+                              vocabulary().id,
+                            )}
+                            onChange={() =>
+                              toggleVocabularyActive(vocabulary().id)
                             }
-                            onClick={() =>
-                              makeVocabularyActive(vocabulary().id)
-                            }
-                          >
-                            {current().activeVocabularyId === vocabulary().id
-                              ? 'Активный'
-                              : 'Сделать активным'}
-                          </button>
+                          />
                         </div>
                       </div>
                       <div class="table-tools">
@@ -956,8 +1016,8 @@ function AddWordModal(props: {
         </button>
         <h2 class="section-heading">Новое слово</h2>
         <p class="modal-note">
-          Добавится в «{props.vocabularyName}». Казахский текст будет сохранён
-          латиницей.
+          Добавится в «{props.vocabularyName}». Казахское слово можно вводить
+          кириллицей или латиницей.
         </p>
         <label class="word-field">
           Казахское слово
@@ -998,6 +1058,7 @@ function VocabularyOverview(props: {
   storage: StorageShape
   onAdd: () => void
   onSelect: (vocabularyId: string) => void
+  onToggleActive: (vocabularyId: string) => void | Promise<void>
 }) {
   return (
     <>
@@ -1019,34 +1080,40 @@ function VocabularyOverview(props: {
           {(vocabulary) => {
             const progress = () => vocabularyProgress(vocabulary)
             const isActive = () =>
-              props.storage.activeVocabularyId === vocabulary.id
+              props.storage.activeVocabularyIds.includes(vocabulary.id)
 
             return (
-              <button
-                type="button"
+              <article
                 class={`flex min-h-[170px] flex-col justify-between border p-5 text-left font-serif-body text-ink transition hover:-translate-y-0.5 hover:border-accent hover:bg-paper-deep ${
                   isActive()
                     ? 'border-accent bg-paper-deep shadow-[inset_4px_0_0_var(--accent)]'
                     : 'border-rule bg-transparent'
                 }`}
-                onClick={() => props.onSelect(vocabulary.id)}
               >
                 <div class="flex items-center justify-between gap-3 font-mono-editorial text-[11px] uppercase tracking-[0.18em]">
                   <span class="text-accent">
                     {vocabulary.words.length} слов
                   </span>
-                  <Show when={isActive()}>
-                    <span class="text-ink-faded">Активный</span>
-                  </Show>
+                  <DashboardSwitch
+                    label={`${vocabulary.name}: активен в заданиях`}
+                    checked={isActive()}
+                    onChange={() => props.onToggleActive(vocabulary.id)}
+                  />
                 </div>
-                <p class="truncate font-serif-display text-2xl font-normal italic leading-none text-ink">
-                  {vocabulary.name}
-                </p>
-                <small class="font-mono-editorial text-[12px] uppercase tracking-[0.12em] text-ink-faded">
-                  освоено: {progress().completion}% · в работе:{' '}
-                  {progress().inProgress}
-                </small>
-              </button>
+                <button
+                  type="button"
+                  class="mt-6 text-left"
+                  onClick={() => props.onSelect(vocabulary.id)}
+                >
+                  <p class="truncate font-serif-display text-2xl font-normal italic leading-none text-ink">
+                    {vocabulary.name}
+                  </p>
+                  <small class="mt-6 block font-mono-editorial text-[12px] uppercase tracking-[0.12em] text-ink-faded">
+                    освоено: {progress().completion}% · в работе:{' '}
+                    {progress().inProgress}
+                  </small>
+                </button>
+              </article>
             )
           }}
         </For>
@@ -1186,13 +1253,13 @@ function createWordItem(
   sourceText: string,
   targetText: string,
 ): WordItem | undefined {
-  const latinSourceText = kazakhCyrillicToLatinText(sourceText.trim())
+  const cleanSourceText = sourceText.trim()
   const cleanTargetText = targetText.trim()
-  if (!latinSourceText || !cleanTargetText) return undefined
+  if (!cleanSourceText || !cleanTargetText) return undefined
 
   return {
     id: `custom_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
-    sourceText: latinSourceText,
+    sourceText: cleanSourceText,
     targetText: cleanTargetText,
     sourceLabel: 'qazaq tili',
     targetLabel: 'orys tili',
@@ -1237,7 +1304,7 @@ function filterUniqueSourceWords(
 }
 
 function normalizeSourceText(text: string) {
-  return kazakhCyrillicToLatinText(text.trim()).toLocaleLowerCase('kk-KZ')
+  return text.trim().toLocaleLowerCase('kk-KZ')
 }
 
 function useEscapeKey(onEscape: () => void) {

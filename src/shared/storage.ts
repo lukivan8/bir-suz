@@ -42,6 +42,7 @@ const defaultSettings: AppSettings = {
 export const defaultStorage: StorageShape = {
   vocabularies: seedVocabularies,
   activeVocabularyId: seedVocabularyId,
+  activeVocabularyIds: [seedVocabularyId],
   userStats: defaultStats,
   settings: defaultSettings,
   newTabCount: 0,
@@ -56,6 +57,7 @@ type LegacyStorageShape = Partial<StorageShape> & {
 const storageKeys = [
   'vocabularies',
   'activeVocabularyId',
+  'activeVocabularyIds',
   'userStats',
   'settings',
   'newTabCount',
@@ -98,11 +100,16 @@ function buildStoragePatch(current: LegacyStorageShape): Partial<StorageShape> {
 
   if (
     typeof current.activeVocabularyId !== 'string' ||
+    current.activeVocabularyId !== normalized.activeVocabularyId ||
     !normalized.vocabularies.some(
       (vocabulary) => vocabulary.id === current.activeVocabularyId,
     )
   ) {
     patch.activeVocabularyId = normalized.activeVocabularyId
+  }
+
+  if (!hasValidActiveVocabularyIds(current, normalized.vocabularies)) {
+    patch.activeVocabularyIds = normalized.activeVocabularyIds
   }
 
   if (
@@ -135,15 +142,22 @@ function buildStoragePatch(current: LegacyStorageShape): Partial<StorageShape> {
 
 function normalizeStorage(storage: LegacyStorageShape): StorageShape {
   const vocabularies = normalizeVocabularies(storage)
-  const activeVocabularyId = vocabularies.some(
+  const legacyActiveVocabularyId = vocabularies.some(
     (vocabulary) => vocabulary.id === storage.activeVocabularyId,
   )
     ? (storage.activeVocabularyId as string)
     : (vocabularies[0]?.id ?? seedVocabularyId)
+  const activeVocabularyIds = normalizeActiveVocabularyIds(
+    storage.activeVocabularyIds,
+    vocabularies,
+    legacyActiveVocabularyId,
+  )
+  const activeVocabularyId = activeVocabularyIds[0] ?? legacyActiveVocabularyId
 
   return {
     vocabularies,
     activeVocabularyId,
+    activeVocabularyIds,
     userStats: normalizeUserStats(storage.userStats),
     settings: normalizeSettings(storage.settings),
     newTabCount:
@@ -154,6 +168,39 @@ function normalizeStorage(storage: LegacyStorageShape): StorageShape {
       ? storage.pendingTrigger
       : null,
   }
+}
+
+function normalizeActiveVocabularyIds(
+  value: unknown,
+  vocabularies: Vocabulary[],
+  fallbackId: string,
+) {
+  if (!Array.isArray(value)) return [fallbackId]
+
+  const vocabularyIds = new Set(vocabularies.map((vocabulary) => vocabulary.id))
+  const activeVocabularyIds = [...new Set(value)].filter(
+    (id): id is string => typeof id === 'string' && vocabularyIds.has(id),
+  )
+
+  return activeVocabularyIds.length > 0 ? activeVocabularyIds : [fallbackId]
+}
+
+function hasValidActiveVocabularyIds(
+  storage: LegacyStorageShape,
+  vocabularies: Vocabulary[],
+) {
+  if (!Array.isArray(storage.activeVocabularyIds)) return false
+
+  const normalized = normalizeActiveVocabularyIds(
+    storage.activeVocabularyIds,
+    vocabularies,
+    vocabularies[0]?.id ?? seedVocabularyId,
+  )
+
+  return (
+    storage.activeVocabularyIds.length === normalized.length &&
+    storage.activeVocabularyIds.every((id, index) => id === normalized[index])
+  )
 }
 
 function normalizeVocabularies(storage: LegacyStorageShape): Vocabulary[] {

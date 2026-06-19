@@ -14,7 +14,8 @@ import {
 import type { ChallengePayload, ChallengeResult } from './shared/types'
 
 const CONTAINER_ID = 'bir-soz-extension-root'
-const ANSWER_DISMISS_MS = 1200
+const CORRECT_ANSWER_DISMISS_MS = 1200
+const WRONG_ANSWER_DISMISS_MS = 1700
 const EXIT_MS = 120
 let removeOverlay: (() => void) | undefined
 let pageActivityTimer: number | undefined
@@ -120,6 +121,7 @@ function Overlay(props: { payload: ChallengePayload; onClose: () => void }) {
   const startedAt = Date.now()
   const [selected, setSelected] = createSignal<string>()
   const [feedback, setFeedback] = createSignal<string>()
+  const [answerResult, setAnswerResult] = createSignal<'correct' | 'wrong'>()
   const [isExiting, setIsExiting] = createSignal(false)
   const [wordFontSize, setWordFontSize] = createSignal(52)
   const [isWordWrapped, setIsWordWrapped] = createSignal(false)
@@ -136,6 +138,11 @@ function Overlay(props: { payload: ChallengePayload; onClose: () => void }) {
     window.removeEventListener('keydown', onKeyDown)
 
     const elapsedMs = Date.now() - startedAt
+    if (!wasSkipped) {
+      setAnswerResult(correct ? 'correct' : 'wrong')
+      setFeedback(`Ответ за ${(elapsedMs / 1000).toFixed(1)} с`)
+    }
+
     const payload: ChallengeResult = {
       wordId: props.payload.word.id,
       source: props.payload.source,
@@ -147,11 +154,12 @@ function Overlay(props: { payload: ChallengePayload; onClose: () => void }) {
 
     await sendRuntimeMessage(challengeResultMessage(payload))
 
-    if (!wasSkipped) {
-      setFeedback(`Ответ за ${(elapsedMs / 1000).toFixed(1)} с`)
-    }
-
-    const delay = immediateExit || wasSkipped ? 0 : ANSWER_DISMISS_MS
+    const delay =
+      immediateExit || wasSkipped
+        ? 0
+        : correct
+          ? CORRECT_ANSWER_DISMISS_MS
+          : WRONG_ANSWER_DISMISS_MS
     window.setTimeout(() => {
       setIsExiting(true)
       window.setTimeout(props.onClose, EXIT_MS)
@@ -219,12 +227,16 @@ function Overlay(props: { payload: ChallengePayload; onClose: () => void }) {
       class="bir-soz-stage"
       classList={{
         'is-exiting': isExiting(),
+        'has-correct-answer': answerResult() === 'correct',
+        'has-wrong-answer': answerResult() === 'wrong',
       }}
     >
       <article
         class="bir-soz-card"
         classList={{
           'is-exiting': isExiting(),
+          'has-correct-answer': answerResult() === 'correct',
+          'has-wrong-answer': answerResult() === 'wrong',
         }}
       >
         <div class="bir-soz-paper-layer" />

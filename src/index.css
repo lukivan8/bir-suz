@@ -180,6 +180,62 @@ a {
   color: var(--accent-deep);
 }
 
+.extension-return-hint {
+  position: relative;
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 16px;
+  max-width: 760px;
+  padding: 16px 18px;
+  margin: -16px 0 40px;
+  background: var(--paper-deep);
+  border: 1px solid var(--rule);
+  box-shadow: 4px 4px 0 var(--rule-soft);
+}
+
+.extension-return-hint-icon {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  color: var(--paper);
+  background: #29434d;
+}
+
+.extension-return-hint-icon svg {
+  width: 28px;
+  height: 28px;
+  fill: currentColor;
+}
+
+.extension-return-hint p {
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: 16px;
+  line-height: 1.4;
+}
+
+.extension-return-hint-name {
+  color: var(--ink);
+}
+
+.extension-return-hint-dismiss {
+  align-self: start;
+  padding: 0 0 4px 8px;
+  color: var(--ink-faded);
+  background: transparent;
+  border: 0;
+  font-family: var(--serif-display);
+  font-size: 26px;
+  line-height: 1;
+}
+
+.extension-return-hint-dismiss:hover,
+.extension-return-hint-dismiss:focus-visible {
+  color: var(--accent);
+}
+
 .advanced-settings-button {
   padding: 12px 18px;
   color: var(--paper);
@@ -981,6 +1037,17 @@ a {
     align-items: flex-start;
     flex-direction: column;
     margin-bottom: 32px;
+  }
+
+  .extension-return-hint {
+    grid-template-columns: 36px minmax(0, 1fr) auto;
+    gap: 12px;
+    margin-bottom: 32px;
+  }
+
+  .extension-return-hint-icon {
+    width: 36px;
+    height: 36px;
   }
 
   .streak-grid,

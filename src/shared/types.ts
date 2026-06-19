@@ -79,6 +79,7 @@ export interface AppSettings {
 export interface StorageShape {
   vocabularies: Vocabulary[]
   activeVocabularyId: string
+  activeVocabularyIds: string[]
   userStats: UserStats
   settings: AppSettings
   newTabCount: number

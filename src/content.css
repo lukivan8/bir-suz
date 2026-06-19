@@ -25,6 +25,7 @@
 }
 
 .bir-soz-stage {
+  --halo-accent: rgba(168, 83, 28, 0.28);
   position: fixed;
   left: 50%;
   bottom: 24px;
@@ -42,17 +43,26 @@
   bottom: -18vh;
   z-index: -1;
   width: 180vw;
-  height: 112vh;
+  height: 120vh;
   background: radial-gradient(
     ellipse at 50% 100%,
     rgba(26, 22, 18, 0.8) 0%,
     rgba(26, 22, 18, 0.48) 26%,
-    rgba(168, 83, 28, 0.28) 52%,
+    var(--halo-accent) 52%,
     rgba(26, 22, 18, 0) 84%
   );
   opacity: 0;
   transform: translateX(-50%) translateY(18px) scale(0.96);
   animation: bir-soz-halo-in 180ms ease-out forwards;
+  transition: background 160ms ease-out;
+}
+
+.bir-soz-stage.has-correct-answer {
+  --halo-accent: rgba(37, 136, 73, 0.52);
+}
+
+.bir-soz-stage.has-wrong-answer {
+  --halo-accent: rgba(190, 54, 45, 0.56);
 }
 
 .bir-soz-stage.is-exiting::before {
@@ -74,6 +84,19 @@
   opacity: 0;
   transform: translateY(calc(100% + 24px));
   animation: bir-soz-slide-in 160ms ease-out forwards;
+  transition:
+    border-color 160ms ease-out,
+    box-shadow 160ms ease-out;
+}
+
+.bir-soz-card.has-correct-answer {
+  border-color: rgba(37, 136, 73, 0.52);
+  box-shadow: 0 2px 18px rgba(23, 105, 53, 0.3);
+}
+
+.bir-soz-card.has-wrong-answer {
+  border-color: rgba(190, 54, 45, 0.56);
+  box-shadow: 0 2px 18px rgba(142, 34, 29, 0.32);
 }
 
 .bir-soz-card.is-exiting {
@@ -201,7 +224,9 @@
   cursor: pointer;
   transition:
     border-color 80ms,
-    color 80ms;
+    color 80ms,
+    background-color 80ms,
+    box-shadow 80ms;
 }
 
 .bir-soz-option:hover:not(:disabled) {
@@ -211,10 +236,19 @@
   cursor: default;
 }
 .bir-soz-option.is-correct {
-  color: var(--accent);
-  border-left-color: var(--accent);
+  color: #176c36;
+  background: rgba(37, 136, 73, 0.16);
+  border-left-color: #238348;
+  box-shadow: inset 3px 0 0 rgba(37, 136, 73, 0.34);
 }
-.bir-soz-option.is-wrong,
+
+.bir-soz-option.is-wrong {
+  color: #a72e28;
+  background: rgba(190, 54, 45, 0.16);
+  border-left-color: #bc362e;
+  box-shadow: inset 3px 0 0 rgba(190, 54, 45, 0.34);
+}
+
 .bir-soz-option.is-muted {
   color: var(--ink-faded);
 }

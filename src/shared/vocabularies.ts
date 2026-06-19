@@ -1,7 +1,10 @@
 import type { StorageShape, Vocabulary, WordItem } from './types'
 
 export function getActiveVocabulary(
-  storage: Pick<StorageShape, 'vocabularies' | 'activeVocabularyId'>,
+  storage: Pick<
+    StorageShape,
+    'vocabularies' | 'activeVocabularyId' | 'activeVocabularyIds'
+  >,
 ): Vocabulary | undefined {
   return (
     storage.vocabularies.find(
@@ -10,10 +13,33 @@ export function getActiveVocabulary(
   )
 }
 
+export function getActiveVocabularies(
+  storage: Pick<
+    StorageShape,
+    'vocabularies' | 'activeVocabularyId' | 'activeVocabularyIds'
+  >,
+): Vocabulary[] {
+  const activeVocabularyIds = new Set(storage.activeVocabularyIds)
+  const vocabularies = storage.vocabularies.filter((vocabulary) =>
+    activeVocabularyIds.has(vocabulary.id),
+  )
+
+  return vocabularies.length > 0
+    ? vocabularies
+    : [getActiveVocabulary(storage)].filter(
+        (vocabulary): vocabulary is Vocabulary => Boolean(vocabulary),
+      )
+}
+
 export function getActiveWords(
-  storage: Pick<StorageShape, 'vocabularies' | 'activeVocabularyId'>,
+  storage: Pick<
+    StorageShape,
+    'vocabularies' | 'activeVocabularyId' | 'activeVocabularyIds'
+  >,
 ): WordItem[] {
-  return getActiveVocabulary(storage)?.words ?? []
+  return getActiveVocabularies(storage).flatMap(
+    (vocabulary) => vocabulary.words,
+  )
 }
 
 export function updateActiveVocabularyWords(
@@ -21,11 +47,10 @@ export function updateActiveVocabularyWords(
   updateWords: (words: WordItem[]) => WordItem[],
   now = Date.now(),
 ): Vocabulary[] {
-  const activeVocabulary = getActiveVocabulary(storage)
-  if (!activeVocabulary) return storage.vocabularies
+  const activeVocabularyIds = new Set(storage.activeVocabularyIds)
 
   return storage.vocabularies.map((vocabulary) => {
-    if (vocabulary.id !== activeVocabulary.id) return vocabulary
+    if (!activeVocabularyIds.has(vocabulary.id)) return vocabulary
 
     return {
       ...vocabulary,

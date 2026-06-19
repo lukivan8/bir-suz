@@ -8,18 +8,21 @@ import {
 } from 'solid-js'
 import type { RuntimeMessage, RuntimeResponseFor } from './shared/messages'
 import type { AppSettings } from './shared/types'
-import { isStorageShape } from './shared/validation'
+import { normalizeStorageShape } from './shared/validation'
+
+const MULTIPLE_VOCABULARIES_VALUE = '__multiple_vocabularies__'
 
 async function getState() {
   const response = await sendRuntimeMessage({
     type: 'bir-soz:get-state',
   })
 
-  if (!isStorageShape(response)) {
+  const state = normalizeStorageShape(response)
+  if (!state) {
     throw new Error('Invalid storage state response')
   }
 
-  return response
+  return state
 }
 
 function App() {
@@ -47,13 +50,19 @@ function App() {
 
   const updateActiveVocabulary = async (activeVocabularyId: string) => {
     const current = state()
-    if (!current) return
+    if (!current || activeVocabularyId === MULTIPLE_VOCABULARIES_VALUE) return
 
-    mutate({
+    const next = {
       ...current,
       activeVocabularyId,
+      activeVocabularyIds: [activeVocabularyId],
+    }
+
+    mutate(next)
+    await chrome.storage.local.set({
+      activeVocabularyId,
+      activeVocabularyIds: [activeVocabularyId],
     })
-    await chrome.storage.local.set({ activeVocabularyId })
   }
 
   const toggleDoNotDisturb = async (enabled: boolean) => {
@@ -185,11 +194,16 @@ function App() {
                 <span>{t().vocabulary}</span>
                 <select
                   class="w-full border border-rule bg-paper px-3 py-2 font-serif-body text-[15px] text-ink"
-                  value={current().activeVocabularyId}
+                  value={activeVocabularyValue(current())}
                   onChange={(event) =>
                     updateActiveVocabulary(event.currentTarget.value)
                   }
                 >
+                  <Show when={current().activeVocabularyIds.length > 1}>
+                    <option value={MULTIPLE_VOCABULARIES_VALUE} disabled>
+                      Выбрано несколько
+                    </option>
+                  </Show>
                   <For each={current().vocabularies}>
                     {(vocabulary) => (
                       <option value={vocabulary.id}>{vocabulary.name}</option>
@@ -260,6 +274,12 @@ function formatRemaining(ms: number) {
   }
 
   return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
+}
+
+function activeVocabularyValue(state: { activeVocabularyIds: string[] }) {
+  return state.activeVocabularyIds.length > 1
+    ? MULTIPLE_VOCABULARIES_VALUE
+    : state.activeVocabularyIds[0]
 }
 
 function Switch(props: {

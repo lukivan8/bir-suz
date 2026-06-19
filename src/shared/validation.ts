@@ -154,6 +154,13 @@ export function isStorageShape(value: unknown): value is StorageShape {
     candidate.vocabularies.some(
       (vocabulary) => vocabulary.id === candidate.activeVocabularyId,
     ) &&
+    Array.isArray(candidate.activeVocabularyIds) &&
+    candidate.activeVocabularyIds.length > 0 &&
+    candidate.activeVocabularyIds.every(
+      (id) =>
+        typeof id === 'string' &&
+        candidate.vocabularies?.some((vocabulary) => vocabulary.id === id),
+    ) &&
     isUserStats(candidate.userStats) &&
     isAppSettings(candidate.settings) &&
     typeof candidate.newTabCount === 'number' &&
@@ -162,6 +169,23 @@ export function isStorageShape(value: unknown): value is StorageShape {
       candidate.pendingTrigger === null ||
       isTriggerSource(candidate.pendingTrigger))
   )
+}
+
+export function normalizeStorageShape(
+  value: unknown,
+): StorageShape | undefined {
+  if (isStorageShape(value)) return value
+  if (!isRecord(value)) return undefined
+
+  const candidate = value as Partial<StorageShape>
+  if (typeof candidate.activeVocabularyId !== 'string') return undefined
+
+  const migrated = {
+    ...candidate,
+    activeVocabularyIds: [candidate.activeVocabularyId],
+  }
+
+  return isStorageShape(migrated) ? migrated : undefined
 }
 
 export function isChallengePayload(value: unknown): value is ChallengePayload {
