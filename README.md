@@ -58,3 +58,23 @@ npm run build
 npm run lint
 npm run check:write
 ```
+
+## Встроенные словари
+
+Встроенные словари собираются из CSV-файлов в
+[`src/shared/builtin-vocabularies`](src/shared/builtin-vocabularies). Один
+`.csv` файл равен одному встроенному словарю. После добавления или замены CSV
+нужно пересобрать расширение:
+
+```bash
+npm run build
+```
+
+Минимальный формат:
+
+```csv
+# name: Семья
+# category: nouns
+отбасы,семья
+әке,отец
+```

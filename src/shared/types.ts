@@ -19,7 +19,7 @@ export interface WordItem {
   targetLabel: string
   sourceVariants?: ScriptVariant[]
   targetVariants?: ScriptVariant[]
-  level: 'A1' | 'A2'
+  level: 'A1' | 'A2' | 'B1'
   srs: SrsData
 }
 

@@ -91,7 +91,7 @@ function buildStoragePatch(current: LegacyStorageShape): Partial<StorageShape> {
 
   if (
     !areValidVocabularies(current.vocabularies) ||
-    !hasAllSeedVocabularies(current.vocabularies)
+    !hasCurrentSeedVocabularies(current.vocabularies)
   ) {
     patch.vocabularies = normalized.vocabularies
   }
@@ -158,7 +158,7 @@ function normalizeStorage(storage: LegacyStorageShape): StorageShape {
 
 function normalizeVocabularies(storage: LegacyStorageShape): Vocabulary[] {
   if (areValidVocabularies(storage.vocabularies)) {
-    return appendMissingSeedVocabularies(storage.vocabularies)
+    return syncSeedVocabularies(storage.vocabularies)
   }
 
   if (
@@ -167,7 +167,7 @@ function normalizeVocabularies(storage: LegacyStorageShape): Vocabulary[] {
   ) {
     const now = Date.now()
     const seedVocabulary = seedVocabularies[0]
-    return appendMissingSeedVocabularies([
+    return syncSeedVocabularies([
       {
         id: seedVocabulary?.id ?? seedVocabularyId,
         name: seedVocabulary?.name ?? 'Базовый словарь',
@@ -186,19 +186,101 @@ function normalizeVocabularies(storage: LegacyStorageShape): Vocabulary[] {
   return seedVocabularies
 }
 
-function appendMissingSeedVocabularies(vocabularies: Vocabulary[]) {
-  const existingIds = new Set(vocabularies.map((vocabulary) => vocabulary.id))
-  const missingSeedVocabularies = seedVocabularies.filter(
-    (vocabulary) => !existingIds.has(vocabulary.id),
+function syncSeedVocabularies(vocabularies: Vocabulary[]) {
+  const existingVocabularies = new Map(
+    vocabularies.map((vocabulary) => [vocabulary.id, vocabulary]),
+  )
+  const customVocabularies = vocabularies.filter(
+    (vocabulary) => !vocabulary.isBuiltin,
+  )
+  const syncedSeedVocabularies = seedVocabularies.map((seedVocabulary) =>
+    mergeSeedVocabulary(
+      seedVocabulary,
+      existingVocabularies.get(seedVocabulary.id),
+    ),
   )
 
-  return [...vocabularies, ...missingSeedVocabularies]
+  return [...syncedSeedVocabularies, ...customVocabularies]
 }
 
-function hasAllSeedVocabularies(vocabularies: unknown) {
+function mergeSeedVocabulary(
+  seedVocabulary: Vocabulary,
+  existingVocabulary: Vocabulary | undefined,
+) {
+  if (!existingVocabulary) return seedVocabulary
+
+  const existingWords = new Map(
+    existingVocabulary.words.map((word) => [word.id, word]),
+  )
+
+  return {
+    ...seedVocabulary,
+    createdAt: existingVocabulary.createdAt,
+    words: seedVocabulary.words.map((seedWord) => ({
+      ...seedWord,
+      srs: existingWords.get(seedWord.id)?.srs ?? seedWord.srs,
+    })),
+  }
+}
+
+function hasCurrentSeedVocabularies(vocabularies: unknown) {
   if (!areValidVocabularies(vocabularies)) return false
-  const existingIds = new Set(vocabularies.map((vocabulary) => vocabulary.id))
-  return seedVocabularies.every((vocabulary) => existingIds.has(vocabulary.id))
+  const expectedBuiltinIds = new Set(
+    seedVocabularies.map((vocabulary) => vocabulary.id),
+  )
+  const existingBuiltinVocabularies = vocabularies.filter(
+    (vocabulary) => vocabulary.isBuiltin,
+  )
+
+  if (existingBuiltinVocabularies.length !== seedVocabularies.length) {
+    return false
+  }
+
+  return seedVocabularies.every((seedVocabulary) => {
+    const existingVocabulary = existingBuiltinVocabularies.find(
+      (vocabulary) => vocabulary.id === seedVocabulary.id,
+    )
+
+    return (
+      existingVocabulary &&
+      expectedBuiltinIds.has(existingVocabulary.id) &&
+      hasSameVocabularyContent(seedVocabulary, existingVocabulary)
+    )
+  })
+}
+
+function hasSameVocabularyContent(
+  seedVocabulary: Vocabulary,
+  existingVocabulary: Vocabulary,
+) {
+  if (
+    seedVocabulary.name !== existingVocabulary.name ||
+    seedVocabulary.description !== existingVocabulary.description ||
+    seedVocabulary.category !== existingVocabulary.category ||
+    seedVocabulary.words.length !== existingVocabulary.words.length
+  ) {
+    return false
+  }
+
+  return seedVocabulary.words.every((seedWord, index) => {
+    const existingWord = existingVocabulary.words[index]
+    return existingWord && hasSameWordContent(seedWord, existingWord)
+  })
+}
+
+function hasSameWordContent(seedWord: WordItem, existingWord: WordItem) {
+  return (
+    seedWord.id === existingWord.id &&
+    seedWord.sourceText === existingWord.sourceText &&
+    seedWord.targetText === existingWord.targetText &&
+    seedWord.sourceLabel === existingWord.sourceLabel &&
+    seedWord.targetLabel === existingWord.targetLabel &&
+    seedWord.level === existingWord.level &&
+    JSON.stringify(seedWord.sourceVariants ?? []) ===
+      JSON.stringify(existingWord.sourceVariants ?? []) &&
+    JSON.stringify(seedWord.targetVariants ?? []) ===
+      JSON.stringify(existingWord.targetVariants ?? [])
+  )
 }
 
 function normalizeSettings(settings: unknown): AppSettings {

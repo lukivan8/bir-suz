@@ -32,7 +32,7 @@ interface AnalyticsWord {
   vocabulary_id: string
   kk: string
   ru: string
-  level: 'A1' | 'A2'
+  level: 'A1' | 'A2' | 'B1'
   created_at: number
 }
 

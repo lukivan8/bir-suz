@@ -17,7 +17,7 @@ import type {
 const triggerSources = ['new-tab', 'navigation', 'demo-hotkey'] as const
 const challengeDirections = ['source-to-target', 'target-to-source'] as const
 const scriptVariants = ['latin', 'cyrillic'] as const
-const wordLevels = ['A1', 'A2'] as const
+const wordLevels = ['A1', 'A2', 'B1'] as const
 const vocabularyCategories = [
   'nouns',
   'verbs',
