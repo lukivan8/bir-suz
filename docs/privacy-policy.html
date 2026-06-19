@@ -1,0 +1,238 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Bir Söz Privacy Policy</title>
+    <meta
+      name="description"
+      content="Privacy policy for the Bir Söz Chrome extension."
+    >
+    <style>
+      :root {
+        color-scheme: light dark;
+        --background: #ffffff;
+        --foreground: #1f2933;
+        --muted: #52606d;
+        --border: #d9e2ec;
+        --link: #1d4ed8;
+      }
+
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --background: #111827;
+          --foreground: #f3f4f6;
+          --muted: #cbd5e1;
+          --border: #374151;
+          --link: #93c5fd;
+        }
+      }
+
+      body {
+        margin: 0;
+        background: var(--background);
+        color: var(--foreground);
+        font-family:
+          system-ui,
+          -apple-system,
+          BlinkMacSystemFont,
+          "Segoe UI",
+          sans-serif;
+        font-size: 16px;
+        line-height: 1.6;
+      }
+
+      main {
+        box-sizing: border-box;
+        width: min(100%, 760px);
+        margin: 0 auto;
+        padding: 48px 20px 64px;
+      }
+
+      h1,
+      h2 {
+        line-height: 1.25;
+      }
+
+      h1 {
+        margin: 0 0 8px;
+        font-size: 2rem;
+      }
+
+      h2 {
+        margin: 32px 0 12px;
+        padding-top: 24px;
+        border-top: 1px solid var(--border);
+        font-size: 1.35rem;
+      }
+
+      p {
+        margin: 0 0 16px;
+      }
+
+      ul {
+        margin: 0 0 16px;
+        padding-left: 24px;
+      }
+
+      li {
+        margin: 6px 0;
+      }
+
+      a {
+        color: var(--link);
+      }
+
+      code {
+        font-family:
+          ui-monospace,
+          SFMono-Regular,
+          Menlo,
+          Monaco,
+          Consolas,
+          "Liberation Mono",
+          monospace;
+        font-size: 0.95em;
+      }
+
+      .updated {
+        color: var(--muted);
+        margin-bottom: 28px;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Bir Söz Privacy Policy</h1>
+      <p class="updated">Last updated: June 19, 2026</p>
+
+      <p>
+        Bir Söz is a Chrome extension for learning Kazakh words while browsing.
+        Its mission is to help create a lightweight Kazakh-language environment
+        during everyday web use. This policy explains what data the extension
+        handles and how it is used.
+      </p>
+
+      <h2>Data Stored Locally</h2>
+      <p>
+        Bir Söz stores the following data in <code>chrome.storage.local</code>
+        on the user's device:
+      </p>
+      <ul>
+        <li>selected vocabulary and custom vocabulary entries;</li>
+        <li>
+          word learning progress, including repetition schedule and review
+          history;
+        </li>
+        <li>challenge counts, correctness, response time, streaks, and settings;</li>
+        <li>
+          extension preferences such as cooldown, quiet mode, and analytics
+          preference.
+        </li>
+      </ul>
+      <p>
+        This local data is used to show vocabulary prompts, schedule reviews,
+        and show progress inside the extension.
+      </p>
+
+      <h2>Usage Analytics</h2>
+      <p>
+        Usage analytics are disabled by default. On first install, Bir Söz shows
+        a disclosure screen with an opt-in action. Analytics can also be turned
+        on or off at any time in the dashboard settings under "Usage statistics".
+      </p>
+      <p>
+        When analytics are enabled, Bir Söz sends learning-related technical
+        events to <a href="https://api.lukivan8.com">https://api.lukivan8.com</a>.
+        The data may include:
+      </p>
+      <ul>
+        <li>a randomly generated installation identifier;</li>
+        <li>
+          built-in vocabulary IDs, built-in vocabulary names, built-in word IDs,
+          and built-in word text used by the learning feature;
+        </li>
+        <li>whether a challenge was answered, skipped, enabled, or disabled;</li>
+        <li>whether an answer was correct;</li>
+        <li>response time;</li>
+        <li>
+          spaced-repetition progress such as repetition count, interval, next
+          review time, and mastery state;
+        </li>
+        <li>
+          aggregate custom vocabulary progress counts, if the user creates
+          custom vocabulary.
+        </li>
+      </ul>
+      <p>
+        Analytics requests are limited to two types: learning events and daily
+        learning-progress snapshots. Learning events record actions such as
+        answers, skips, correctness, response time, and enable/disable events.
+        Daily snapshots record built-in word progress and aggregate vocabulary
+        progress.
+      </p>
+      <p>
+        Bir Söz does not send visited page URLs, page content, browsing history,
+        cookies, passwords, form inputs, screenshots, advertising identifiers,
+        Google account IDs, email addresses, or device hardware identifiers. The
+        extension also does not include clicked link URLs, link text, or
+        selectors in analytics events. Bir Söz does not send custom vocabulary
+        names, custom word text, custom word IDs, or custom per-word progress.
+      </p>
+      <p>
+        Analytics are used only to understand whether the learning prompts
+        support Kazakh vocabulary practice and to improve the learning
+        experience.
+      </p>
+
+      <h2>Data Sharing</h2>
+      <p>
+        Analytics data is sent only to the developer-operated API at
+        <a href="https://api.lukivan8.com">https://api.lukivan8.com</a>. Bir Söz
+        does not sell user data and does not share user data with advertisers,
+        data brokers, or advertising platforms.
+      </p>
+
+      <h2>Data Retention and Deletion</h2>
+      <p>
+        Local learning progress, custom vocabulary, and settings remain on the
+        user's device in <code>chrome.storage.local</code>. The user can remove
+        this local data by uninstalling the extension or clearing extension data.
+      </p>
+      <p>
+        When usage analytics are enabled, analytics are associated with a random
+        installation identifier. They are not associated with a Google account,
+        email address, advertising identifier, or device hardware identifier.
+      </p>
+
+      <h2>Permissions</h2>
+      <p>Bir Söz requests Chrome permissions to:</p>
+      <ul>
+        <li>store local settings and learning progress;</li>
+        <li>
+          detect generic tab/navigation activity so vocabulary prompts can
+          appear during normal browsing;
+        </li>
+        <li>run scheduled background maintenance for queued analytics;</li>
+        <li>
+          communicate with
+          <a href="https://api.lukivan8.com">https://api.lukivan8.com</a> for
+          usage analytics when usage statistics are enabled.
+        </li>
+      </ul>
+
+      <h2>Limited Use Statement</h2>
+      <p>
+        The use of information received from Google APIs will adhere to the
+        Chrome Web Store User Data Policy, including the Limited Use
+        requirements.
+      </p>
+
+      <h2>Contact</h2>
+      <p>
+        For privacy questions, contact the developer through the support email
+        listed on the Chrome Web Store listing.
+      </p>
+    </main>
+  </body>
+</html>

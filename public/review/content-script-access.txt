@@ -24,8 +24,8 @@ What the content script does not read or send
 - browsing history
 
 Dist inspection hints
-- dist/manifest.json sets web_accessible_resources.use_dynamic_url to true so
-  web-accessible chunk URLs are dynamic instead of stable static URLs.
+- dist/manifest.json keeps web_accessible_resources.use_dynamic_url false so
+  the CRXJS content-script loader can import its bundled chunks reliably.
 - The generated content script bundle contains the strings
   "bir-soz:content-ready", "bir-soz:page-activity", and
   "bir-soz:submit-result".

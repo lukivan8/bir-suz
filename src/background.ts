@@ -24,6 +24,7 @@ const COMMAND_NAME = 'demo-trigger'
 const STATS_FLUSH_ALARM_NAME = 'bir-soz-stats-flush'
 const STATS_FLUSH_PERIOD_MINUTES = 1
 const LOG_PREFIX = '[Bir Söz background]'
+const readyContentTabs = new Set<number>()
 
 function log(message: string, details?: Record<string, unknown>) {
   if (details) {
@@ -103,6 +104,10 @@ chrome.tabs.onCreated.addListener(async (tab) => {
   await updateStorage({ pendingTrigger: 'new-tab' })
 })
 
+chrome.tabs.onRemoved.addListener((tabId) => {
+  readyContentTabs.delete(tabId)
+})
+
 chrome.commands.onCommand.addListener(async (command) => {
   log('command received', { command })
   if (command === COMMAND_NAME) {
@@ -129,10 +134,14 @@ chrome.runtime.onMessage.addListener(
       }
 
       if (message.type === 'bir-soz:content-ready') {
+        if (_sender.tab?.id) {
+          readyContentTabs.add(_sender.tab.id)
+        }
         const storage = await getStorage()
         log('content script ready', {
           senderTabId: _sender.tab?.id,
           pendingTrigger: storage.pendingTrigger,
+          readyContentTabs: readyContentTabs.size,
         })
         if (storage.pendingTrigger) {
           const pendingTrigger = storage.pendingTrigger
@@ -216,14 +225,16 @@ async function maybeTriggerChallenge(
   const [activeTab] = targetTabId
     ? []
     : await chrome.tabs.query({ active: true, currentWindow: true })
-  const tabId = targetTabId ?? activeTab?.id
+  const tabId = targetTabId ?? resolveDemoTabId(activeTab)
   log('tab resolved for challenge', {
     source,
     tabId,
     targeted: Boolean(targetTabId),
+    activeTabId: activeTab?.id,
+    readyContentTabs: readyContentTabs.size,
   })
   if (!tabId) {
-    log('challenge blocked: no tab id', { source })
+    log('challenge blocked: no eligible content-script tab', { source })
     return false
   }
 
@@ -238,6 +249,7 @@ async function maybeTriggerChallenge(
     log('challenge sent successfully', { source, tabId, wordId: word.id })
     return true
   } catch (error) {
+    readyContentTabs.delete(tabId)
     log('challenge send failed', {
       source,
       tabId,
@@ -245,6 +257,14 @@ async function maybeTriggerChallenge(
     })
     return false
   }
+}
+
+function resolveDemoTabId(activeTab: chrome.tabs.Tab | undefined) {
+  if (activeTab?.id && readyContentTabs.has(activeTab.id)) {
+    return activeTab.id
+  }
+
+  return readyContentTabs.values().next().value
 }
 
 async function ensureStatsFlushAlarm() {

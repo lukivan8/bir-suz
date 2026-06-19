@@ -25,6 +25,7 @@ async function getState() {
 function App() {
   const [state, { mutate, refetch }] = createResource(getState)
   const [busy, setBusy] = createSignal(false)
+  const [demoMessage, setDemoMessage] = createSignal<string>()
   const [now, setNow] = createSignal(Date.now())
   const [doNotDisturbMinutes, setDoNotDisturbMinutes] = createSignal(30)
 
@@ -92,7 +93,11 @@ function App() {
 
   const triggerDemo = async () => {
     setBusy(true)
-    await sendRuntimeMessage({ type: 'bir-soz:force-trigger' })
+    setDemoMessage(undefined)
+    const response = await sendRuntimeMessage({ type: 'bir-soz:force-trigger' })
+    if (!response.triggered) {
+      setDemoMessage(t().demoNeedsPage)
+    }
     await refetch()
     setBusy(false)
   }
@@ -211,6 +216,13 @@ function App() {
               >
                 {busy() ? t().triggering : t().demoTrigger}
               </button>
+              <Show when={demoMessage()}>
+                {(message) => (
+                  <p class="border border-rule bg-paper-deep px-3 py-2 text-[14px] leading-snug text-ink-faded">
+                    {message()}
+                  </p>
+                )}
+              </Show>
             </section>
           </>
         )}
@@ -231,6 +243,8 @@ const copy = {
     doNotDisturbActive: 'Осталось',
     triggering: 'Показываем…',
     demoTrigger: 'Показать пример',
+    demoNeedsPage:
+      'Откройте или обновите обычную страницу сайта, затем попробуйте снова.',
     openDashboard: 'Мой прогресс',
   },
 } as const

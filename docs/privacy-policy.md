@@ -1,6 +1,6 @@
 # Bir Söz Privacy Policy
 
-Last updated: June 18, 2026
+Last updated: June 19, 2026
 
 Bir Söz is a Chrome extension for learning Kazakh words while browsing. Its
 mission is to help create a lightweight Kazakh-language environment during
@@ -40,8 +40,10 @@ When analytics are enabled, Bir Söz sends learning-related technical events to
 - aggregate custom vocabulary progress counts, if the user creates custom
   vocabulary.
 
-The complete analytics request schema is documented in the project file
-`docs/analytics-schema.md`.
+Analytics requests are limited to two types: learning events and daily
+learning-progress snapshots. Learning events record actions such as answers,
+skips, correctness, response time, and enable/disable events. Daily snapshots
+record built-in word progress and aggregate vocabulary progress.
 
 Bir Söz does not send visited page URLs, page content, browsing history,
 cookies, passwords, form inputs, screenshots, advertising identifiers, Google
@@ -87,5 +89,5 @@ Store User Data Policy, including the Limited Use requirements.
 
 ## Contact
 
-For privacy questions, contact the developer at the support email listed on the
-Chrome Web Store listing.
+For privacy questions, contact the developer through the support email listed on
+the Chrome Web Store listing.

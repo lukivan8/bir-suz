@@ -36,8 +36,8 @@ builders are in
 [`src/shared/content-script-access.ts`](../src/shared/content-script-access.ts).
 The same human-readable review note is packaged in uploaded builds at
 `review/content-script-access.txt`. The generated `web_accessible_resources`
-entry uses `use_dynamic_url: true` to avoid exposing stable static extension
-resource URLs to webpages.
+entry keeps `use_dynamic_url` false because the CRXJS content-script loader
+imports its bundled chunks from those URLs.
 
 ## Privacy Form Guidance
 
