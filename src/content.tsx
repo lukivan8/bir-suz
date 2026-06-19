@@ -174,8 +174,8 @@ function Overlay(props: { payload: ChallengePayload; onClose: () => void }) {
 
   const promptCopy = () =>
     props.payload.direction === 'target-to-source'
-      ? 'Qazaq tilindegi audarmany tañdañyz'
-      : 'Orys tilindegi audarmany tañdañyz'
+      ? 'Выберите перевод на казахский'
+      : 'Выберите перевод на русский'
 
   function fitWord() {
     const element = wordElement
