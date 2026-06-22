@@ -1,4 +1,4 @@
-import type { SrsData } from './types'
+import type { SrsData, WordItem } from './types'
 
 const DAY_MS = 24 * 60 * 60 * 1000
 const FAST_ANSWER_MS = 2500
@@ -57,6 +57,10 @@ export function qualityFromResult(options: {
 
 export function isDue(nextReview: number, now = Date.now()) {
   return nextReview <= now
+}
+
+export function isMastered(word: WordItem) {
+  return word.srs.repetition >= 3 && word.srs.interval > 7
 }
 
 /**

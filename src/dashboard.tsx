@@ -10,6 +10,7 @@ import { render } from 'solid-js/web'
 import './index.css'
 import { calculateCurrentStreak } from './shared/challenge'
 import type { RuntimeMessage, RuntimeResponseFor } from './shared/messages'
+import { isMastered } from './shared/srs'
 import type { StorageShape, Vocabulary, WordItem } from './shared/types'
 import { normalizeStorageShape } from './shared/validation'
 
@@ -1243,10 +1244,6 @@ function masteryLabel(word: WordItem) {
   if (level === 'mastered') return 'освоено'
   if (level === 'in-progress') return `в работе · ${word.srs.repetition}/3`
   return 'новое'
-}
-
-function isMastered(word: WordItem) {
-  return word.srs.repetition >= 3 && word.srs.interval > 7
 }
 
 function createWordItem(
