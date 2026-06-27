@@ -1,5 +1,6 @@
 import type { ChallengePayload, ChallengeResult, StorageShape } from './types'
 import { isChallengePayload, isChallengeResult, isRecord } from './validation'
+import type { StatsEventType } from './stats'
 
 export type RuntimeMessage =
   | { type: 'bir-soz:content-ready' }
@@ -8,6 +9,7 @@ export type RuntimeMessage =
   | { type: 'bir-soz:show-challenge'; payload: ChallengePayload }
   | { type: 'bir-soz:submit-result'; payload: ChallengeResult }
   | { type: 'bir-soz:force-trigger' }
+  | { type: 'bir-soz:stats-event'; eventType: Extract<StatsEventType, 'disabled' | 'enabled'> }
 
 export type RuntimeResponse =
   | StorageShape
@@ -33,6 +35,8 @@ export function isRuntimeMessage(message: unknown): message is RuntimeMessage {
     case 'bir-soz:get-state':
     case 'bir-soz:force-trigger':
       return true
+    case 'bir-soz:stats-event':
+      return message.eventType === 'disabled' || message.eventType === 'enabled'
     case 'bir-soz:show-challenge':
       return isChallengePayload(message.payload)
     case 'bir-soz:submit-result':
@@ -45,6 +49,7 @@ export function isRuntimeMessage(message: unknown): message is RuntimeMessage {
 function isMessageLike(value: unknown): value is {
   type?: unknown
   payload?: unknown
+  eventType?: unknown
 } {
   return isRecord(value)
 }

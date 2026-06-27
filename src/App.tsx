@@ -61,6 +61,10 @@ function App() {
         ? Date.now() + doNotDisturbMinutes() * 60 * 1000
         : undefined,
     })
+    void sendRuntimeMessage({
+      type: 'bir-soz:stats-event',
+      eventType: enabled ? 'disabled' : 'enabled',
+    })
     await refetch()
   }
 

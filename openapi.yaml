@@ -1,0 +1,286 @@
+openapi: 3.1.0
+info:
+  title: Bir Stats Analytics API
+  version: 1.0.0
+paths:
+  /api/events:
+    post:
+      summary: Record analytics events
+      description: Called by the extension on every user interaction. Accepts either a single event payload or a batch under `events`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EventsRequest'
+      responses:
+        '200':
+          description: Events inserted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EventsResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+  /api/snapshot:
+    post:
+      summary: Record daily progress snapshot
+      description: Called by the extension once per day. Upserts word progress and vocabulary progress records.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SnapshotRequest'
+      responses:
+        '200':
+          description: Snapshot upserted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SnapshotResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+components:
+  responses:
+    BadRequest:
+      description: Invalid request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+  schemas:
+    Vocabulary:
+      type: object
+      required:
+        - id
+        - name
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        is_builtin:
+          oneOf:
+            - type: boolean
+            - type: integer
+          default: 0
+        is_remote:
+          oneOf:
+            - type: boolean
+            - type: integer
+          default: 0
+        remote_version:
+          type:
+            - integer
+            - 'null'
+        created_at:
+          type: integer
+          description: Unix timestamp in milliseconds
+        updated_at:
+          type: integer
+          description: Unix timestamp in milliseconds
+    Word:
+      type: object
+      required:
+        - id
+        - vocabulary_id
+        - kk
+        - ru
+      properties:
+        id:
+          type: string
+        vocabulary_id:
+          type: string
+        kk:
+          type: string
+        ru:
+          type: string
+        level:
+          type:
+            - string
+            - 'null'
+        created_at:
+          type: integer
+          description: Unix timestamp in milliseconds
+    Event:
+      type: object
+      required:
+        - uuid
+        - vocabulary_id
+        - word_id
+        - event_type
+      properties:
+        id:
+          type: string
+          description: Generated if omitted
+        uuid:
+          type: string
+        vocabulary_id:
+          type: string
+        word_id:
+          type: string
+        event_type:
+          type: string
+          enum:
+            - answered
+            - skipped
+            - disabled
+            - enabled
+        correct:
+          oneOf:
+            - type: boolean
+            - type: integer
+            - type: 'null'
+        response_ms:
+          type:
+            - integer
+            - 'null'
+        ts:
+          type: integer
+          description: Unix timestamp in milliseconds. Generated if omitted.
+    EventsRequest:
+      allOf:
+        - $ref: '#/components/schemas/Event'
+        - type: object
+          properties:
+            vocabularies:
+              type: array
+              items:
+                $ref: '#/components/schemas/Vocabulary'
+            words:
+              type: array
+              items:
+                $ref: '#/components/schemas/Word'
+            events:
+              type: array
+              description: If provided, endpoint treats request as batch and ignores top-level event fields.
+              items:
+                $ref: '#/components/schemas/Event'
+    WordProgress:
+      type: object
+      required:
+        - uuid
+        - word_id
+        - vocabulary_id
+      properties:
+        uuid:
+          type: string
+        word_id:
+          type: string
+        vocabulary_id:
+          type: string
+        repetition:
+          type: integer
+          default: 0
+        interval:
+          type: integer
+          default: 0
+        ease_factor:
+          type: number
+          default: 2.5
+        next_review:
+          type:
+            - integer
+            - 'null'
+        last_reviewed_at:
+          type:
+            - integer
+            - 'null'
+        first_seen_at:
+          type:
+            - integer
+            - 'null'
+        mastered:
+          oneOf:
+            - type: boolean
+            - type: integer
+          default: 0
+    VocabularyProgress:
+      type: object
+      required:
+        - uuid
+        - vocabulary_id
+        - total
+        - mastered
+        - in_progress
+        - new
+        - completion
+      properties:
+        uuid:
+          type: string
+        vocabulary_id:
+          type: string
+        total:
+          type: integer
+        mastered:
+          type: integer
+        in_progress:
+          type: integer
+        new:
+          type: integer
+        completion:
+          type: integer
+        snapshotted_at:
+          type: integer
+          description: Unix timestamp in milliseconds. Generated if omitted.
+    SnapshotRequest:
+      type: object
+      properties:
+        vocabularies:
+          type: array
+          items:
+            $ref: '#/components/schemas/Vocabulary'
+        words:
+          type: array
+          items:
+            $ref: '#/components/schemas/Word'
+        word_progress:
+          type: array
+          items:
+            $ref: '#/components/schemas/WordProgress'
+        vocabulary_progress:
+          type: array
+          items:
+            $ref: '#/components/schemas/VocabularyProgress'
+    EventsResponse:
+      type: object
+      required:
+        - ok
+        - inserted
+      properties:
+        ok:
+          type: boolean
+          const: true
+        inserted:
+          type: integer
+    SnapshotResponse:
+      type: object
+      required:
+        - ok
+        - upserted
+      properties:
+        ok:
+          type: boolean
+          const: true
+        upserted:
+          type: object
+          required:
+            - word_progress
+            - vocabulary_progress
+          properties:
+            word_progress:
+              type: integer
+            vocabulary_progress:
+              type: integer
+    ErrorResponse:
+      type: object
+      required:
+        - ok
+        - error
+      properties:
+        ok:
+          type: boolean
+          const: false
+        error:
+          type: string

@@ -11,10 +11,18 @@ import {
   getStorage,
   updateStorage,
 } from './shared/storage'
+import {
+  flushStatsQueueFromTimer,
+  recordChallengeEvent,
+  recordSettingsEvent,
+  syncStatsInBackground,
+} from './shared/stats'
 import type { ChallengeResult, TriggerSource } from './shared/types'
 import { getActiveWords } from './shared/vocabularies'
 
 const COMMAND_NAME = 'demo-trigger'
+const STATS_FLUSH_ALARM_NAME = 'bir-soz-stats-flush'
+const STATS_FLUSH_PERIOD_MINUTES = 1
 const LOG_PREFIX = '[Bir Söz background]'
 
 function log(message: string, details?: Record<string, unknown>) {
@@ -30,15 +38,30 @@ chrome.runtime.onInstalled.addListener(async (details) => {
   log('onInstalled', { reason: details.reason })
   if (details.reason === 'install') {
     await chrome.storage.local.set(defaultStorage)
+    await ensureStatsFlushAlarm()
+    syncStatsInBackground(defaultStorage)
     return
   }
 
   await ensureStorage()
+  await ensureStatsFlushAlarm()
+  syncStatsInBackground(await getStorage())
 })
 
 chrome.runtime.onStartup.addListener(async () => {
   log('onStartup')
   await ensureStorage()
+  await ensureStatsFlushAlarm()
+  syncStatsInBackground(await getStorage())
+})
+
+chrome.alarms.onAlarm.addListener((alarm) => {
+  if (alarm.name !== STATS_FLUSH_ALARM_NAME) return
+
+  void (async () => {
+    log('stats flush alarm fired')
+    flushStatsQueueFromTimer(await getStorage())
+  })()
 })
 
 chrome.tabs.onCreated.addListener(async (tab) => {
@@ -157,6 +180,12 @@ chrome.runtime.onMessage.addListener(
         return
       }
 
+      if (message.type === 'bir-soz:stats-event') {
+        await recordSettingsEvent(await getStorage(), message.eventType)
+        sendResponse({ ok: true })
+        return
+      }
+
       sendResponse({ ok: false })
     })()
 
@@ -231,6 +260,19 @@ async function maybeTriggerChallenge(
     })
     return false
   }
+}
+
+async function ensureStatsFlushAlarm() {
+  const existing = await chrome.alarms.get(STATS_FLUSH_ALARM_NAME)
+  if (existing) return
+
+  await chrome.alarms.create(STATS_FLUSH_ALARM_NAME, {
+    periodInMinutes: STATS_FLUSH_PERIOD_MINUTES,
+  })
+  log('stats flush alarm created', {
+    name: STATS_FLUSH_ALARM_NAME,
+    periodInMinutes: STATS_FLUSH_PERIOD_MINUTES,
+  })
 }
 
 function isEligiblePage(url?: string) {
@@ -328,6 +370,7 @@ async function handleChallengeResult(result: ChallengeResult) {
     elapsedMs: result.elapsedMs,
   })
   const storage = await getStorage()
+  await recordChallengeEvent(storage, result)
   await updateStorage(applyChallengeResult(storage, result))
   log('challenge result stored', { wordId: result.wordId })
 }
