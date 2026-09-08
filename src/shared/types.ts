@@ -1,3 +1,5 @@
+import type { ConnectResponse } from './api-contract'
+
 export interface SrsData {
   repetition: number
   interval: number
@@ -36,6 +38,9 @@ export interface Vocabulary {
   description?: string
   category: VocabularyCategory
   isBuiltin: boolean
+  isRemote?: boolean
+  remoteVersion?: number
+  requiresOrganization?: boolean
   createdAt: number
   updatedAt: number
   words: WordItem[]
@@ -76,7 +81,19 @@ export interface AppSettings {
   disabledUntil?: number | undefined
 }
 
+export interface OnboardingState {
+  version: 1
+  steps: Record<string, 'completed' | 'skipped'>
+  browserAnswers: number
+}
+
 export interface StorageShape {
+  organization: ConnectResponse['organization'] | null
+  remoteArchive: Vocabulary[]
+  catalogEtag: string | null
+  catalogVersion: number | null
+  lastSyncAt: number | null
+  onboarding: OnboardingState
   vocabularies: Vocabulary[]
   activeVocabularyId: string
   activeVocabularyIds: string[]

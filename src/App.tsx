@@ -192,6 +192,11 @@ function App() {
               </div>
               <label class="grid gap-2 text-[15px]">
                 <span>{t().vocabulary}</span>
+                <Show when={current().vocabularies.length === 0}>
+                  <p role="status">
+                    Ожидаем загрузку словарей. Проверьте подключение к сети.
+                  </p>
+                </Show>
                 <select
                   class="w-full border border-rule bg-paper px-3 py-2 font-serif-body text-[15px] text-ink"
                   value={activeVocabularyValue(current())}

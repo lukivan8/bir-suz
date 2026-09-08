@@ -1,4 +1,5 @@
-import { seedVocabularies, seedVocabularyId } from './learning-content'
+import { validateProtocol } from './protocol/validate'
+import { migrateRemoteVocabularies } from './remote-model'
 import type {
   AppSettings,
   QuietHours,
@@ -40,9 +41,15 @@ const defaultSettings: AppSettings = {
 }
 
 export const defaultStorage: StorageShape = {
-  vocabularies: seedVocabularies,
-  activeVocabularyId: seedVocabularyId,
-  activeVocabularyIds: [seedVocabularyId],
+  vocabularies: [],
+  activeVocabularyId: '',
+  activeVocabularyIds: [],
+  organization: null,
+  remoteArchive: [],
+  catalogEtag: null,
+  catalogVersion: null,
+  lastSyncAt: null,
+  onboarding: { version: 1, steps: {}, browserAnswers: 0 },
   userStats: defaultStats,
   settings: defaultSettings,
   newTabCount: 0,
@@ -64,6 +71,12 @@ const storageKeys = [
   'navigationCount',
   'pendingTrigger',
   'wordBank',
+  'organization',
+  'remoteArchive',
+  'catalogEtag',
+  'catalogVersion',
+  'lastSyncAt',
+  'onboarding',
 ] satisfies (keyof LegacyStorageShape)[]
 
 export async function ensureStorage() {
@@ -91,11 +104,18 @@ function buildStoragePatch(current: LegacyStorageShape): Partial<StorageShape> {
   const normalized = normalizeStorage(current)
   const patch: Partial<StorageShape> = {}
 
-  if (
-    !areValidVocabularies(current.vocabularies) ||
-    !hasCurrentSeedVocabularies(current.vocabularies)
-  ) {
-    patch.vocabularies = normalized.vocabularies
+  for (const key of [
+    'vocabularies',
+    'remoteArchive',
+    'organization',
+    'catalogEtag',
+    'catalogVersion',
+    'lastSyncAt',
+    'onboarding',
+  ] as const) {
+    if (JSON.stringify(current[key]) !== JSON.stringify(normalized[key])) {
+      Object.assign(patch, { [key]: normalized[key] })
+    }
   }
 
   if (
@@ -140,13 +160,25 @@ function buildStoragePatch(current: LegacyStorageShape): Partial<StorageShape> {
   return patch
 }
 
-function normalizeStorage(storage: LegacyStorageShape): StorageShape {
-  const vocabularies = normalizeVocabularies(storage)
+export function normalizeStorage(storage: LegacyStorageShape): StorageShape {
+  const organization =
+    storage.organization &&
+    validateProtocol('ConnectResponse', {
+      organization: storage.organization,
+      extraVocabularyEnabled: true,
+    })
+      ? storage.organization
+      : null
+  const { vocabularies, remoteArchive } = migrateRemoteVocabularies(
+    normalizeVocabularies(storage),
+    storage.remoteArchive ?? [],
+    organization !== null,
+  )
   const legacyActiveVocabularyId = vocabularies.some(
     (vocabulary) => vocabulary.id === storage.activeVocabularyId,
   )
     ? (storage.activeVocabularyId as string)
-    : (vocabularies[0]?.id ?? seedVocabularyId)
+    : (vocabularies[0]?.id ?? '')
   const activeVocabularyIds = normalizeActiveVocabularyIds(
     storage.activeVocabularyIds,
     vocabularies,
@@ -156,6 +188,19 @@ function normalizeStorage(storage: LegacyStorageShape): StorageShape {
 
   return {
     vocabularies,
+    remoteArchive,
+    organization,
+    catalogEtag:
+      typeof storage.catalogEtag === 'string' ? storage.catalogEtag : null,
+    catalogVersion: Number.isInteger(storage.catalogVersion)
+      ? (storage.catalogVersion ?? null)
+      : null,
+    lastSyncAt:
+      typeof storage.lastSyncAt === 'number' ? storage.lastSyncAt : null,
+    onboarding:
+      storage.onboarding?.version === 1
+        ? storage.onboarding
+        : structuredClone(defaultStorage.onboarding),
     activeVocabularyId,
     activeVocabularyIds,
     userStats: normalizeUserStats(storage.userStats),
@@ -175,14 +220,18 @@ function normalizeActiveVocabularyIds(
   vocabularies: Vocabulary[],
   fallbackId: string,
 ) {
-  if (!Array.isArray(value)) return [fallbackId]
+  if (!Array.isArray(value)) return fallbackId ? [fallbackId] : []
 
   const vocabularyIds = new Set(vocabularies.map((vocabulary) => vocabulary.id))
   const activeVocabularyIds = [...new Set(value)].filter(
     (id): id is string => typeof id === 'string' && vocabularyIds.has(id),
   )
 
-  return activeVocabularyIds.length > 0 ? activeVocabularyIds : [fallbackId]
+  return activeVocabularyIds.length > 0
+    ? activeVocabularyIds
+    : fallbackId
+      ? [fallbackId]
+      : []
 }
 
 function hasValidActiveVocabularyIds(
@@ -194,7 +243,7 @@ function hasValidActiveVocabularyIds(
   const normalized = normalizeActiveVocabularyIds(
     storage.activeVocabularyIds,
     vocabularies,
-    vocabularies[0]?.id ?? seedVocabularyId,
+    vocabularies[0]?.id ?? '',
   )
 
   return (
@@ -204,130 +253,25 @@ function hasValidActiveVocabularyIds(
 }
 
 function normalizeVocabularies(storage: LegacyStorageShape): Vocabulary[] {
-  if (areValidVocabularies(storage.vocabularies)) {
-    return syncSeedVocabularies(storage.vocabularies)
-  }
-
+  if (areValidVocabularies(storage.vocabularies)) return storage.vocabularies
   if (
     Array.isArray(storage.wordBank) &&
+    storage.wordBank.length > 0 &&
     storage.wordBank.every(isCurrentWordShape)
   ) {
-    const now = Date.now()
-    const seedVocabulary = seedVocabularies[0]
-    return syncSeedVocabularies([
+    return [
       {
-        id: seedVocabulary?.id ?? seedVocabularyId,
-        name: seedVocabulary?.name ?? 'Базовый словарь',
-        ...(seedVocabulary?.description
-          ? { description: seedVocabulary.description }
-          : {}),
-        category: seedVocabulary?.category ?? 'mixed',
-        isBuiltin: seedVocabulary?.isBuiltin ?? true,
-        createdAt: now,
-        updatedAt: now,
+        id: 'builtin-kazakh-basic-words',
+        name: 'Базовый словарь',
+        category: 'mixed',
+        isBuiltin: true,
+        createdAt: 0,
+        updatedAt: 0,
         words: storage.wordBank.map(removeLegacyDistractors),
       },
-    ])
+    ]
   }
-
-  return seedVocabularies
-}
-
-function syncSeedVocabularies(vocabularies: Vocabulary[]) {
-  const existingVocabularies = new Map(
-    vocabularies.map((vocabulary) => [vocabulary.id, vocabulary]),
-  )
-  const customVocabularies = vocabularies.filter(
-    (vocabulary) => !vocabulary.isBuiltin,
-  )
-  const syncedSeedVocabularies = seedVocabularies.map((seedVocabulary) =>
-    mergeSeedVocabulary(
-      seedVocabulary,
-      existingVocabularies.get(seedVocabulary.id),
-    ),
-  )
-
-  return [...syncedSeedVocabularies, ...customVocabularies]
-}
-
-function mergeSeedVocabulary(
-  seedVocabulary: Vocabulary,
-  existingVocabulary: Vocabulary | undefined,
-) {
-  if (!existingVocabulary) return seedVocabulary
-
-  const existingWords = new Map(
-    existingVocabulary.words.map((word) => [word.id, word]),
-  )
-
-  return {
-    ...seedVocabulary,
-    createdAt: existingVocabulary.createdAt,
-    words: seedVocabulary.words.map((seedWord) => ({
-      ...seedWord,
-      srs: existingWords.get(seedWord.id)?.srs ?? seedWord.srs,
-    })),
-  }
-}
-
-function hasCurrentSeedVocabularies(vocabularies: unknown) {
-  if (!areValidVocabularies(vocabularies)) return false
-  const expectedBuiltinIds = new Set(
-    seedVocabularies.map((vocabulary) => vocabulary.id),
-  )
-  const existingBuiltinVocabularies = vocabularies.filter(
-    (vocabulary) => vocabulary.isBuiltin,
-  )
-
-  if (existingBuiltinVocabularies.length !== seedVocabularies.length) {
-    return false
-  }
-
-  return seedVocabularies.every((seedVocabulary) => {
-    const existingVocabulary = existingBuiltinVocabularies.find(
-      (vocabulary) => vocabulary.id === seedVocabulary.id,
-    )
-
-    return (
-      existingVocabulary &&
-      expectedBuiltinIds.has(existingVocabulary.id) &&
-      hasSameVocabularyContent(seedVocabulary, existingVocabulary)
-    )
-  })
-}
-
-function hasSameVocabularyContent(
-  seedVocabulary: Vocabulary,
-  existingVocabulary: Vocabulary,
-) {
-  if (
-    seedVocabulary.name !== existingVocabulary.name ||
-    seedVocabulary.description !== existingVocabulary.description ||
-    seedVocabulary.category !== existingVocabulary.category ||
-    seedVocabulary.words.length !== existingVocabulary.words.length
-  ) {
-    return false
-  }
-
-  return seedVocabulary.words.every((seedWord, index) => {
-    const existingWord = existingVocabulary.words[index]
-    return existingWord && hasSameWordContent(seedWord, existingWord)
-  })
-}
-
-function hasSameWordContent(seedWord: WordItem, existingWord: WordItem) {
-  return (
-    seedWord.id === existingWord.id &&
-    seedWord.sourceText === existingWord.sourceText &&
-    seedWord.targetText === existingWord.targetText &&
-    seedWord.sourceLabel === existingWord.sourceLabel &&
-    seedWord.targetLabel === existingWord.targetLabel &&
-    seedWord.level === existingWord.level &&
-    JSON.stringify(seedWord.sourceVariants ?? []) ===
-      JSON.stringify(existingWord.sourceVariants ?? []) &&
-    JSON.stringify(seedWord.targetVariants ?? []) ===
-      JSON.stringify(existingWord.targetVariants ?? [])
-  )
+  return []
 }
 
 function normalizeSettings(settings: unknown): AppSettings {
@@ -417,7 +361,7 @@ function normalizeUserStats(userStats: unknown): UserStats {
 }
 
 function areValidVocabularies(value: unknown): value is Vocabulary[] {
-  return Array.isArray(value) && value.length > 0 && value.every(isVocabulary)
+  return Array.isArray(value) && value.every(isVocabulary)
 }
 
 function isCurrentWordShape(word: unknown): word is WordItem {

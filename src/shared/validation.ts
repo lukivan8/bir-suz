@@ -148,14 +148,16 @@ export function isStorageShape(value: unknown): value is StorageShape {
   const candidate = value as Partial<StorageShape>
   return (
     Array.isArray(candidate.vocabularies) &&
-    candidate.vocabularies.length > 0 &&
     candidate.vocabularies.every(isVocabulary) &&
     typeof candidate.activeVocabularyId === 'string' &&
-    candidate.vocabularies.some(
-      (vocabulary) => vocabulary.id === candidate.activeVocabularyId,
-    ) &&
+    (candidate.vocabularies.length === 0
+      ? candidate.activeVocabularyId === ''
+      : candidate.vocabularies.some(
+          (vocabulary) => vocabulary.id === candidate.activeVocabularyId,
+        )) &&
     Array.isArray(candidate.activeVocabularyIds) &&
-    candidate.activeVocabularyIds.length > 0 &&
+    (candidate.vocabularies.length === 0 ||
+      candidate.activeVocabularyIds.length > 0) &&
     candidate.activeVocabularyIds.every(
       (id) =>
         typeof id === 'string' &&

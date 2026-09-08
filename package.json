@@ -13,7 +13,8 @@
     "lint": "biome check .",
     "format": "biome format --write .",
     "check:write": "biome check --write .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "bun test"
   },
   "dependencies": {
     "solid-js": "^1.9.12"

@@ -362,6 +362,11 @@ function Dashboard() {
 
               <section class="dashboard-section">
                 <span class="section-num">01 — Серия</span>
+                <Show when={current().vocabularies.length === 0}>
+                  <p role="status">
+                    Ожидаем загрузку словарей. Проверьте подключение к сети.
+                  </p>
+                </Show>
                 <h1 class="section-heading">
                   Ритм, который держится {currentStreak()} дней
                 </h1>
