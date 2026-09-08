@@ -41,11 +41,11 @@ async function sendRuntimeMessage<TMessage extends RuntimeMessage>(
   try {
     if (!chrome.runtime?.id) return undefined
     return await chrome.runtime.sendMessage(message)
-  } catch (error) {
+  } catch {
     // This happens when the extension is reloaded/updated while a tab still has
     // the old content script injected. The page needs a refresh before that old
     // script can talk to the new extension context again.
-    console.debug('[Bir Söz content] runtime message skipped', error)
+    console.debug('[Bir Söz content] runtime message skipped')
     return undefined
   }
 }

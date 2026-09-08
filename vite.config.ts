@@ -3,9 +3,26 @@ import tailwindcss from '@tailwindcss/vite'
 import { defineConfig } from 'vite'
 import solid from 'vite-plugin-solid'
 import manifest from './manifest.config.ts'
+import { generateReviewPackage } from './scripts/review-package.mjs'
+
+let thisOutDir = 'dist'
 
 export default defineConfig({
-  plugins: [tailwindcss(), solid(), crx({ manifest })],
+  plugins: [
+    tailwindcss(),
+    solid(),
+    crx({ manifest }),
+    {
+      name: 'bir-soz-review-documentation',
+      apply: 'build',
+      configResolved(config) {
+        thisOutDir = config.build.outDir
+      },
+      async closeBundle() {
+        await generateReviewPackage(thisOutDir)
+      },
+    },
+  ],
   build: {
     target: 'es2022',
     minify: false,

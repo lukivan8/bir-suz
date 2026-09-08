@@ -1,0 +1,23 @@
+Core walkthrough — no account, password or organization code required
+1. Install; the Russian progress/onboarding page opens. Allow catalog download.
+2. Click "Далее". Pin/open the actual toolbar popup; click "Мой прогресс".
+   On the progress page, click "Далее" to acknowledge where to find the extension.
+3. Choose "Пропустить — у меня нет кода". Enable a public dictionary below;
+   click "Далее". The default three-minute interval may be left unchanged.
+4. "Открыть изучение слов" opens cards. Flip and rate using the labeled buttons
+   or keys 1–5. Practice keeps up to 20 cards in a resumable working set and
+   automatically continues with the next set while the study window stays open.
+   Close the study window and click "Далее" to begin the browser step.
+5. Open https://example.com, open the actual toolbar popup and click
+   "Показать пример задания". Answer; repeat and click "Пропустить".
+6. "Мой прогресс" shows saved local progress. Analytics remains off unless opted in
+   explicitly in "Настройки" -> "Статистика использования".
+The demo is an ordinary user feature; no devtools/settings hack is needed.
+Chrome internal pages and the Web Store do not allow overlays. Use a normal
+HTTPS tab. Automatic prompts additionally follow normal frequency/cooldown rules;
+demo answers do not count toward the three natural onboarding challenges.
+
+Optional organization flow: enter a valid code supplied in the review submission
+in onboarding or settings. This sends installation ID/code independently of
+analytics. Extra server dictionaries become available after sync. No login,
+password, member switching or disconnect is needed. See API note and public policy.

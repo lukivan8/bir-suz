@@ -1,4 +1,8 @@
-# Functional inventory
+# Historical functional inventory — 0.1.1
+
+**Historical snapshot, not a current release claim.** Remote content, organization,
+onboarding/cards and v2 analytics supersede the sections below. For current
+behavior see `public/review/README.txt` and `docs/managed-activation/task18.md`.
 
 Inventory date: 2026-09-08. Extension version: 0.1.1.
 

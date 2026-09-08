@@ -6,6 +6,7 @@ import {
   pickDueWord,
   shouldBlockForUserSettings,
 } from './shared/challenge'
+import { allowsBackgroundMessage } from './shared/message-access'
 import { isRuntimeMessage } from './shared/messages'
 import { currentOnboardingStep } from './shared/onboarding'
 import { connectOrganization } from './shared/organization'
@@ -160,7 +161,10 @@ chrome.commands.onCommand.addListener(async (command) => {
 chrome.runtime.onMessage.addListener(
   (message: unknown, _sender, sendResponse) => {
     void (async () => {
-      if (!isRuntimeMessage(message)) {
+      if (
+        !isRuntimeMessage(message) ||
+        !allowsBackgroundMessage(message, _sender, chrome.runtime.id)
+      ) {
         log('ignored unknown runtime message')
         sendResponse({ ok: false })
         return
@@ -338,7 +342,7 @@ async function dispatchChallenge(
     })
     log('challenge sent successfully', { source, tabId })
     return true
-  } catch (error) {
+  } catch {
     readyContentTabs.delete(tabId)
     await withStorageLock(async () => {
       const current = await getStorage()
@@ -349,7 +353,6 @@ async function dispatchChallenge(
     log('challenge send failed', {
       source,
       tabId,
-      error: error instanceof Error ? error.message : String(error),
     })
     return false
   }

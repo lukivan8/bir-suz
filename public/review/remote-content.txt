@@ -1,0 +1,23 @@
+Remote content is data, not code
+
+fetchCatalog -> response.json -> assertProtocol(RemoteVocabularyCatalog) ->
+mergeRemoteCatalog -> chrome.storage.local -> Solid text bindings in UI.
+Catalog/word objects reject unknown properties; required fields and enum/type
+constraints come from the shared schemas (api-schemas.json). Invalid catalog,
+duplicate IDs or failed requests do not replace last valid storage.
+
+Three stable public vocabulary IDs:
+builtin-kazakh-basic-words (A1)
+builtin-kazakh-everyday-words (A2)
+builtin-kazakh-expanded-words (B1)
+Additional server dictionaries appear for a valid organization code. Catalog is
+not restricted to four IDs. ETag/versioning avoids unnecessary replacements.
+Remote merge preserves SRS by vocabulary+word ID; disappearing content is archived
+locally. Custom dictionaries are not replaced or uploaded by catalog sync.
+
+Only text fields feed text rendering. No fetched script/module/worker/WASM,
+eval/Function, remote import, remote HTML template or third-party analytics SDK.
+Solid's compiled static HTML templates describe packaged UI; remote strings are
+inserted as text, not passed to innerHTML. CSS and JavaScript load from this ZIP.
+No bundled dictionaries; fresh offline installation asks for network/retry,
+while a previously populated cache supports offline practice.

@@ -1,121 +1,37 @@
-# Chrome Web Store Listing and Review Notes
+# Chrome Web Store review notes
 
-Use this as source copy for the Chrome Web Store listing, privacy form, and
-permission justifications. Keep the wording aligned with the in-product
-analytics disclosure and the public privacy policy.
+Current package review entry point: [review/README.txt](../public/review/README.txt).
+Release preparation evidence is local to workspace `project-tasks/chrome-web-store-release`.
 
-## Single Purpose
+Single purpose: Kazakh vocabulary practice during normal browsing, supported by
+local progress, optional organizations, onboarding and flashcards.
 
-Bir Söz helps users learn Kazakh vocabulary by occasionally showing a small
-translation challenge while they browse.
+## Required permissions
 
-## Permission Justifications
+- storage: local preferences, SRS, custom words, downloaded catalog, organization,
+  onboarding/card session and consented event queue.
+- alarms: catalog refresh every15 minutes and opt-in event retry every minute.
+- https://api.lukivan8.com/*: public server content, explicitly requested
+  organization connection, and separately opt-in learning analytics.
+- HTTP(S) content-script matches: automatic page overlays and generic activity
+  triggers need persistent access. activeTab only after a click cannot implement
+  existing automatic practice. No tabs/history/cookies permission is added.
+- Generated WAR enables CRXJS local chunk loading, use_dynamic_url:false.
 
-`storage`: stores local vocabulary, learning progress, and settings.
+## Privacy form
 
-`alarms`: periodically flushes queued usage analytics after the user enables
-usage statistics.
+Disclose persistent installation identifiers as personally identifiable information
+under CWS identification-number guidance, and User activity for learning interactions.
+These identifiers are pseudonymous, not fully anonymous. Custom vocabulary text is
+locally stored and can appear in the overlay, never in API payloads. No page content,
+URLs, browsing history, credentials, health or financial data is extracted.
+Catalog/connection traffic is independent of analytics consent; never claim all
+network requests require opt-in. Organization-scoped pseudonyms/connect dates and,
+with analytics, last completed task dates are publicly displayed. Read the complete
+[privacy policy](privacy-policy.md), including infrastructure and retention caveats.
 
-Host permission for `https://api.lukivan8.com/*`: sends opt-in usage analytics
-to the developer-operated API. Usage analytics are disabled by default,
-disclosed on first install, and can be turned on or off from the extension
-dashboard settings. The complete request schema is documented in
-[`docs/analytics-schema.md`](analytics-schema.md), and the only analytics
-network sender is `postJson()` in
-[`src/shared/stats.ts`](../src/shared/stats.ts). A human-readable copy of the
-analytics API contract is packaged in uploaded builds at
-`review/analytics-api-contract.txt`.
+Remote code: No, subject to final ZIP audit. Remote dictionary JSON is validated
+and rendered as text; all executing JS/CSS is bundled. No remote SDK/eval/WASM.
 
-Content script access to `http://*/*` and `https://*/*`: required to show the
-learning prompt overlay on normal webpages. The content script sends only a
-generic "page activity happened" signal after page loads and same-document
-navigation events. It does not send page content, form inputs, cookies,
-passwords, browsing history, visited page URLs, clicked link URLs, selectors, or
-link text. The explicit content-script access contract and outbound message
-builders are in
-[`src/shared/content-script-access.ts`](../src/shared/content-script-access.ts).
-The same human-readable review note is packaged in uploaded builds at
-`review/content-script-access.txt`. The generated `web_accessible_resources`
-entry keeps `use_dynamic_url` false because the CRXJS content-script loader
-imports its bundled chunks from those URLs.
-
-## Privacy Form Guidance
-
-Do not select "does not collect user data." When usage statistics are enabled,
-the extension collects learning-feature interaction data tied to a random
-installation identifier.
-
-Disclose these collection categories where available:
-
-- extension usage analytics;
-- user activity/product interaction, including answers, skips, correctness,
-  response time, and learning progress;
-- a pseudonymous/random installation identifier;
-- aggregate custom vocabulary progress counts if the user creates custom
-  vocabularies.
-
-Do not disclose or imply collection of browsing history, website content, form
-data, passwords, cookies, clicked links, screenshots, advertising identifiers,
-email, Google account ID, or device hardware ID. The analytics payload also does
-not include custom vocabulary names, custom word text, or custom word IDs.
-
-Do not claim that the extension is local-only without qualification. A precise
-claim is: learning content and progress are stored locally by default, and
-optional usage analytics are sent only after the user enables usage statistics.
-
-For the "How is this data used?" explanation, use:
-
-Usage analytics are used only to understand whether the learning prompts support
-Kazakh vocabulary practice and to improve the learning experience. Analytics
-requests are limited to the two documented schemas in
-`docs/analytics-schema.md`.
-
-For the "Data sale/transfer" explanation, use:
-
-Bir Söz does not sell user data and does not share user data with advertisers,
-data brokers, or advertising platforms. Analytics are sent only to the
-developer-operated API at `https://api.lukivan8.com`.
-
-For the "Data retention/deletion" explanation, use:
-
-Learning progress and custom vocabulary stored in `chrome.storage.local` can be
-removed by uninstalling the extension or clearing extension data. Analytics sent
-to the developer API are associated with a random installation identifier, not
-with a Google account, email address, advertising identifier, or device hardware
-identifier.
-
-## Suggested Short Description
-
-Learn Kazakh vocabulary through small translation prompts while browsing.
-
-## Suggested Detailed Description
-
-Bir Söz helps you practice Kazakh vocabulary during normal browsing. It
-occasionally shows a compact translation challenge, tracks your local learning
-progress, and lets you manage vocabularies from the dashboard.
-
-Usage analytics are disabled by default. They are disclosed on first install and
-can be turned on or off in the dashboard settings. Analytics are used to measure
-learning-feature usage and do not include visited page URLs, page content,
-clicked link URLs, selectors, link text, cookies, passwords, form inputs, or
-browsing history.
-
-## Suggested Permission Justification Copy
-
-`storage`: Bir Söz stores vocabulary, learning progress, and settings locally on
-the user's device.
-
-`alarms`: Bir Söz uses a periodic alarm to flush queued usage analytics after
-the user enables usage statistics.
-
-`https://api.lukivan8.com/*`: Bir Söz sends opt-in usage analytics to the
-developer-operated API. Analytics are disabled by default and do not include
-visited page URLs, page content, form inputs, passwords, cookies, clicked links,
-screenshots, browsing history, advertising identifiers, email, or Google account
-ID.
-
-Content script access to `http://*/*` and `https://*/*`: Bir Söz runs on normal
-webpages to show the vocabulary prompt overlay during browsing and to detect
-generic page/navigation activity. It does not read or send page URLs, page
-content, form data, passwords, cookies, clicked links, CSS selectors,
-screenshots, or browsing history.
+Do not reuse old two-endpoint justifications or promise safe downgrade to0.1.1.
+Review documentation must refer to actual generated chunks, not only source files.

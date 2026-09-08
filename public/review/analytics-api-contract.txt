@@ -1,134 +1,72 @@
-Bir Soz Chrome Web Store review note: analytics API contract
+Bir Soz API contract — current extension (legacy 0.1.1 is different)
 
-Analytics default and consent
-- Usage analytics are disabled by default.
-- The user can enable analytics from the first-install dashboard disclosure or
-  from dashboard settings.
-- All analytics queueing and sending is gated by settings.analyticsEnabled.
-- If analytics are disabled, the background worker skips snapshot maintenance,
-  timer flushes, challenge events, and settings events.
+Destination: https://api.lukivan8.com. Three fixed paths below; no arbitrary-URL
+transport and no network sender in the content script. credentials:'omit' on
+all three requests. Timeout:15 seconds. No cookies/account/authentication token.
+Full field types, enums, required properties and error schemas: api-schemas.json.
 
-Only analytics network destination
-- https://api.lukivan8.com/api/events
-- https://api.lukivan8.com/api/snapshot
+GET /api/v1/vocabularies
+Purpose: download complete catalog/words as JSON data. Analytics consent is NOT
+required. No request body or installation ID. Optional X-Bir-Organization-Code
+header from explicit organization connection; optional If-None-Match from cache.
+200: RemoteVocabularyCatalog; ETag retained. 304: retain cache (must exist).
+Catalog fields: protocolVersion, version, vocabularies. Each vocabulary contains
+id/name/optional description/level/version/requiresOrganization/updatedAt/words;
+word fields id/kk/ru/level. level remains a compatibility field; tasks are direct
+translation. All responses validated before complete atomic local merge.
+Triggers: installation/update, worker startup, 15-minute alarm, explicit retry,
+and successful connect. Failures keep last valid cache. No bundled fallback on
+a fresh offline install. Simultaneous sync coalesced; changed code context retried.
 
-Only analytics network sender
-- postJson(path, body) in the generated background bundle.
-- It only posts JSON to the two endpoint paths above.
+POST /api/v1/organization/connect
+Purpose: explicit optional code connection, independent of learning consent.
+Body ConnectRequest: installationId (random persistent UUID), code (trimmed text).
+Response ConnectResponse: organization {id,name,code}, extraVocabularyEnabled.
+Same-code retry is idempotent. No automatic arbitrary switching/disconnection UI.
+Errors validated as ProtocolError: CODE_NOT_FOUND and CODE_DISABLED explained in
+Russian; other errors get generic UI text. Network failure: user retries.
+Connection and subsequent catalog use persist across restarts. Organization
+archival removes gated cache availability on next successful catalog update,
+while SRS/history and the existing connection remain locally preserved.
+Server stores connection date. Public organization dashboard displays an
+organization-scoped pseudonym and connection date, even with learning consent off.
 
-Events request shape: POST /api/events
-{
-  "vocabularies": [
-    {
-      "id": "builtin-basic",
-      "name": "Built-in vocabulary name",
-      "is_builtin": true,
-      "is_remote": false,
-      "remote_version": null,
-      "created_at": 0,
-      "updated_at": 0
-    }
-  ],
-  "words": [
-    {
-      "id": "kz_080",
-      "vocabulary_id": "builtin-basic",
-      "kk": "soz",
-      "ru": "word",
-      "level": "A2",
-      "created_at": 0
-    }
-  ],
-  "events": [
-    {
-      "id": "event-random-uuid",
-      "uuid": "installation-random-uuid",
-      "vocabulary_id": "builtin-basic",
-      "word_id": "kz_080",
-      "event_type": "answered",
-      "correct": true,
-      "response_ms": 2100,
-      "ts": 1781740800000
-    }
-  ]
-}
+POST /api/v1/analytics/events/batch
+Purpose: optional learning analytics; disabled by default, controlled in settings.
+Body AnalyticsBatchRequest: {events: AnalyticsEventV2[]}.
+Current client sends at most50 events per batch (server schema accepts up to500).
+Required common fields: id, installationId, type, occurredAt (epoch milliseconds).
+Optional organizationId is included when connected; never the organization code.
+Events emitted by the client:
+- onboarding_started/completed: common fields
+- onboarding_step_completed: onboardingStep (skipped step uses ':skipped' suffix)
+- organization_connected: organizationId
+- dictionary_activated: vocabularyId
+- study_session_started/completed: sessionId,vocabularyId; no duration
+- study_card_rated: sessionId,vocabularyId,wordId,confidence(-2..2),durationMs
+- challenge_completed: vocabularyId,wordId,correct,durationMs
+- challenge_skipped: vocabularyId,wordId; no duration
+Only server dictionary/word IDs are eligible. Custom texts/IDs/progress are not
+uploaded. Sessions containing custom cards emit only server-card events.
+Raw duration is sent unchanged. Server alone counts answer<=120s plus10s;
+longer responses count10s, skips/sessions add0 (no double counting).
 
-Snapshot request shape: POST /api/snapshot
-{
-  "vocabularies": [
-    {
-      "id": "builtin-basic",
-      "name": "Built-in vocabulary name",
-      "is_builtin": true,
-      "is_remote": false,
-      "remote_version": null,
-      "created_at": 0,
-      "updated_at": 0
-    }
-  ],
-  "words": [
-    {
-      "id": "kz_080",
-      "vocabulary_id": "builtin-basic",
-      "kk": "soz",
-      "ru": "word",
-      "level": "A2",
-      "created_at": 0
-    }
-  ],
-  "word_progress": [
-    {
-      "uuid": "installation-random-uuid",
-      "word_id": "kz_080",
-      "vocabulary_id": "builtin-basic",
-      "repetition": 2,
-      "interval": 6,
-      "ease_factor": 2.5,
-      "next_review": 1781827200000,
-      "last_reviewed_at": 1781740800000,
-      "first_seen_at": null,
-      "mastered": false
-    }
-  ],
-  "vocabulary_progress": [
-    {
-      "uuid": "installation-random-uuid",
-      "vocabulary_id": "builtin-basic-or-custom",
-      "total": 100,
-      "mastered": 12,
-      "in_progress": 38,
-      "new": 50,
-      "completion": 12,
-      "snapshotted_at": 1781740800000
-    }
-  ]
-}
+Response AnalyticsBatchResponse: accepted,duplicates,rejected[{id,code}].
+Validate schema and batch counts/rejected IDs before deleting acknowledged items.
+Stable event IDs permit server deduplication on retry. Permanent per-event
+rejections are removed; HTTP/network/schema errors retain the batch. One-minute
+alarm retries, draining in batches; concurrent flushes serialize via Web Locks.
+Consent is checked under the storage lock before dispatch. Opt-out clears the
+current v2 queue and aborts active fetch; already received requests cannot be
+retracted. No new learning events while off. Local progress still works.
+Legacy queues may remain locally from0.1.1; this version does NOT transmit them
+or create duplicate v2 copies. No daily snapshots or legacy endpoint requests.
+Public organization analytics exposes total metrics and last completed challenge
+time next to the member pseudonym; no raw installation UUID or event-by-event log.
 
-Data deliberately not included
-- visited page URLs
-- clicked link URLs
-- CSS selectors
-- link text
-- page content
-- form inputs
-- cookies
-- passwords
-- screenshots
-- browsing history
-- advertising identifiers
-- Google account ID
-- email
-- device hardware ID
-
-Custom vocabulary handling
-- Custom vocabulary names, custom word text, and custom word IDs are not sent.
-- Custom words are not included in words or word_progress.
-- Custom vocabulary appears only as aggregate vocabulary_progress with the
-  generic vocabulary_id "custom".
-
-Dist inspection hints
-- Search the generated background bundle for "STATS_BASE_URL",
-  "analyticsEnabled", "/api/events", "/api/snapshot", "mapWords",
-  "mapWordProgress", and "mapVocabularyProgress".
-- The generated background bundle should show mapWords and mapWordProgress
-  filtering to built-in vocabularies only.
+Excluded from every learning payload: visited URL/title/content, form values,
+passwords,cookies,history,clicked links,selectors,screenshots,custom vocabulary
+text/names/IDs, email/account/hardware/advertising IDs, organization code.
+API/infrastructure necessarily processes network metadata such as IP in transit;
+the application request logger emits only method/route-template/status/duration.
+See public policy for retention, infrastructure processors and public access.
