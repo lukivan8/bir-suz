@@ -285,7 +285,7 @@ test('poisoned queue entry cannot send forbidden fields or block valid events', 
     assert.equal((await getStorage()).analyticsQueue.length, 0)
   }))
 
-test('onboarding, activation and organization events carry IDs but never code or content', () => {
+test('onboarding and organization events carry IDs but never code or content', () => {
   const before = state()
   const after = {
     ...before,
@@ -304,6 +304,7 @@ test('onboarding, activation and organization events carry IDs but never code or
         browser: 'completed' as const,
       },
       browserAnswers: 3,
+      finishedAt: 2000,
     },
   }
   const events = transitionEvents(before, after)
@@ -317,7 +318,6 @@ test('onboarding, activation and organization events carry IDs but never code or
       'onboarding_step_completed',
       'onboarding_completed',
       'organization_connected',
-      'dictionary_activated',
     ],
   )
   assert.ok(

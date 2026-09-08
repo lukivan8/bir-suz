@@ -3,83 +3,73 @@ import assert from 'node:assert/strict'
 import {
   advanceOnboarding,
   currentOnboardingStep,
-  finishOnboardingCards,
 } from '../src/shared/onboarding'
-import fixtures from '../src/shared/protocol/fixtures.json'
-import { mergeRemoteCatalog } from '../src/shared/remote-model'
 import { normalizeStorage } from '../src/shared/storage'
-import {
-  flipStudyCard,
-  rateStudyCard,
-  showStudyCard,
-  startStudy,
-} from '../src/shared/study'
 
-function loaded() {
-  const catalog = structuredClone(fixtures['catalog-public'][1])
-  catalog.vocabularies[0].words = Array.from({ length: 5 }, (_, i) => ({
-    ...catalog.vocabularies[0].words[0],
-    id: `synthetic-${i}`,
-  }))
-  return mergeRemoteCatalog(normalizeStorage({}), catalog)
-}
-test('sequential onboarding survives normalization; cold catalog and wrong connect cannot advance', () => {
-  let state = normalizeStorage({})
-  assert.equal(currentOnboardingStep(state), 'popup')
-  assert.equal(advanceOnboarding(state, { action: 'skip-organization' }), state)
-  state = advanceOnboarding(state, { action: 'popup' })
-  assert.equal(currentOnboardingStep(normalizeStorage(state)), 'vocabulary')
-  assert.equal(
-    advanceOnboarding(state, {
-      action: 'vocabulary',
-      ids: ['builtin-kazakh-basic-words'],
-    }),
-    state,
-  )
-  state = advanceOnboarding(loaded(), { action: 'popup' })
-  assert.equal(
-    advanceOnboarding(state, { action: 'vocabulary', ids: [] }),
-    state,
-  )
-  state = advanceOnboarding(state, {
-    action: 'vocabulary',
-    ids: state.vocabularies.map((v) => v.id),
-  })
-  assert.equal(state.activeVocabularyIds.length, 3)
-  assert.equal(advanceOnboarding(state, { action: 'connected' }), state)
-  state = advanceOnboarding(state, { action: 'skip-organization' })
-  assert.equal(state.onboarding.steps.organization, 'skipped')
-  assert.equal(currentOnboardingStep(state), 'cards')
-  assert.equal(state.settings.analyticsEnabled, false)
+test('explanatory steps advance with Next without changing dictionaries or requiring cards', () => {
+  let s = normalizeStorage({})
+  const active = s.activeVocabularyIds
+  assert.equal(currentOnboardingStep(s), 'intro')
+  s = advanceOnboarding(s, { action: 'next', step: 'intro' })
+  assert.equal(currentOnboardingStep(s), 'popup')
+  assert.equal(advanceOnboarding(s, { action: 'skip-organization' }), s)
+  s = advanceOnboarding(s, { action: 'next', step: 'popup' })
+  assert.equal(currentOnboardingStep(normalizeStorage(s)), 'organization')
+  // A repeated click from the preceding step must not advance the next one.
+  assert.equal(advanceOnboarding(s, { action: 'next', step: 'popup' }), s)
+  assert.equal(advanceOnboarding(s, { action: 'connected' }), s)
+  s.organization = { id: 'synthetic', name: 'Synthetic', code: 'SYNTHETIC' }
+  const org = s.organization
+  s = advanceOnboarding(s, { action: 'skip-organization' })
+  assert.equal(s.organization, org)
+  assert.equal(s.onboarding.steps.organization, 'skipped')
+  assert.equal(currentOnboardingStep(s), 'vocabulary')
+  const settings = s.settings
+  s = advanceOnboarding(s, { action: 'next', step: 'vocabulary' })
+  assert.equal(s.activeVocabularyIds, active)
+  assert.equal(s.catalogVersion, null)
+  assert.equal(currentOnboardingStep(s), 'cards')
+  assert.equal(s.settings, settings)
+  s = advanceOnboarding(s, { action: 'next', step: 'cards' }, 1000)
+  assert.equal(currentOnboardingStep(s), 'browser')
+  assert.equal(s.studySession, null)
+  assert.equal(s.onboarding.browserStepStartedAt, 1000)
+  assert.equal(s.settings.analyticsEnabled, false)
 })
-test('five current onboarding ratings open browser; reset retains data and rejects old session', () => {
-  let state = advanceOnboarding(loaded(), { action: 'popup' })
-  state = advanceOnboarding(state, {
-    action: 'vocabulary',
-    ids: [state.vocabularies[0].id],
-  })
-  state.organization = { id: 'synthetic', name: 'Synthetic', code: 'SYNTHETIC' }
-  state = advanceOnboarding(state, { action: 'connected' })
-  assert.equal(state.onboarding.steps.organization, 'completed')
-  state = startStudy(state, true, 1000)
-  for (let i = 0; i < 5; i++) {
-    state = showStudyCard(state, state.studySession.id, i, 1000)
-    state = flipStudyCard(state, state.studySession.id, i)
-    state = rateStudyCard(state, state.studySession.id, i, 1, 2000 + i)
-    if (i < 4) assert.equal(finishOnboardingCards(state), state)
+test('final Next requires three answers, survives reload and cannot reopen', () => {
+  let s = normalizeStorage({})
+  s.onboarding.steps = {
+    intro: 'completed',
+    popup: 'completed',
+    vocabulary: 'completed',
+    organization: 'skipped',
+    interval: 'completed',
+    cards: 'completed',
   }
-  state = finishOnboardingCards(state)
-  assert.equal(currentOnboardingStep(state), 'browser')
-  const reset = advanceOnboarding(state, { action: 'reset' })
-  assert.equal(reset.vocabularies, state.vocabularies)
-  assert.equal(reset.userStats, state.userStats)
-  assert.equal(reset.organization, state.organization)
-  let again = advanceOnboarding(reset, { action: 'popup' })
-  again = advanceOnboarding(again, {
-    action: 'vocabulary',
-    ids: again.activeVocabularyIds,
-  })
-  again = advanceOnboarding(again, { action: 'skip-organization' })
-  assert.equal(finishOnboardingCards(again), again)
-  assert.equal(again.organization, state.organization)
+  assert.equal(advanceOnboarding(s, { action: 'next', step: 'browser' }), s)
+  s.onboarding.browserAnswers = 3
+  assert.equal(currentOnboardingStep(normalizeStorage(s)), 'browser')
+  s = advanceOnboarding(s, { action: 'next', step: 'browser' }, 2000)
+  assert.equal(s.onboarding.finishedAt, 2000)
+  assert.equal(currentOnboardingStep(normalizeStorage(s)), undefined)
+  assert.equal(advanceOnboarding(s, { action: 'next', step: 'popup' }), s)
+})
+test('previous automatic completion gets a final acknowledgement without losing progress', () => {
+  const s = normalizeStorage({})
+  s.onboarding.steps = {
+    intro: 'completed',
+    popup: 'completed',
+    vocabulary: 'completed',
+    organization: 'skipped',
+    interval: 'completed',
+    cards: 'completed',
+    browser: 'completed',
+  }
+  s.onboarding.browserAnswers = 3
+  s.onboarding.returnedAt = 1000
+  assert.equal(currentOnboardingStep(s), 'browser')
+  const next = advanceOnboarding(s, { action: 'next', step: 'browser' }, 2000)
+  assert.equal(currentOnboardingStep(next), undefined)
+  assert.equal(next.vocabularies, s.vocabularies)
+  assert.equal(next.userStats, s.userStats)
 })

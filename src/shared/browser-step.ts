@@ -23,6 +23,7 @@ export function consumeChallenge(
   let onboarding = state.onboarding
   if (
     currentOnboardingStep(state) === 'browser' &&
+    onboarding.browserAnswers < 3 &&
     !result.wasSkipped &&
     issued.source !== 'demo-hotkey' &&
     issued.onboardingRunId &&
@@ -33,10 +34,6 @@ export function consumeChallenge(
     onboarding = {
       ...onboarding,
       browserAnswers,
-      steps: {
-        ...onboarding.steps,
-        ...(browserAnswers === 3 ? { browser: 'completed' as const } : {}),
-      },
     }
   }
   return { state: { ...state, pendingChallenges, onboarding }, issued }
@@ -46,7 +43,9 @@ export async function refreshOnboardingBadge() {
     const state = await getStorage()
     await chrome.action.setBadgeText({
       text:
-        state.onboarding.browserAnswers === 3 && !state.onboarding.returnedAt
+        state.onboarding.browserAnswers === 3 &&
+        !state.onboarding.returnedAt &&
+        !state.onboarding.finishedAt
           ? '✓'
           : '',
     })

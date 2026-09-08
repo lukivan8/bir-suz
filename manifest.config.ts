@@ -3,7 +3,7 @@ import { defineManifest } from '@crxjs/vite-plugin'
 const manifest = {
   manifest_version: 3,
   name: 'Bir Söz',
-  version: '0.1.1',
+  version: '0.2.0',
   description:
     'Расширение для создания казахской языковой среды в браузере за одну установку.',
   icons: {

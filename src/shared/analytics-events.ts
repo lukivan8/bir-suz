@@ -31,7 +31,7 @@ export function transitionEvents(
         onboardingStep: status === 'skipped' ? `${step}:skipped` : step,
       })
   }
-  if (!before.onboarding.steps['browser'] && after.onboarding.steps['browser'])
+  if (!before.onboarding.finishedAt && after.onboarding.finishedAt)
     add({ type: 'onboarding_completed' })
   if (!before.organization && after.organization)
     add({
@@ -39,11 +39,7 @@ export function transitionEvents(
       organizationId: after.organization.id,
     })
   for (const id of after.activeVocabularyIds)
-    if (
-      !before.activeVocabularyIds.includes(id) ||
-      (!before.onboarding.steps['vocabulary'] &&
-        after.onboarding.steps['vocabulary'])
-    )
+    if (!before.activeVocabularyIds.includes(id))
       add({ type: 'dictionary_activated', vocabularyId: id })
   const previous = before.studySession,
     session = after.studySession

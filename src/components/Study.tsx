@@ -1,4 +1,11 @@
-import { createEffect, createSignal, For, onCleanup, Show } from 'solid-js'
+import {
+  createEffect,
+  createSignal,
+  For,
+  onCleanup,
+  onMount,
+  Show,
+} from 'solid-js'
 import type { StudyAction } from '../shared/study-service'
 import type { Confidence, StudySession } from '../shared/types'
 
@@ -10,16 +17,21 @@ const ratings: { value: Confidence; label: string }[] = [
   { value: 2, label: '+2 Легко' },
 ]
 
-export function StudySection(props: {
+export function StudyModal(props: {
   session: StudySession | null
   ready: boolean
   onboarding?: boolean
   refresh: () => unknown
+  onClose: () => void
 }) {
-  const [open, setOpen] = createSignal(false)
+  const [open, setOpen] = createSignal(props.session?.completedAt === null)
+  let dialog!: HTMLDialogElement
+  onMount(() => dialog.showModal())
+  onCleanup(() => dialog.close())
   const [busy, setBusy] = createSignal(false)
   const [error, setError] = createSignal('')
   let showRequested = ''
+  let startRequested = ''
   let lastAction: StudyAction | undefined
   let face: HTMLButtonElement | undefined
   const active = () =>
@@ -68,6 +80,19 @@ export function StudySection(props: {
       })
   }
   createEffect(() => {
+    const key = props.session?.id ?? 'initial'
+    if (
+      props.ready &&
+      !active() &&
+      !busy() &&
+      !error() &&
+      startRequested !== key
+    ) {
+      startRequested = key
+      void start()
+    }
+  })
+  createEffect(() => {
     const session = active()
     const showing = open()
     if (
@@ -111,105 +136,107 @@ export function StudySection(props: {
   document.addEventListener('keydown', keydown)
   onCleanup(() => document.removeEventListener('keydown', keydown))
   return (
-    <section class="activity-panel study-panel" aria-label="Изучать слова">
-      <h2 class="section-heading">Изучать слова</h2>
-      <Show when={!props.ready}>
-        <p>Ожидаем загрузку словарей.</p>
-        <button
-          type="button"
-          class="dashboard-settings-button"
-          onClick={async () => {
-            await chrome.runtime.sendMessage({ type: 'bir-soz:sync-catalog' })
-            await props.refresh()
-          }}
-        >
-          Повторить загрузку
-        </button>
-      </Show>
-      <Show when={!open() || !active()}>
-        <Show when={props.session?.completedAt}>
-          <p role="status">
-            Сессия завершена: {props.session?.results.length} карточек оценено.
-          </p>
-        </Show>
-        <button
-          type="button"
-          class="dashboard-settings-button"
-          disabled={!props.ready || busy()}
-          onClick={start}
-        >
-          {active() ? 'Продолжить' : 'Начать пять карточек'}
-        </button>
-      </Show>
-      <Show when={open() && active()}>
-        {(session) => {
-          const card = () => session().cards[session().index]
-          return (
-            <div class="grid gap-4">
-              <p>
-                {card()?.vocabularyName} · {session().index + 1} из{' '}
-                {session().cards.length}
-              </p>
-              <button
-                ref={face}
-                type="button"
-                class="study-card"
-                disabled={
-                  busy() || session().shownAt === null || session().flipped
-                }
-                onClick={flip}
-                aria-label={session().flipped ? 'Перевод' : 'Показать перевод'}
-              >
-                <span>
-                  {session().flipped
-                    ? card()?.word.targetText
-                    : card()?.word.sourceText}
-                </span>
-                <small>
-                  {session().flipped
-                    ? 'Оцените уверенность'
-                    : 'Нажмите, чтобы увидеть перевод · Space / Enter'}
-                </small>
-              </button>
-              <div class="study-ratings">
-                <For each={ratings}>
-                  {(rating) => (
-                    <button
-                      type="button"
-                      class="dashboard-settings-button"
-                      disabled={!session().flipped || busy()}
-                      onClick={() => rate(rating.value)}
-                    >
-                      {rating.label}
-                    </button>
-                  )}
-                </For>
-              </div>
-              <Show when={session().flipped}>
-                <p>Клавиши 1–5 — оценка уверенности.</p>
-              </Show>
-              <button
-                type="button"
-                class="dashboard-settings-button"
-                onClick={() => setOpen(false)}
-              >
-                Продолжить позже
-              </button>
-            </div>
+    <dialog
+      ref={dialog}
+      class="advanced-modal word-modal study-modal"
+      aria-label="Изучать слова"
+      onCancel={(event) => {
+        event.preventDefault()
+        props.onClose()
+      }}
+      onPointerDown={(event) => {
+        if (event.target === dialog) {
+          const rect = dialog.getBoundingClientRect()
+          if (
+            event.clientX < rect.left ||
+            event.clientX > rect.right ||
+            event.clientY < rect.top ||
+            event.clientY > rect.bottom
           )
-        }}
-      </Show>
-      <Show when={error()}>
-        <p role="alert">{error()}</p>
-        <button
-          type="button"
-          class="dashboard-settings-button"
-          disabled={busy()}
-          onClick={() => lastAction && send(lastAction)}
-        >
-          Повторить сохранение
-        </button>
-      </Show>
-    </section>
+            props.onClose()
+        }
+      }}
+    >
+      <button type="button" class="modal-close" onClick={props.onClose}>
+        Закрыть
+      </button>
+      <div class="study-panel">
+        <h2 class="section-heading">Изучать слова</h2>
+        <Show when={!props.ready}>
+          <p>Ожидаем загрузку словарей.</p>
+          <button
+            type="button"
+            class="dashboard-settings-button"
+            onClick={async () => {
+              await chrome.runtime.sendMessage({ type: 'bir-soz:sync-catalog' })
+              await props.refresh()
+            }}
+          >
+            Повторить загрузку
+          </button>
+        </Show>
+        <Show when={props.ready && !active() && !error()}>
+          <p role="status">Подготавливаем карточку…</p>
+        </Show>
+        <Show when={open() && active()}>
+          {(session) => {
+            const card = () => session().cards[session().index]
+            return (
+              <div class="grid gap-4">
+                <p>{card()?.vocabularyName}</p>
+                <button
+                  ref={face}
+                  type="button"
+                  class="study-card"
+                  disabled={
+                    busy() || session().shownAt === null || session().flipped
+                  }
+                  onClick={flip}
+                  aria-label={
+                    session().flipped ? 'Перевод' : 'Показать перевод'
+                  }
+                >
+                  <span>
+                    {session().flipped
+                      ? card()?.word.targetText
+                      : card()?.word.sourceText}
+                  </span>
+                  <small>
+                    {session().flipped
+                      ? 'Оцените уверенность'
+                      : 'Нажмите, чтобы увидеть перевод · Space / Enter'}
+                  </small>
+                </button>
+                <div class="study-ratings">
+                  <For each={ratings}>
+                    {(rating) => (
+                      <button
+                        type="button"
+                        class="dashboard-settings-button"
+                        disabled={!session().flipped || busy()}
+                        onClick={() => rate(rating.value)}
+                      >
+                        {rating.label}
+                      </button>
+                    )}
+                  </For>
+                </div>
+              </div>
+            )
+          }}
+        </Show>
+        <Show when={error()}>
+          <p role="alert">{error()}</p>
+          <button
+            type="button"
+            class="dashboard-settings-button"
+            disabled={busy()}
+            onClick={() => lastAction && send(lastAction)}
+          >
+            Повторить сохранение
+          </button>
+        </Show>
+      </div>
+    </dialog>
   )
 }

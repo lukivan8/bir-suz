@@ -26,16 +26,16 @@ function state() {
   return storage
 }
 
-test('all confidence mappings and five unique active cards', () => {
+test('all confidence mappings and available active cards', () => {
   assert.deepEqual(
     ([-2, -1, 0, 1, 2] as Confidence[]).map(confidenceQuality),
     [0, 2, 3, 4, 5],
   )
   const started = startStudy(state(), true, 1000)
-  assert.equal(started.studySession.cards.length, 5)
+  assert.equal(started.studySession.cards.length, 7)
   assert.equal(
     new Set(started.studySession.cards.map((c) => c.word.id)).size,
-    5,
+    7,
   )
   assert.equal(started.studySession.onboarding, true)
   assert.throws(() => startStudy(normalizeStorage({})))
@@ -45,7 +45,7 @@ test('each rating persists SRS/index, restart resumes and duplicates do nothing'
   let storage = startStudy(state(), true, 1000)
   const id = storage.studySession.id
   for (const [index, confidence] of (
-    [-2, -1, 0, 1, 2] as Confidence[]
+    [-2, -1, 0, 1, 2, 1, 2] as Confidence[]
   ).entries()) {
     storage = showStudyCard(storage, id, index, 2000)
     assert.equal(rateStudyCard(storage, id, index, confidence, 3000), storage)
@@ -59,7 +59,7 @@ test('each rating persists SRS/index, restart resumes and duplicates do nothing'
     )
     assert.equal(rateStudyCard(storage, id, index, confidence, 122002), storage)
     storage = normalizeStorage(structuredClone(storage))
-    if (index < 4) assert.equal(startStudy(storage), storage)
+    if (index < 6) assert.equal(startStudy(storage), storage)
   }
   assert.equal(storage.studySession.completedAt, 122001)
   assert.notEqual(startStudy(storage).studySession.id, id)
@@ -119,4 +119,26 @@ test('short catalog returns actual size and ratings update archived vocabulary',
   next.vocabularies = []
   next = rateStudyCard(next, id, 0, 2, 5000)
   assert.equal(next.remoteArchive[0].words[0].srs.repetition, 1)
+})
+
+test('continuous working sets rotate through all words without growing storage', () => {
+  let s = state()
+  const first = s.vocabularies[0].words[0]
+  s.vocabularies[0].words = Array.from({ length: 25 }, (_, i) => ({
+    ...structuredClone(first),
+    id: `rotation-${i}`,
+  }))
+  s = startStudy(s, false, 1000)
+  const seen = new Set<string>()
+  for (let n = 0; n < 60; n++) {
+    if (s.studySession.completedAt !== null) s = startStudy(s, false, 1000 + n)
+    const { id, index, cards } = s.studySession
+    seen.add(cards[index].word.id)
+    s = showStudyCard(s, id, index, 1000 + n)
+    s = flipStudyCard(s, id, index)
+    s = rateStudyCard(s, id, index, 2, 1001 + n)
+    assert.ok(s.studySession.cards.length <= 20)
+    assert.ok(s.studySession.results.length <= 20)
+  }
+  assert.equal(seen.size, 25)
 })

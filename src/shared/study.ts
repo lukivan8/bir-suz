@@ -2,6 +2,9 @@ import { calculateNextSrs, isDue } from './srs'
 import type { Confidence, StorageShape, StudyCard, StudySession } from './types'
 import { getActiveVocabularies } from './vocabularies'
 
+// Persist a bounded working set; the open modal continues with the next set.
+const STUDY_WORKING_SET_SIZE = 20
+
 export function confidenceQuality(confidence: Confidence): number {
   return { '-2': 0, '-1': 2, '0': 3, '1': 4, '2': 5 }[confidence]
 }
@@ -40,8 +43,12 @@ export function startStudy(
     ]),
   )
   const selected = [...unique.values()]
-    .sort((a, b) => priority(a) - priority(b))
-    .slice(0, 5)
+    .sort(
+      (a, b) =>
+        priority(a) - priority(b) ||
+        (a.word.srs.lastReviewedAt ?? 0) - (b.word.srs.lastReviewedAt ?? 0),
+    )
+    .slice(0, STUDY_WORKING_SET_SIZE)
   if (selected.length === 0)
     throw new Error('В активных словарях пока нет слов.')
   return {

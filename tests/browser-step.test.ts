@@ -37,9 +37,11 @@ function state() {
   s.onboarding = {
     version: 1,
     steps: {
+      intro: 'completed',
       popup: 'completed',
       vocabulary: 'completed',
       organization: 'skipped',
+      interval: 'completed',
       cards: 'completed',
     },
     browserAnswers: 0,
@@ -61,7 +63,8 @@ test('three natural wrong/right answers persist once across reload and preserve 
     assert.equal(s.onboarding.browserAnswers, n)
     assert.equal(consumeChallenge(s, result, 1), null)
   }
-  assert.equal(s.onboarding.steps.browser, 'completed')
+  assert.equal(s.onboarding.steps.browser, undefined)
+  assert.equal(s.onboarding.finishedAt, undefined)
   assert.equal(s.settings.cooldownMinutes, 3)
 })
 test('skip, demo, prior-step, prior-run and unissued results cannot count', () => {

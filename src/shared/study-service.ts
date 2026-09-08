@@ -1,4 +1,4 @@
-import { currentOnboardingStep, finishOnboardingCards } from './onboarding'
+import { currentOnboardingStep } from './onboarding'
 import { persistLearningTransition } from './stats'
 import { getStorage, withStorageLock } from './storage'
 import {
@@ -25,7 +25,7 @@ export async function studyAction(action: StudyAction) {
         currentOnboardingStep(current) !== 'cards'
       )
         throw new Error('Onboarding not ready')
-      let next =
+      const next =
         action.action === 'start'
           ? startStudy(current, action.onboarding)
           : action.action === 'show'
@@ -38,7 +38,6 @@ export async function studyAction(action: StudyAction) {
                   action.index,
                   action.confidence,
                 )
-      next = finishOnboardingCards(next)
       if (next !== current) await persistLearningTransition(current, next)
       return { ok: true as const, session: next.studySession }
     } catch {

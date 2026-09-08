@@ -87,6 +87,7 @@ export interface OnboardingState {
   browserAnswers: number
   runId?: string
   browserStepStartedAt?: number
+  finishedAt?: number
   returnedAt?: number
 }
 

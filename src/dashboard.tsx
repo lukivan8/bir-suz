@@ -8,10 +8,9 @@ import {
 } from 'solid-js'
 import { render } from 'solid-js/web'
 import { Onboarding } from './components/Onboarding'
-import { OrganizationSection } from './components/Organization'
-import { StudySection } from './components/Study'
+import { StudyModal } from './components/Study'
 import { visitCompletedOnboarding } from './shared/browser-step'
-import { currentOnboardingStep, onboardingAction } from './shared/onboarding'
+import { currentOnboardingStep } from './shared/onboarding'
 import { persistLearningTransition } from './shared/stats'
 import { getStorage, withStorageLock } from './shared/storage'
 import './index.css'
@@ -22,7 +21,6 @@ import { normalizeStorageShape } from './shared/validation'
 
 const DAY_MS = 24 * 60 * 60 * 1000
 const HEATMAP_WEEKS = 13
-const DASHBOARD_EXTENSION_HINT_DISMISSED_KEY = 'dashboardExtensionHintDismissed'
 type MasteryFilter = 'all' | 'mastered' | 'in-progress' | 'new'
 interface PendingDelete {
   vocabularyId: string
@@ -82,7 +80,7 @@ function Dashboard() {
     new URLSearchParams(window.location.search).get('welcome') === 'analytics',
   )
   const [isSettingsOpen, setIsSettingsOpen] = createSignal(false)
-  const [isExtensionHintOpen, setIsExtensionHintOpen] = createSignal(false)
+  const [isStudyOpen, setIsStudyOpen] = createSignal(false)
   const [isAddWordOpen, setIsAddWordOpen] = createSignal(false)
   const [editingWordId, setEditingWordId] = createSignal<string>()
   const [pendingDelete, setPendingDelete] = createSignal<PendingDelete>()
@@ -106,21 +104,7 @@ function Dashboard() {
 
   onMount(() => {
     void visitCompletedOnboarding()
-    void chrome.storage.local
-      .get(DASHBOARD_EXTENSION_HINT_DISMISSED_KEY)
-      .then((stored) => {
-        if (!stored[DASHBOARD_EXTENSION_HINT_DISMISSED_KEY]) {
-          setIsExtensionHintOpen(true)
-        }
-      })
   })
-
-  const dismissExtensionHint = () => {
-    setIsExtensionHintOpen(false)
-    void chrome.storage.local.set({
-      [DASHBOARD_EXTENSION_HINT_DISMISSED_KEY]: true,
-    })
-  }
 
   const updateAnalyticsEnabled = async (analyticsEnabled: boolean) => {
     return withStorageLock(async () => {
@@ -348,59 +332,39 @@ function Dashboard() {
             <>
               <div class="dashboard-actions">
                 <div class="dashboard-wordmark">Bir söz</div>
-                <button
-                  type="button"
-                  class="dashboard-settings-button"
-                  onClick={() => setIsSettingsOpen(true)}
-                >
-                  Настройки
-                </button>
-              </div>
-
-              <Onboarding state={current()} refresh={refetch} />
-              <Show when={current().onboarding.browserAnswers === 3}>
-                <p role="status">
-                  Знакомство завершено — 3 из 3 заданий. Продолжайте изучать
-                  слова в своём ритме.
-                </p>
-              </Show>
-              <Show when={currentOnboardingStep(current()) !== 'cards'}>
-                <StudySection
-                  session={current().studySession}
-                  ready={current().catalogVersion !== null}
-                  refresh={refetch}
-                />
-              </Show>
-              <Show when={currentOnboardingStep(current()) !== 'organization'}>
-                <OrganizationSection organization={current().organization} />
-              </Show>
-              <Show when={isExtensionHintOpen()}>
-                <aside
-                  class="extension-return-hint"
-                  aria-label="Как вернуться в Bir söz"
-                >
-                  <div class="extension-return-hint-icon" aria-hidden="true">
-                    <svg viewBox="0 0 64 64">
-                      <title>Значок расширений</title>
-                      <path d="M17 12h14v9a7 7 0 1 0 14 0v-9h4a6 6 0 0 1 6 6v28a6 6 0 0 1-6 6H17a6 6 0 0 1-6-6V18a6 6 0 0 1 6-6Zm14 18a3 3 0 1 1 6 0v5h-6v-5Z" />
-                    </svg>
-                  </div>
-                  <p>
-                    Управляйте расширением и возвращайтесь сюда в любой момент:
-                    нажмите значок расширений в панели браузера, затем{' '}
-                    <em class="extension-return-hint-name">Bir söz</em>.
-                  </p>
+                <div class="dashboard-action-buttons">
                   <button
                     type="button"
-                    class="extension-return-hint-dismiss"
-                    aria-label="Скрыть подсказку"
-                    onClick={dismissExtensionHint}
+                    class="dashboard-settings-button"
+                    onClick={() => setIsSettingsOpen(true)}
                   >
-                    ×
+                    Настройки
                   </button>
-                </aside>
+                  <button
+                    type="button"
+                    class="dashboard-study-button"
+                    aria-haspopup="dialog"
+                    onClick={() => setIsStudyOpen(true)}
+                  >
+                    Изучать слова
+                  </button>
+                </div>
+              </div>
+              <Show when={isStudyOpen()}>
+                <StudyModal
+                  session={current().studySession}
+                  ready={current().catalogVersion !== null}
+                  onboarding={currentOnboardingStep(current()) === 'cards'}
+                  refresh={refetch}
+                  onClose={() => setIsStudyOpen(false)}
+                />
               </Show>
 
+              <Onboarding
+                state={current()}
+                refresh={refetch}
+                onOpenStudy={() => setIsStudyOpen(true)}
+              />
               <Show when={isAnalyticsWelcomeOpen()}>
                 <AnalyticsWelcomeModal
                   onSkip={closeAnalyticsWelcome}
@@ -411,11 +375,6 @@ function Dashboard() {
                 <DashboardSettingsModal
                   analyticsEnabled={current().settings.analyticsEnabled}
                   onAnalyticsChange={updateAnalyticsEnabled}
-                  onRestart={async () => {
-                    await onboardingAction({ action: 'reset' })
-                    await refetch()
-                    setIsSettingsOpen(false)
-                  }}
                   onClose={() => setIsSettingsOpen(false)}
                 />
               </Show>
@@ -497,7 +456,7 @@ function Dashboard() {
                 </div>
               </section>
 
-              <section class="dashboard-section">
+              <section class="dashboard-section" id="vocabularies">
                 <span class="section-num">02 — Словарь</span>
                 <Show
                   when={selectedVocabulary()}
@@ -740,7 +699,6 @@ function AnalyticsWelcomeModal(props: {
 }
 
 function DashboardSettingsModal(props: {
-  onRestart: () => void | Promise<void>
   analyticsEnabled: boolean
   onAnalyticsChange: (analyticsEnabled: boolean) => void | Promise<void>
   onClose: () => void
@@ -758,13 +716,6 @@ function DashboardSettingsModal(props: {
       <div class="advanced-modal word-modal dashboard-settings-modal">
         <button type="button" class="modal-close" onClick={props.onClose}>
           закрыть
-        </button>
-        <button
-          type="button"
-          class="dashboard-settings-button"
-          onClick={props.onRestart}
-        >
-          Пройти знакомство заново
         </button>
         <h2 class="section-heading">Настройки</h2>
         <div class="settings-toggle-row">
@@ -1147,9 +1098,7 @@ function VocabularyOverview(props: {
   return (
     <>
       <div class="section-heading-row">
-        <h2 class="section-heading">
-          Все словари, <em>выбери набор</em>.
-        </h2>
+        <h2 class="section-heading">Выберите подходящий вам словарь</h2>
         <div class="overview-actions">
           <button type="button" onClick={props.onAdd}>
             + Добавить словарь
