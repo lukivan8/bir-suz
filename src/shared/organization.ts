@@ -2,8 +2,8 @@ import { API_ORIGIN } from './api-client'
 import type { ConnectResponse, ProtocolError } from './api-contract'
 import { syncCatalog } from './catalog-sync'
 import { assertProtocol, validateProtocol } from './protocol/validate'
-import { getClientUuid } from './stats'
-import { getStorage, updateStorage, withStorageLock } from './storage'
+import { getClientUuid, persistLearningTransition } from './stats'
+import { getStorage, withStorageLock } from './storage'
 
 export type ConnectResult = { ok: true } | { ok: false; error: string }
 
@@ -71,7 +71,9 @@ export async function connectOrganization(
     try {
       const response = await requestOrganization(await getClientUuid(), trimmed)
       await withStorageLock(async () => {
-        await updateStorage({
+        const current = await getStorage()
+        await persistLearningTransition(current, {
+          ...current,
           organization: response.organization,
           catalogEtag: null,
         })

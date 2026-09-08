@@ -1,4 +1,4 @@
-import type { ConnectResponse } from './api-contract'
+import type { AnalyticsEventV2, ConnectResponse } from './api-contract'
 
 export interface SrsData {
   repetition: number
@@ -126,6 +126,7 @@ export interface PendingChallenge {
 }
 
 export interface StorageShape {
+  analyticsQueue: AnalyticsEventV2[]
   pendingChallenges: Record<string, PendingChallenge>
   studySession: StudySession | null
   organization: ConnectResponse['organization'] | null

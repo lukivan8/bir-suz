@@ -12,6 +12,7 @@ import { OrganizationSection } from './components/Organization'
 import { StudySection } from './components/Study'
 import { visitCompletedOnboarding } from './shared/browser-step'
 import { currentOnboardingStep, onboardingAction } from './shared/onboarding'
+import { persistLearningTransition } from './shared/stats'
 import { getStorage, withStorageLock } from './shared/storage'
 import './index.css'
 import { calculateCurrentStreak } from './shared/challenge'
@@ -135,7 +136,7 @@ function Dashboard() {
       }
 
       mutate(next)
-      await chrome.storage.local.set({ settings: next.settings })
+      await persistLearningTransition(current, next)
     })
   }
 
@@ -335,10 +336,7 @@ function Dashboard() {
       }
 
       mutate(next)
-      await chrome.storage.local.set({
-        activeVocabularyId: next.activeVocabularyId,
-        activeVocabularyIds: next.activeVocabularyIds,
-      })
+      await persistLearningTransition(current, next)
     })
   }
 

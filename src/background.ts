@@ -11,7 +11,7 @@ import { currentOnboardingStep } from './shared/onboarding'
 import { connectOrganization } from './shared/organization'
 import {
   flushStatsQueueFromTimer,
-  recordChallengeEvent,
+  persistLearningTransition,
   recordSettingsEvent,
   syncStatsInBackground,
 } from './shared/stats'
@@ -55,6 +55,8 @@ function log(message: string, details?: Record<string, unknown>) {
 
   console.log(`${LOG_PREFIX} ${message}`)
 }
+
+void ensureStatsFlushAlarm()
 
 chrome.runtime.onInstalled.addListener(async (details) => {
   log('onInstalled', { reason: details.reason })
@@ -451,16 +453,12 @@ function blockDetails(storage: Awaited<ReturnType<typeof getStorage>>) {
 
 async function handleChallengeResult(result: ChallengeResult, tabId?: number) {
   await withStorageLock(async () => {
-    const consumed = consumeChallenge(await getStorage(), result, tabId)
+    const before = await getStorage()
+    const consumed = consumeChallenge(before, result, tabId)
     if (!consumed) return
     const storage = consumed.state
-    await recordChallengeEvent(storage, result)
-    const next = applyChallengeResult(storage, result)
-    await updateStorage({
-      ...next,
-      pendingChallenges: storage.pendingChallenges,
-      onboarding: storage.onboarding,
-    })
+    const next = { ...storage, ...applyChallengeResult(storage, result) }
+    await persistLearningTransition(before, next, result)
   })
   await refreshOnboardingBadge()
 }

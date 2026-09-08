@@ -43,6 +43,7 @@ const defaultSettings: AppSettings = {
 export const defaultStorage: StorageShape = {
   studySession: null,
   pendingChallenges: {},
+  analyticsQueue: [],
   vocabularies: [],
   activeVocabularyId: '',
   activeVocabularyIds: [],
@@ -81,6 +82,7 @@ const storageKeys = [
   'onboarding',
   'studySession',
   'pendingChallenges',
+  'analyticsQueue',
 ] satisfies (keyof LegacyStorageShape)[]
 
 export async function ensureStorage() {
@@ -116,6 +118,7 @@ function buildStoragePatch(current: LegacyStorageShape): Partial<StorageShape> {
     'onboarding',
     'studySession',
     'pendingChallenges',
+    'analyticsQueue',
   ] as const) {
     if (JSON.stringify(current[key]) !== JSON.stringify(normalized[key])) {
       Object.assign(patch, { [key]: normalized[key] })
@@ -193,6 +196,9 @@ export function normalizeStorage(storage: LegacyStorageShape): StorageShape {
   return {
     studySession: storage.studySession ?? null,
     pendingChallenges: storage.pendingChallenges ?? {},
+    analyticsQueue: Array.isArray(storage.analyticsQueue)
+      ? storage.analyticsQueue
+      : [],
     vocabularies,
     remoteArchive,
     organization,
@@ -394,7 +400,11 @@ function isMaybeUserStats(value: unknown): value is Partial<UserStats> {
 }
 
 export async function updateStorage(patch: Partial<StorageShape>) {
-  await chrome.storage.local.set(patch)
+  await chrome.storage.local.set(
+    patch.settings?.analyticsEnabled === false
+      ? { ...patch, analyticsQueue: [] }
+      : patch,
+  )
 }
 
 /** Cross-context lock shared by worker, popup and dashboard read-modify-write. */

@@ -1,5 +1,6 @@
 import { currentOnboardingStep, finishOnboardingCards } from './onboarding'
-import { getStorage, updateStorage, withStorageLock } from './storage'
+import { persistLearningTransition } from './stats'
+import { getStorage, withStorageLock } from './storage'
 import {
   flipStudyCard,
   rateStudyCard,
@@ -38,13 +39,7 @@ export async function studyAction(action: StudyAction) {
                   action.confidence,
                 )
       next = finishOnboardingCards(next)
-      if (next !== current)
-        await updateStorage({
-          studySession: next.studySession,
-          onboarding: next.onboarding,
-          vocabularies: next.vocabularies,
-          remoteArchive: next.remoteArchive,
-        })
+      if (next !== current) await persistLearningTransition(current, next)
       return { ok: true as const, session: next.studySession }
     } catch {
       return {

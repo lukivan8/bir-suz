@@ -1,5 +1,6 @@
 import { PUBLIC_VOCABULARY_IDS } from './remote-model'
-import { getStorage, updateStorage, withStorageLock } from './storage'
+import { persistLearningTransition } from './stats'
+import { getStorage, withStorageLock } from './storage'
 import type { StorageShape } from './types'
 
 export const onboardingSteps = [
@@ -97,11 +98,6 @@ export async function onboardingAction(action: OnboardingAction) {
   return withStorageLock(async () => {
     const state = await getStorage()
     const next = advanceOnboarding(state, action)
-    if (next !== state)
-      await updateStorage({
-        onboarding: next.onboarding,
-        activeVocabularyId: next.activeVocabularyId,
-        activeVocabularyIds: next.activeVocabularyIds,
-      })
+    if (next !== state) await persistLearningTransition(state, next)
   })
 }

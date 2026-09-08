@@ -8,6 +8,7 @@ import {
 } from 'solid-js'
 import type { RuntimeMessage, RuntimeResponseFor } from './shared/messages'
 import { onboardingAction } from './shared/onboarding'
+import { persistLearningTransition } from './shared/stats'
 import { getStorage, withStorageLock } from './shared/storage'
 import type { AppSettings } from './shared/types'
 import { normalizeStorageShape } from './shared/validation'
@@ -68,7 +69,7 @@ function App() {
       }
 
       mutate(next)
-      await chrome.storage.local.set({ settings: next.settings })
+      await persistLearningTransition(current, next)
     })
   }
 
@@ -84,10 +85,7 @@ function App() {
       }
 
       mutate(next)
-      await chrome.storage.local.set({
-        activeVocabularyId,
-        activeVocabularyIds: [activeVocabularyId],
-      })
+      await persistLearningTransition(current, next)
     })
   }
 
