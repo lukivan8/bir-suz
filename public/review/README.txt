@@ -38,3 +38,5 @@ Changing the decision is available in Settings. Local progress, vocabulary,
 organization connection and installation identity are retained. Already received
 server records are not deleted. Catalog downloads and optional organization
 connection remain independent of learning-analytics consent.
+
+Version 0.2.3: organization analytics and administrative operations require trusted team login. Extension operational APIs still require no dashboard account. Disclosures match the deployed restricted dashboard; analytics consent behavior is unchanged from 0.2.2.

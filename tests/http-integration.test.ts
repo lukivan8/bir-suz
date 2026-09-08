@@ -33,6 +33,14 @@ test('real HTTP backend on temporary SQLite matches extension, dynamic catalog a
   const databasePath = join(directory, 'test.sqlite')
   const port = await freePort(),
     origin = `http://127.0.0.1:${port}`
+  const usersFile = join(directory, 'accounts.json')
+  await Bun.write(
+    usersFile,
+    JSON.stringify([
+      { name: 'test', passwordHash: await Bun.password.hash('test') },
+    ]),
+  )
+  let adminCookie = ''
   const launch = () =>
     Bun.spawn([process.execPath, 'run', 'src/index.ts'], {
       cwd: backend,
@@ -41,13 +49,31 @@ test('real HTTP backend on temporary SQLite matches extension, dynamic catalog a
         DB_PATH: databasePath,
         SQLITE_MIGRATE_PATH: '',
         PORT: String(port),
+        AUTH_USERS_FILE: usersFile,
+        AUTH_SESSIONS_FILE: join(directory, 'auth.sqlite'),
+        PUBLIC_ORIGIN: origin,
       },
       stdout: 'ignore',
       stderr: 'ignore',
     })
   let server = launch()
-  const request = (path: string, init?: RequestInit) =>
-    fetch(origin + path, { ...init, signal: AbortSignal.timeout(5000) })
+  const request = (path: string, init?: RequestInit) => {
+    const method = init?.method ?? 'GET'
+    const operational =
+      path === '/api' ||
+      (path === '/api/v1/vocabularies' && method === 'GET') ||
+      path === '/api/v1/organization/connect' ||
+      path === '/api/v1/analytics/events/batch'
+    return fetch(origin + path, {
+      ...init,
+      headers: {
+        Origin: origin,
+        ...(!operational && adminCookie ? { Cookie: adminCookie } : {}),
+        ...init?.headers,
+      },
+      signal: AbortSignal.timeout(5000),
+    })
+  }
   const post = (path: string, body: unknown) =>
     request(path, {
       method: 'POST',
@@ -95,6 +121,18 @@ test('real HTTP backend on temporary SQLite matches extension, dynamic catalog a
   }
   try {
     await ready()
+    assert.equal((await request('/api/v1/organizations')).status, 401)
+    const login = await fetch(origin + '/login', {
+      method: 'POST',
+      headers: { Origin: origin },
+      body: new URLSearchParams({ name: 'test', password: 'test' }),
+      redirect: 'manual',
+    })
+    assert.equal(login.status, 303)
+    const sessionCookie = login.headers.get('set-cookie')
+    assert.ok(sessionCookie)
+    adminCookie = sessionCookie.split(';')[0] ?? ''
+    assert.ok(adminCookie)
     const cold = normalizeStorage({})
     assert.equal(cold.vocabularies.length, 0)
     const response = await request('/api/v1/vocabularies'),

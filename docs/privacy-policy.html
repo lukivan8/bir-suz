@@ -58,15 +58,17 @@ Bir Söz does not send custom vocabulary names, custom word text, custom word
 IDs, or custom per-word progress.</p>
 <p>Analytics are used only to understand whether the learning prompts support
 Kazakh vocabulary practice and to improve the learning experience.</p>
-<h2>Public Organization Analytics</h2>
-<p>Organization names and codes are public. The public analytics dashboard shows
+<h2>Restricted Organization Analytics</h2>
+<p>Organization names, codes and analytics are available only to authorized team accounts. The password-protected analytics dashboard shows
 organization totals and a membership table with an organization-scoped pseudonym
 and connection date. When learning analytics is enabled, the last completed
 browser challenge date is also shown. These are pseudonymous, not anonymous,
 records: someone who knows a participant&#x27;s connection time may recognize them.
 The raw installation UUID, email, individual event payloads and private words are
 not displayed. A connection can appear even when learning analytics is disabled.
-The extension explains this before the user submits the optional code.</p>
+The extension explains organization data sharing before the user submits the optional code. Existing extension versions may refer to public analytics; this dashboard is now restricted to authorized team accounts. All authorized team accounts can access all organizations; there is no organization-specific account isolation.</p>
+<h2>Team Dashboard Accounts</h2>
+<p>Team login names and password hashes are stored on the server. Login creates a session lasting up to seven days, using an HttpOnly cookie. Logging out invalidates the session; disabling an account or changing its password invalidates existing access. These accounts are for dashboard administrators and are separate from extension installation identifiers.</p>
 <h2>Data Sharing</h2>
 <p>Analytics data is sent only to the developer-operated API at
 <code>https://api.lukivan8.com</code>. Bir Söz does not sell user data and does not share
@@ -90,9 +92,8 @@ records already on the server. For privacy/deletion requests, use the developer
 contact on https://www.birsoz.kz/; requests need to be assessed against the records
 that can actually be identified. We do not promise an automated deletion process
 or a fixed completion time that has not been implemented. Archived organizations
-are hidden from the public dashboard; their stored connections/history remain.
-Legacy event/snapshot queues from version 0.1.1 may remain dormant locally; version 0.2.1 and later
-do not transmit them. Turning analytics off clears the current v2 queue.
+are hidden from the team dashboard; their stored connections/history remain.
+Version 0.2.2 requests a new analytics choice after an update when no current consent decision exists. Analytics remain disabled until the user explicitly agrees. Old pending analytics queues are discarded, not replayed after renewed consent. Refusing analytics does not affect local learning. Older versions may retain dormant legacy queues. Turning analytics off clears the current v2 queue.
 Do not downgrade to 0.1.1 to delete data: its old sender can resume legacy queues.</p>
 <h2>Page Access and Local Custom Words</h2>
 <p>The extension attaches a learning overlay to ordinary webpages. It observes generic
@@ -111,6 +112,4 @@ Store User Data Policy, including the Limited Use requirements.</p>
 <h2>Contact</h2>
 <p>For privacy questions, use the developer contact links (email or Telegram) in
 the footer of https://www.birsoz.kz/.</p>
-</main><h2>Renewed analytics consent in version 0.2.2</h2>
-<p>On upgrade, analytics is paused until a new explicit decision for the current data-practice version. Pending v2 and legacy analytics queues are discarded; no new learning events are created before consent. A one-time update tab explains the choice, which remains available inside the extension. Refusal and acceptance survive ordinary subsequent updates. Learning progress, personal words, organization connection and installation identity are retained. Previously received server records are not deleted. Catalog downloads and optional organization connection remain independent of analytics consent.</p>
-</body></html>
+</main></body></html>

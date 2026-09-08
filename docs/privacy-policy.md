@@ -83,16 +83,20 @@ IDs, or custom per-word progress.
 Analytics are used only to understand whether the learning prompts support
 Kazakh vocabulary practice and to improve the learning experience.
 
-## Public Organization Analytics
+## Restricted Organization Analytics
 
-Organization names and codes are public. The public analytics dashboard shows
+Organization names, codes and analytics are available only to authorized team accounts. The password-protected analytics dashboard shows
 organization totals and a membership table with an organization-scoped pseudonym
 and connection date. When learning analytics is enabled, the last completed
 browser challenge date is also shown. These are pseudonymous, not anonymous,
 records: someone who knows a participant's connection time may recognize them.
 The raw installation UUID, email, individual event payloads and private words are
 not displayed. A connection can appear even when learning analytics is disabled.
-The extension explains this before the user submits the optional code.
+The extension explains organization data sharing before the user submits the optional code. Older extension versions may refer to public analytics; the dashboard is now restricted to trusted team accounts. All authorized accounts can access all organizations.
+
+## Team Dashboard Accounts
+
+Team login names and password hashes are stored on the server. Login creates a session lasting up to seven days, using an HttpOnly cookie. Logout invalidates the session; disabling an account or changing its password invalidates existing access. These team accounts are separate from extension installation identifiers.
 
 ## Data Sharing
 
@@ -123,9 +127,8 @@ records already on the server. For privacy/deletion requests, use the developer
 contact on https://www.birsoz.kz/; requests need to be assessed against the records
 that can actually be identified. We do not promise an automated deletion process
 or a fixed completion time that has not been implemented. Archived organizations
-are hidden from the public dashboard; their stored connections/history remain.
-Legacy event/snapshot queues from version 0.1.1 may remain dormant locally; version 0.2.1 and later
-do not transmit them. Turning analytics off clears the current v2 queue.
+are hidden from the team dashboard; their stored connections/history remain.
+Version 0.2.2 discards pending legacy and v2 queues when renewing consent. Older versions may retain dormant legacy queues. Turning analytics off clears the current v2 queue.
 Do not downgrade to 0.1.1 to delete data: its old sender can resume legacy queues.
 
 ## Page Access and Local Custom Words

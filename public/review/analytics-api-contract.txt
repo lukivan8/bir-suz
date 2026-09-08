@@ -28,7 +28,7 @@ Russian; other errors get generic UI text. Network failure: user retries.
 Connection and subsequent catalog use persist across restarts. Organization
 archival removes gated cache availability on next successful catalog update,
 while SRS/history and the existing connection remain locally preserved.
-Server stores connection date. Public organization dashboard displays an
+Server stores connection date. The authenticated team dashboard displays an
 organization-scoped pseudonym and connection date, even with learning consent off.
 
 POST /api/v1/analytics/events/batch
@@ -69,7 +69,7 @@ passwords,cookies,history,clicked links,selectors,screenshots,custom vocabulary
 text/names/IDs, email/account/hardware/advertising IDs, organization code.
 API/infrastructure necessarily processes network metadata such as IP in transit;
 the application request logger emits only method/route-template/status/duration.
-See public policy for retention, infrastructure processors and public access.
+See public policy for retention, infrastructure processors and restricted team access.
 
 
 Version 0.2.2: renewed analytics consent
