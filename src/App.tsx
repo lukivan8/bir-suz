@@ -28,8 +28,23 @@ async function getState() {
 
 function App() {
   const [state, { mutate, refetch }] = createResource(getState)
-  const storageChanged = (_changes: unknown, area: string) => {
-    if (area === 'local') void refetch()
+  const storageChanged = (
+    changes: Record<string, chrome.storage.StorageChange>,
+    area: string,
+  ) => {
+    if (
+      area === 'local' &&
+      [
+        'vocabularies',
+        'organization',
+        'settings',
+        'userStats',
+        'activeVocabularyIds',
+        'onboarding',
+        'studySession',
+      ].some((key) => key in changes)
+    )
+      void refetch()
   }
   chrome.storage.onChanged.addListener(storageChanged)
   onCleanup(() => chrome.storage.onChanged.removeListener(storageChanged))

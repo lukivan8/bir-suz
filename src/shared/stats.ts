@@ -383,15 +383,17 @@ async function buildSnapshot(
   }
 }
 
-async function getClientUuid() {
-  const current = (await chrome.storage.local.get([
-    CLIENT_UUID_KEY,
-  ])) as StatsStorage
-  if (current.statsClientUuid) return current.statsClientUuid
+export async function getClientUuid() {
+  return navigator.locks.request('bir-soz-installation-id', async () => {
+    const current = (await chrome.storage.local.get([
+      CLIENT_UUID_KEY,
+    ])) as StatsStorage
+    if (current.statsClientUuid) return current.statsClientUuid
 
-  const uuid = crypto.randomUUID()
-  await chrome.storage.local.set({ [CLIENT_UUID_KEY]: uuid })
-  return uuid
+    const uuid = crypto.randomUUID()
+    await chrome.storage.local.set({ [CLIENT_UUID_KEY]: uuid })
+    return uuid
+  })
 }
 
 async function getPendingEvents() {

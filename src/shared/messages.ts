@@ -1,3 +1,4 @@
+import type { ConnectResult } from './organization'
 import type { StatsEventType } from './stats'
 import type { ChallengePayload, ChallengeResult, StorageShape } from './types'
 import { isChallengePayload, isChallengeResult, isRecord } from './validation'
@@ -7,6 +8,7 @@ export type RuntimeMessage =
   | { type: 'bir-soz:page-activity' }
   | { type: 'bir-soz:get-state' }
   | { type: 'bir-soz:sync-catalog' }
+  | { type: 'bir-soz:connect-organization'; code: string }
   | { type: 'bir-soz:show-challenge'; payload: ChallengePayload }
   | { type: 'bir-soz:submit-result'; payload: ChallengeResult }
   | { type: 'bir-soz:force-trigger' }
@@ -16,6 +18,7 @@ export type RuntimeMessage =
     }
 
 export type RuntimeResponse =
+  | ConnectResult
   | StorageShape
   | { ok: true }
   | { ok: false }
@@ -40,6 +43,8 @@ export function isRuntimeMessage(message: unknown): message is RuntimeMessage {
     case 'bir-soz:sync-catalog':
     case 'bir-soz:force-trigger':
       return true
+    case 'bir-soz:connect-organization':
+      return typeof message.code === 'string' && message.code.length <= 200
     case 'bir-soz:stats-event':
       return message.eventType === 'disabled' || message.eventType === 'enabled'
     case 'bir-soz:show-challenge':
@@ -55,6 +60,7 @@ function isMessageLike(value: unknown): value is {
   type?: unknown
   payload?: unknown
   eventType?: unknown
+  code?: unknown
 } {
   return isRecord(value)
 }

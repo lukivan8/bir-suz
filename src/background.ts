@@ -6,6 +6,7 @@ import {
   shouldBlockForUserSettings,
 } from './shared/challenge'
 import { isRuntimeMessage } from './shared/messages'
+import { connectOrganization } from './shared/organization'
 import {
   flushStatsQueueFromTimer,
   recordChallengeEvent,
@@ -149,6 +150,10 @@ chrome.runtime.onMessage.addListener(
         type: message.type,
         senderTabId: _sender.tab?.id,
       })
+      if (message.type === 'bir-soz:connect-organization') {
+        sendResponse(await connectOrganization(message.code))
+        return
+      }
       if (message.type === 'bir-soz:sync-catalog') {
         sendResponse({ ok: (await syncCatalog()) !== 'error' })
         return

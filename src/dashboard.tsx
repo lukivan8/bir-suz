@@ -7,6 +7,7 @@ import {
   Show,
 } from 'solid-js'
 import { render } from 'solid-js/web'
+import { OrganizationSection } from './components/Organization'
 import { getStorage, withStorageLock } from './shared/storage'
 import './index.css'
 import { calculateCurrentStreak } from './shared/challenge'
@@ -49,8 +50,23 @@ async function getState() {
 
 function Dashboard() {
   const [state, { mutate, refetch }] = createResource(getState)
-  const storageChanged = (_changes: unknown, area: string) => {
-    if (area === 'local') void refetch()
+  const storageChanged = (
+    changes: Record<string, chrome.storage.StorageChange>,
+    area: string,
+  ) => {
+    if (
+      area === 'local' &&
+      [
+        'vocabularies',
+        'organization',
+        'settings',
+        'userStats',
+        'activeVocabularyIds',
+        'onboarding',
+        'studySession',
+      ].some((key) => key in changes)
+    )
+      void refetch()
   }
   chrome.storage.onChanged.addListener(storageChanged)
   onCleanup(() => chrome.storage.onChanged.removeListener(storageChanged))
@@ -338,6 +354,7 @@ function Dashboard() {
                 </button>
               </div>
 
+              <OrganizationSection organization={current().organization} />
               <Show when={isExtensionHintOpen()}>
                 <aside
                   class="extension-return-hint"
