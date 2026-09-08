@@ -80,18 +80,16 @@ const storageKeys = [
 ] satisfies (keyof LegacyStorageShape)[]
 
 export async function ensureStorage() {
-  const current = (await chrome.storage.local.get(
-    storageKeys,
-  )) as LegacyStorageShape
-  const patch = buildStoragePatch(current)
-
-  if (Object.keys(patch).length > 0) {
-    await chrome.storage.local.set(patch)
-  }
+  return withStorageLock(async () => {
+    const current = (await chrome.storage.local.get(
+      storageKeys,
+    )) as LegacyStorageShape
+    const patch = buildStoragePatch(current)
+    if (Object.keys(patch).length > 0) await chrome.storage.local.set(patch)
+  })
 }
 
 export async function getStorage(): Promise<StorageShape> {
-  await ensureStorage()
   const storage = (await chrome.storage.local.get(
     storageKeys,
   )) as LegacyStorageShape
@@ -389,4 +387,9 @@ function isMaybeUserStats(value: unknown): value is Partial<UserStats> {
 
 export async function updateStorage(patch: Partial<StorageShape>) {
   await chrome.storage.local.set(patch)
+}
+
+/** Cross-context lock shared by worker, popup and dashboard read-modify-write. */
+export function withStorageLock<T>(run: () => Promise<T>): Promise<T> {
+  return navigator.locks.request('bir-soz-storage', run)
 }

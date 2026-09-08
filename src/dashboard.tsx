@@ -7,6 +7,7 @@ import {
   Show,
 } from 'solid-js'
 import { render } from 'solid-js/web'
+import { getStorage, withStorageLock } from './shared/storage'
 import './index.css'
 import { calculateCurrentStreak } from './shared/challenge'
 import type { RuntimeMessage, RuntimeResponseFor } from './shared/messages'
@@ -47,7 +48,12 @@ async function getState() {
 }
 
 function Dashboard() {
-  const [state, { mutate }] = createResource(getState)
+  const [state, { mutate, refetch }] = createResource(getState)
+  const storageChanged = (_changes: unknown, area: string) => {
+    if (area === 'local') void refetch()
+  }
+  chrome.storage.onChanged.addListener(storageChanged)
+  onCleanup(() => chrome.storage.onChanged.removeListener(storageChanged))
   const [masteryFilter, setMasteryFilter] = createSignal<MasteryFilter>('all')
   const [selectedVocabularyId, setSelectedVocabularyId] = createSignal<string>()
   const [isAddVocabularyOpen, setIsAddVocabularyOpen] = createSignal(false)
@@ -95,19 +101,21 @@ function Dashboard() {
   }
 
   const updateAnalyticsEnabled = async (analyticsEnabled: boolean) => {
-    const current = state()
-    if (!current) return
+    return withStorageLock(async () => {
+      const current = await getStorage()
+      if (!current) return
 
-    const next = {
-      ...current,
-      settings: {
-        ...current.settings,
-        analyticsEnabled,
-      },
-    }
+      const next = {
+        ...current,
+        settings: {
+          ...current.settings,
+          analyticsEnabled,
+        },
+      }
 
-    mutate(next)
-    await chrome.storage.local.set({ settings: next.settings })
+      mutate(next)
+      await chrome.storage.local.set({ settings: next.settings })
+    })
   }
 
   const enableAnalytics = async () => {
@@ -116,34 +124,36 @@ function Dashboard() {
   }
 
   const addVocabulary = async (name: string) => {
-    const current = state()
-    const trimmedName = name.trim()
-    if (!current || !trimmedName) return
+    return withStorageLock(async () => {
+      const current = await getStorage()
+      const trimmedName = name.trim()
+      if (!current || !trimmedName) return
 
-    const now = Date.now()
-    const vocabulary: Vocabulary = {
-      id: `custom_vocabulary_${now}_${Math.random().toString(36).slice(2, 8)}`,
-      name: trimmedName,
-      category: 'custom',
-      isBuiltin: false,
-      createdAt: now,
-      updatedAt: now,
-      words: [],
-    }
-    const next = {
-      ...current,
-      vocabularies: [vocabulary, ...current.vocabularies],
-      activeVocabularyId: vocabulary.id,
-      activeVocabularyIds: [vocabulary.id],
-    }
+      const now = Date.now()
+      const vocabulary: Vocabulary = {
+        id: `custom_vocabulary_${now}_${Math.random().toString(36).slice(2, 8)}`,
+        name: trimmedName,
+        category: 'custom',
+        isBuiltin: false,
+        createdAt: now,
+        updatedAt: now,
+        words: [],
+      }
+      const next = {
+        ...current,
+        vocabularies: [vocabulary, ...current.vocabularies],
+        activeVocabularyId: vocabulary.id,
+        activeVocabularyIds: [vocabulary.id],
+      }
 
-    mutate(next)
-    setSelectedVocabularyId(vocabulary.id)
-    setIsAddVocabularyOpen(false)
-    await chrome.storage.local.set({
-      vocabularies: next.vocabularies,
-      activeVocabularyId: next.activeVocabularyId,
-      activeVocabularyIds: next.activeVocabularyIds,
+      mutate(next)
+      setSelectedVocabularyId(vocabulary.id)
+      setIsAddVocabularyOpen(false)
+      await chrome.storage.local.set({
+        vocabularies: next.vocabularies,
+        activeVocabularyId: next.activeVocabularyId,
+        activeVocabularyIds: next.activeVocabularyIds,
+      })
     })
   }
 
@@ -151,25 +161,27 @@ function Dashboard() {
     vocabularyId: string,
     updateWords: (words: WordItem[]) => WordItem[],
   ) => {
-    const current = state()
-    if (!current) return
+    return withStorageLock(async () => {
+      const current = await getStorage()
+      if (!current) return
 
-    const now = Date.now()
-    const next = {
-      ...current,
-      vocabularies: current.vocabularies.map((vocabulary) =>
-        vocabulary.id === vocabularyId
-          ? {
-              ...vocabulary,
-              updatedAt: now,
-              words: updateWords(vocabulary.words),
-            }
-          : vocabulary,
-      ),
-    }
+      const now = Date.now()
+      const next = {
+        ...current,
+        vocabularies: current.vocabularies.map((vocabulary) =>
+          vocabulary.id === vocabularyId
+            ? {
+                ...vocabulary,
+                updatedAt: now,
+                words: updateWords(vocabulary.words),
+              }
+            : vocabulary,
+        ),
+      }
 
-    mutate(next)
-    await chrome.storage.local.set({ vocabularies: next.vocabularies })
+      mutate(next)
+      await chrome.storage.local.set({ vocabularies: next.vocabularies })
+    })
   }
 
   const addWords = async (vocabularyId: string, words: WordItem[]) => {
@@ -229,76 +241,83 @@ function Dashboard() {
   }
 
   const renameVocabulary = async (vocabularyId: string, name: string) => {
-    const current = state()
-    const trimmedName = name.trim()
-    if (!current || !trimmedName) return
+    return withStorageLock(async () => {
+      const current = await getStorage()
+      const trimmedName = name.trim()
+      if (!current || !trimmedName) return
 
-    const now = Date.now()
-    const next = {
-      ...current,
-      vocabularies: current.vocabularies.map((vocabulary) =>
-        vocabulary.id === vocabularyId
-          ? { ...vocabulary, name: trimmedName, updatedAt: now }
-          : vocabulary,
-      ),
-    }
+      const now = Date.now()
+      const next = {
+        ...current,
+        vocabularies: current.vocabularies.map((vocabulary) =>
+          vocabulary.id === vocabularyId
+            ? { ...vocabulary, name: trimmedName, updatedAt: now }
+            : vocabulary,
+        ),
+      }
 
-    mutate(next)
-    await chrome.storage.local.set({ vocabularies: next.vocabularies })
+      mutate(next)
+      await chrome.storage.local.set({ vocabularies: next.vocabularies })
+    })
   }
 
   const deleteVocabulary = async (vocabularyId: string) => {
-    const current = state()
-    if (!current || current.vocabularies.length <= 1) return
+    return withStorageLock(async () => {
+      const current = await getStorage()
+      if (!current || current.vocabularies.length <= 1) return
 
-    const nextVocabularies = current.vocabularies.filter(
-      (vocabulary) => vocabulary.id !== vocabularyId,
-    )
-    const nextActiveVocabularyIds = current.activeVocabularyIds.filter(
-      (id) => id !== vocabularyId,
-    )
-    if (nextActiveVocabularyIds.length === 0 && nextVocabularies[0]) {
-      nextActiveVocabularyIds.push(nextVocabularies[0].id)
-    }
-    const nextActiveVocabularyId =
-      nextActiveVocabularyIds[0] ?? current.activeVocabularyId
-    const next = {
-      ...current,
-      vocabularies: nextVocabularies,
-      activeVocabularyId: nextActiveVocabularyId,
-      activeVocabularyIds: nextActiveVocabularyIds,
-    }
+      const nextVocabularies = current.vocabularies.filter(
+        (vocabulary) => vocabulary.id !== vocabularyId,
+      )
+      const nextActiveVocabularyIds = current.activeVocabularyIds.filter(
+        (id) => id !== vocabularyId,
+      )
+      if (nextActiveVocabularyIds.length === 0 && nextVocabularies[0]) {
+        nextActiveVocabularyIds.push(nextVocabularies[0].id)
+      }
+      const nextActiveVocabularyId =
+        nextActiveVocabularyIds[0] ?? current.activeVocabularyId
+      const next = {
+        ...current,
+        vocabularies: nextVocabularies,
+        activeVocabularyId: nextActiveVocabularyId,
+        activeVocabularyIds: nextActiveVocabularyIds,
+      }
 
-    mutate(next)
-    setSelectedVocabularyId(undefined)
-    setVocabularySettings(undefined)
-    await chrome.storage.local.set({
-      vocabularies: next.vocabularies,
-      activeVocabularyId: next.activeVocabularyId,
-      activeVocabularyIds: next.activeVocabularyIds,
+      mutate(next)
+      setSelectedVocabularyId(undefined)
+      setVocabularySettings(undefined)
+      await chrome.storage.local.set({
+        vocabularies: next.vocabularies,
+        activeVocabularyId: next.activeVocabularyId,
+        activeVocabularyIds: next.activeVocabularyIds,
+      })
     })
   }
 
   const toggleVocabularyActive = async (vocabularyId: string) => {
-    const current = state()
-    if (!current) return
+    return withStorageLock(async () => {
+      const current = await getStorage()
+      if (!current) return
 
-    const isActive = current.activeVocabularyIds.includes(vocabularyId)
-    if (isActive && current.activeVocabularyIds.length === 1) return
+      const isActive = current.activeVocabularyIds.includes(vocabularyId)
+      if (isActive && current.activeVocabularyIds.length === 1) return
 
-    const activeVocabularyIds = isActive
-      ? current.activeVocabularyIds.filter((id) => id !== vocabularyId)
-      : [...current.activeVocabularyIds, vocabularyId]
-    const next = {
-      ...current,
-      activeVocabularyId: activeVocabularyIds[0] ?? current.activeVocabularyId,
-      activeVocabularyIds,
-    }
+      const activeVocabularyIds = isActive
+        ? current.activeVocabularyIds.filter((id) => id !== vocabularyId)
+        : [...current.activeVocabularyIds, vocabularyId]
+      const next = {
+        ...current,
+        activeVocabularyId:
+          activeVocabularyIds[0] ?? current.activeVocabularyId,
+        activeVocabularyIds,
+      }
 
-    mutate(next)
-    await chrome.storage.local.set({
-      activeVocabularyId: next.activeVocabularyId,
-      activeVocabularyIds: next.activeVocabularyIds,
+      mutate(next)
+      await chrome.storage.local.set({
+        activeVocabularyId: next.activeVocabularyId,
+        activeVocabularyIds: next.activeVocabularyIds,
+      })
     })
   }
 
@@ -366,6 +385,17 @@ function Dashboard() {
                   <p role="status">
                     Ожидаем загрузку словарей. Проверьте подключение к сети.
                   </p>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      await chrome.runtime.sendMessage({
+                        type: 'bir-soz:sync-catalog',
+                      })
+                      await refetch()
+                    }}
+                  >
+                    Повторить загрузку
+                  </button>
                 </Show>
                 <h1 class="section-heading">
                   Ритм, который держится {currentStreak()} дней

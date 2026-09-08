@@ -51,3 +51,23 @@ npm run build
 ## Проверенный пример — 2026-09-08
 
 `src/App.tsx`: «Показать пример» → «Показать пример задания». Собран workspace, в Chrome нажата Reload, новый текст подтверждён и на `index.html`, и в настоящем popup. На example.com показаны два задания: ответ и пропуск. «Мой прогресс» открыл dashboard с сохранённым результатом. Console dashboard и popup-страницы пусты; после обновления example.com Console также пуста. В service worker только штатные сообщения, включая `analytics disabled`; ошибок в Details расширения нет. Analytics оставлена выключенной. Это проверка текущей версии; будущие задачи remote/onboarding проверяются дополнительно по их acceptance criteria.
+
+## Изолированный локальный API
+
+Для HTTP-интеграции используйте временную SQLite и явно отключённый импорт:
+
+```bash
+cd ../bir-stats
+DB_PATH=/tmp/bir-soz-managed-integration.sqlite SQLITE_MIGRATE_PATH='' PORT=4017 bun run src/index.ts
+```
+
+Тестовая сборка создаётся отдельно от основной:
+
+```bash
+VITE_BIR_API_ORIGIN=http://127.0.0.1:4017 npm run build -- --outDir /tmp/bir-soz-managed-test --emptyOutDir
+```
+
+Переменная задаётся только во время сборки. Manifest получает только выбранный
+API origin. Обычная `npm run build` сохраняет production API permission.
+Отключите основную копию на время работы тестовой на тех же страницах; по окончании
+выключите тестовую и включите основную. Не переносите storage между ними.

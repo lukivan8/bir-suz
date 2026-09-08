@@ -32,7 +32,11 @@ const manifest = {
   ],
   options_page: 'dashboard.html',
   permissions: ['storage', 'alarms'],
-  host_permissions: ['https://api.lukivan8.com/*'],
+  host_permissions: [
+    process.env['VITE_BIR_API_ORIGIN']
+      ? `${new URL(process.env['VITE_BIR_API_ORIGIN']).origin}/*`
+      : 'https://api.lukivan8.com/*',
+  ],
   commands: {
     'demo-trigger': {
       suggested_key: {

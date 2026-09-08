@@ -6,6 +6,7 @@ export type RuntimeMessage =
   | { type: 'bir-soz:content-ready' }
   | { type: 'bir-soz:page-activity' }
   | { type: 'bir-soz:get-state' }
+  | { type: 'bir-soz:sync-catalog' }
   | { type: 'bir-soz:show-challenge'; payload: ChallengePayload }
   | { type: 'bir-soz:submit-result'; payload: ChallengeResult }
   | { type: 'bir-soz:force-trigger' }
@@ -36,6 +37,7 @@ export function isRuntimeMessage(message: unknown): message is RuntimeMessage {
     case 'bir-soz:content-ready':
     case 'bir-soz:page-activity':
     case 'bir-soz:get-state':
+    case 'bir-soz:sync-catalog':
     case 'bir-soz:force-trigger':
       return true
     case 'bir-soz:stats-event':

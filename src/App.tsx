@@ -7,6 +7,7 @@ import {
   Show,
 } from 'solid-js'
 import type { RuntimeMessage, RuntimeResponseFor } from './shared/messages'
+import { getStorage, withStorageLock } from './shared/storage'
 import type { AppSettings } from './shared/types'
 import { normalizeStorageShape } from './shared/validation'
 
@@ -27,41 +28,50 @@ async function getState() {
 
 function App() {
   const [state, { mutate, refetch }] = createResource(getState)
+  const storageChanged = (_changes: unknown, area: string) => {
+    if (area === 'local') void refetch()
+  }
+  chrome.storage.onChanged.addListener(storageChanged)
+  onCleanup(() => chrome.storage.onChanged.removeListener(storageChanged))
   const [busy, setBusy] = createSignal(false)
   const [demoMessage, setDemoMessage] = createSignal<string>()
   const [now, setNow] = createSignal(Date.now())
   const [doNotDisturbMinutes, setDoNotDisturbMinutes] = createSignal(30)
 
   const updateSettings = async (patch: Partial<AppSettings>) => {
-    const current = state()
-    if (!current) return
+    return withStorageLock(async () => {
+      const current = await getStorage()
+      if (!current) return
 
-    const next = {
-      ...current,
-      settings: {
-        ...current.settings,
-        ...patch,
-      },
-    }
+      const next = {
+        ...current,
+        settings: {
+          ...current.settings,
+          ...patch,
+        },
+      }
 
-    mutate(next)
-    await chrome.storage.local.set({ settings: next.settings })
+      mutate(next)
+      await chrome.storage.local.set({ settings: next.settings })
+    })
   }
 
   const updateActiveVocabulary = async (activeVocabularyId: string) => {
-    const current = state()
-    if (!current || activeVocabularyId === MULTIPLE_VOCABULARIES_VALUE) return
+    return withStorageLock(async () => {
+      const current = await getStorage()
+      if (!current || activeVocabularyId === MULTIPLE_VOCABULARIES_VALUE) return
 
-    const next = {
-      ...current,
-      activeVocabularyId,
-      activeVocabularyIds: [activeVocabularyId],
-    }
+      const next = {
+        ...current,
+        activeVocabularyId,
+        activeVocabularyIds: [activeVocabularyId],
+      }
 
-    mutate(next)
-    await chrome.storage.local.set({
-      activeVocabularyId,
-      activeVocabularyIds: [activeVocabularyId],
+      mutate(next)
+      await chrome.storage.local.set({
+        activeVocabularyId,
+        activeVocabularyIds: [activeVocabularyId],
+      })
     })
   }
 
@@ -196,6 +206,17 @@ function App() {
                   <p role="status">
                     Ожидаем загрузку словарей. Проверьте подключение к сети.
                   </p>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      await chrome.runtime.sendMessage({
+                        type: 'bir-soz:sync-catalog',
+                      })
+                      await refetch()
+                    }}
+                  >
+                    Повторить загрузку
+                  </button>
                 </Show>
                 <select
                   class="w-full border border-rule bg-paper px-3 py-2 font-serif-body text-[15px] text-ink"

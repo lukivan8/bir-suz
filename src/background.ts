@@ -1,3 +1,4 @@
+import { syncCatalog } from './shared/catalog-sync'
 import {
   applyChallengeResult,
   buildChallengePayload,
@@ -16,9 +17,21 @@ import {
   ensureStorage,
   getStorage,
   updateStorage,
+  withStorageLock,
 } from './shared/storage'
 import type { ChallengeResult, TriggerSource } from './shared/types'
 import { getActiveWords } from './shared/vocabularies'
+
+const CATALOG_ALARM = 'bir-soz-catalog-sync'
+
+async function maintainCatalog() {
+  await ensureStorage()
+  await chrome.alarms.create(CATALOG_ALARM, { periodInMinutes: 15 })
+  const status = await syncCatalog()
+  console.info('[Bir Söz catalog]', status)
+}
+
+void maintainCatalog()
 
 const COMMAND_NAME = 'demo-trigger'
 const STATS_FLUSH_ALARM_NAME = 'bir-soz-stats-flush'
@@ -38,7 +51,8 @@ function log(message: string, details?: Record<string, unknown>) {
 chrome.runtime.onInstalled.addListener(async (details) => {
   log('onInstalled', { reason: details.reason })
   if (details.reason === 'install') {
-    await chrome.storage.local.set(defaultStorage)
+    await ensureStorage()
+    void maintainCatalog()
     await ensureStatsFlushAlarm()
     syncStatsInBackground(defaultStorage)
     await chrome.tabs.create({
@@ -48,18 +62,25 @@ chrome.runtime.onInstalled.addListener(async (details) => {
   }
 
   await ensureStorage()
+  void maintainCatalog()
   await ensureStatsFlushAlarm()
   syncStatsInBackground(await getStorage())
 })
 
 chrome.runtime.onStartup.addListener(async () => {
   log('onStartup')
+  void maintainCatalog()
   await ensureStorage()
+  void maintainCatalog()
   await ensureStatsFlushAlarm()
   syncStatsInBackground(await getStorage())
 })
 
 chrome.alarms.onAlarm.addListener((alarm) => {
+  if (alarm.name === CATALOG_ALARM) {
+    void maintainCatalog()
+    return
+  }
   if (alarm.name !== STATS_FLUSH_ALARM_NAME) return
 
   void (async () => {
@@ -128,6 +149,10 @@ chrome.runtime.onMessage.addListener(
         type: message.type,
         senderTabId: _sender.tab?.id,
       })
+      if (message.type === 'bir-soz:sync-catalog') {
+        sendResponse({ ok: (await syncCatalog()) !== 'error' })
+        return
+      }
       if (message.type === 'bir-soz:get-state') {
         sendResponse(await getStorage())
         return
@@ -356,15 +381,21 @@ function blockDetails(storage: Awaited<ReturnType<typeof getStorage>>) {
 }
 
 async function handleChallengeResult(result: ChallengeResult) {
-  log('challenge result received', {
-    wordId: result.wordId,
-    source: result.source,
-    wasCorrect: result.wasCorrect,
-    wasSkipped: result.wasSkipped,
-    elapsedMs: result.elapsedMs,
+  return withStorageLock(async () => {
+    log('challenge result received', {
+      wordId: result.wordId,
+      source: result.source,
+      wasCorrect: result.wasCorrect,
+      wasSkipped: result.wasSkipped,
+      elapsedMs: result.elapsedMs,
+    })
+    const storage = await getStorage()
+    await recordChallengeEvent(storage, result)
+    const next = applyChallengeResult(storage, result)
+    await updateStorage({
+      vocabularies: next.vocabularies,
+      userStats: next.userStats,
+    })
+    log('challenge result stored', { wordId: result.wordId })
   })
-  const storage = await getStorage()
-  await recordChallengeEvent(storage, result)
-  await updateStorage(applyChallengeResult(storage, result))
-  log('challenge result stored', { wordId: result.wordId })
 }
