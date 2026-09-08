@@ -8,6 +8,7 @@ import {
 } from 'solid-js'
 import { render } from 'solid-js/web'
 import { Onboarding } from './components/Onboarding'
+import { OrganizationForm } from './components/Organization'
 import { StudyModal } from './components/Study'
 import { visitCompletedOnboarding } from './shared/browser-step'
 import { currentOnboardingStep } from './shared/onboarding'
@@ -373,6 +374,8 @@ function Dashboard() {
               </Show>
               <Show when={isSettingsOpen()}>
                 <DashboardSettingsModal
+                  organization={current().organization}
+                  onOrganizationConnected={() => void refetch()}
                   analyticsEnabled={current().settings.analyticsEnabled}
                   onAnalyticsChange={updateAnalyticsEnabled}
                   onClose={() => setIsSettingsOpen(false)}
@@ -699,6 +702,8 @@ function AnalyticsWelcomeModal(props: {
 }
 
 function DashboardSettingsModal(props: {
+  organization: StorageShape['organization']
+  onOrganizationConnected: () => void
   analyticsEnabled: boolean
   onAnalyticsChange: (analyticsEnabled: boolean) => void | Promise<void>
   onClose: () => void
@@ -731,6 +736,23 @@ function DashboardSettingsModal(props: {
             checked={props.analyticsEnabled}
             onChange={props.onAnalyticsChange}
           />
+        </div>
+        <div class="settings-organization">
+          <Show
+            when={props.organization}
+            fallback={
+              <OrganizationForm
+                description="Если вы пропустили подключение организации, введите её код здесь, чтобы открыть дополнительные возможности и словари."
+                onConnected={props.onOrganizationConnected}
+              />
+            }
+          >
+            {(organization) => (
+              <p class="settings-organization-code">
+                Код организации: {organization().code}
+              </p>
+            )}
+          </Show>
         </div>
       </div>
     </div>

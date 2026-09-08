@@ -1355,3 +1355,14 @@ a {
     justify-self: center;
   }
 }
+
+.settings-organization {
+  padding-top: 20px;
+  border-top: 1px solid var(--rule);
+}
+.settings-organization-code {
+  margin: 0;
+  color: var(--ink-faded);
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}

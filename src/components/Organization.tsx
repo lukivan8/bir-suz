@@ -1,7 +1,11 @@
-import { createSignal, Show } from 'solid-js'
+import { createSignal, createUniqueId, Show } from 'solid-js'
 import type { ConnectResult } from '../shared/organization'
 
-export function OrganizationForm(props: { onConnected: () => void }) {
+export function OrganizationForm(props: {
+  onConnected: () => void
+  description?: string
+}) {
+  const descriptionId = createUniqueId()
   const [code, setCode] = createSignal('')
   const [busy, setBusy] = createSignal(false)
   const [error, setError] = createSignal('')
@@ -27,16 +31,15 @@ export function OrganizationForm(props: { onConnected: () => void }) {
   }
   return (
     <form onSubmit={connect} class="grid gap-2">
-      <p id="organization-code-description">
-        Код активирует дополнительные возможности вашей организации, включая
-        доступ к дополнительным словарям. Если у вас нет кода, этот шаг можно
-        пропустить.
+      <p id={descriptionId}>
+        {props.description ??
+          'Код активирует дополнительные возможности вашей организации, включая доступ к дополнительным словарям. Если у вас нет кода, этот шаг можно пропустить.'}
       </p>
       <label>
         Код организации
         <input
           class="w-full border border-rule bg-paper px-3 py-2"
-          aria-describedby="organization-code-description"
+          aria-describedby={descriptionId}
           value={code()}
           onInput={(e) => setCode(e.currentTarget.value)}
           maxLength={200}
