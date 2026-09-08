@@ -20,7 +20,7 @@ npm run lint
 npm run build
 ```
 
-Load `dist/` as an unpacked extension in Chrome. After extension changes, verify the popup, dashboard, Demo Trigger, and one answer/skip flow on an ordinary HTTPS page.
+Before browser work, read [local testing](docs/local-testing.md). After each extension change: lint/build → Reload the correct unpacked extension → reopen popup and refresh test tabs → verify the exact change plus popup/dashboard and answer/skip flow. A successful build alone is not completion. Check Loaded from: the old ~/dev/bir-suz/dist installation is a different checkout. Preserve user storage and keep test analytics off.
 
 ## Change rules
 

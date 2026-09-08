@@ -256,7 +256,7 @@ const copy = {
     quietHours: 'Не беспокоить',
     doNotDisturbActive: 'Осталось',
     triggering: 'Показываем…',
-    demoTrigger: 'Показать пример',
+    demoTrigger: 'Показать пример задания',
     demoNeedsPage:
       'Откройте или обновите обычную страницу сайта, затем попробуйте снова.',
     openDashboard: 'Мой прогресс',
