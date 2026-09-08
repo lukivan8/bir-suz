@@ -41,6 +41,7 @@ const defaultSettings: AppSettings = {
 }
 
 export const defaultStorage: StorageShape = {
+  studySession: null,
   vocabularies: [],
   activeVocabularyId: '',
   activeVocabularyIds: [],
@@ -77,6 +78,7 @@ const storageKeys = [
   'catalogVersion',
   'lastSyncAt',
   'onboarding',
+  'studySession',
 ] satisfies (keyof LegacyStorageShape)[]
 
 export async function ensureStorage() {
@@ -110,6 +112,7 @@ function buildStoragePatch(current: LegacyStorageShape): Partial<StorageShape> {
     'catalogVersion',
     'lastSyncAt',
     'onboarding',
+    'studySession',
   ] as const) {
     if (JSON.stringify(current[key]) !== JSON.stringify(normalized[key])) {
       Object.assign(patch, { [key]: normalized[key] })
@@ -185,6 +188,7 @@ export function normalizeStorage(storage: LegacyStorageShape): StorageShape {
   const activeVocabularyId = activeVocabularyIds[0] ?? legacyActiveVocabularyId
 
   return {
+    studySession: storage.studySession ?? null,
     vocabularies,
     remoteArchive,
     organization,

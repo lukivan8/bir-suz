@@ -111,8 +111,6 @@ function buildNextStats(
     dailyReviewHistory,
     totalExposures: storage.userStats.totalExposures + 1,
     totalCorrect: storage.userStats.totalCorrect + (result.wasCorrect ? 1 : 0),
-    timeInLanguageContactMs:
-      storage.userStats.timeInLanguageContactMs + result.elapsedMs,
     lastChallengeAt: now,
   }
 }
@@ -205,8 +203,7 @@ function startOfDay(time: number) {
 
 export function pickDueWord(words: WordItem[], now = Date.now()) {
   const dueWords = words.filter((word) => isDue(word.srs.nextReview, now))
-  const candidates = dueWords.length > 0 ? dueWords : words
-  return randomItem(candidates)
+  return randomItem(dueWords)
 }
 
 export function isCoolingDown(

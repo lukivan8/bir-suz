@@ -20,6 +20,7 @@ import {
   updateStorage,
   withStorageLock,
 } from './shared/storage'
+import { studyAction } from './shared/study-service'
 import type { ChallengeResult, TriggerSource } from './shared/types'
 import { getActiveWords } from './shared/vocabularies'
 
@@ -150,6 +151,10 @@ chrome.runtime.onMessage.addListener(
         type: message.type,
         senderTabId: _sender.tab?.id,
       })
+      if (message.type === 'bir-soz:study') {
+        sendResponse(await studyAction(message.payload))
+        return
+      }
       if (message.type === 'bir-soz:connect-organization') {
         sendResponse(await connectOrganization(message.code))
         return

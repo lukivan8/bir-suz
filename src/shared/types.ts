@@ -87,7 +87,32 @@ export interface OnboardingState {
   browserAnswers: number
 }
 
+export type Confidence = -2 | -1 | 0 | 1 | 2
+export interface StudyCard {
+  vocabularyId: string
+  vocabularyName: string
+  isRemote: boolean
+  word: WordItem
+}
+export interface StudyRating {
+  index: number
+  confidence: Confidence
+  durationMs: number
+  srs: SrsData
+}
+export interface StudySession {
+  id: string
+  onboarding: boolean
+  cards: StudyCard[]
+  index: number
+  results: StudyRating[]
+  shownAt: number | null
+  flipped: boolean
+  completedAt: number | null
+}
+
 export interface StorageShape {
+  studySession: StudySession | null
   organization: ConnectResponse['organization'] | null
   remoteArchive: Vocabulary[]
   catalogEtag: string | null
