@@ -11,12 +11,30 @@ permissions:
 jobs:
   check:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: bir-suz
     steps:
       - uses: actions/checkout@v4
+        with:
+          path: bir-suz
+      - uses: actions/checkout@v4
+        with:
+          repository: lukivan8/bir-stats
+          path: bir-stats
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
+          cache-dependency-path: bir-suz/package-lock.json
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.13
       - run: npm ci
+      - run: bun install --frozen-lockfile
+        working-directory: bir-stats
+      - run: bun run check
+        working-directory: bir-stats
       - run: npm run lint
       - run: npm run build
+      - run: npm test

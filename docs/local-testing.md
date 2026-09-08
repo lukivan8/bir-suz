@@ -71,3 +71,19 @@ VITE_BIR_API_ORIGIN=http://127.0.0.1:4017 npm run build -- --outDir /tmp/bir-soz
 API origin. Обычная `npm run build` сохраняет production API permission.
 Отключите основную копию на время работы тестовой на тех же страницах; по окончании
 выключите тестовую и включите основную. Не переносите storage между ними.
+
+## Автоматические проверки контракта и HTTP
+
+Нужен соседний checkout `../bir-stats` с установленными зависимостями и Bun1.3.13:
+
+```bash
+npm test
+npm run test:http
+```
+
+`npm test` включает HTTP-тест. Он сам выбирает локальный порт, создаёт временную
+SQLite, запускает отдельный процесс backend, проверяет каталог/ETag/организацию,
+XLSX/remote merge/SRS, analytics/часы/dedup и повторный старт. В finally процесс
+останавливается, созданная временная директория удаляется. Перенос базы явно
+отключён через `SQLITE_MIGRATE_PATH=''`. Production API/SQLite не используются.
+CI расширения проверяет оба проекта и идентичность contract fixtures/schemas.

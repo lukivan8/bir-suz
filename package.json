@@ -14,7 +14,8 @@
     "format": "biome format --write .",
     "check:write": "biome check --write .",
     "preview": "vite preview",
-    "test": "bun test"
+    "test": "bun test",
+    "test:http": "bun test tests/http-integration.test.ts"
   },
   "dependencies": {
     "solid-js": "^1.9.12"

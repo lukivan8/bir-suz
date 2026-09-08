@@ -15,9 +15,10 @@ Maintain the Manifest V3 Chrome extension that teaches Kazakh vocabulary during 
 ## Commands
 
 ```bash
-npm install
+npm ci
 npm run lint
 npm run build
+npm test
 ```
 
 Before browser work, read [local testing](docs/local-testing.md). After each extension change: lint/build → Reload the correct unpacked extension → reopen popup and refresh test tabs → verify the exact change plus popup/dashboard and answer/skip flow. A successful build alone is not completion. Check Loaded from: the old ~/dev/bir-suz/dist installation is a different checkout. Preserve user storage and keep test analytics off.
