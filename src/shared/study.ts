@@ -49,6 +49,7 @@ export function startStudy(
     studySession: {
       id,
       onboarding,
+      onboardingRunId: onboarding ? storage.onboarding.runId : undefined,
       cards: selected,
       index: 0,
       results: [],

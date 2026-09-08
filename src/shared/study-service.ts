@@ -1,3 +1,4 @@
+import { currentOnboardingStep, finishOnboardingCards } from './onboarding'
 import { getStorage, updateStorage, withStorageLock } from './storage'
 import {
   flipStudyCard,
@@ -17,7 +18,13 @@ export async function studyAction(action: StudyAction) {
   return withStorageLock(async () => {
     try {
       const current = await getStorage()
-      const next =
+      if (
+        action.action === 'start' &&
+        action.onboarding &&
+        currentOnboardingStep(current) !== 'cards'
+      )
+        throw new Error('Onboarding not ready')
+      let next =
         action.action === 'start'
           ? startStudy(current, action.onboarding)
           : action.action === 'show'
@@ -30,9 +37,11 @@ export async function studyAction(action: StudyAction) {
                   action.index,
                   action.confidence,
                 )
+      next = finishOnboardingCards(next)
       if (next !== current)
         await updateStorage({
           studySession: next.studySession,
+          onboarding: next.onboarding,
           vocabularies: next.vocabularies,
           remoteArchive: next.remoteArchive,
         })

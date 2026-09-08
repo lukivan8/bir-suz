@@ -7,8 +7,10 @@ import {
   Show,
 } from 'solid-js'
 import { render } from 'solid-js/web'
+import { Onboarding } from './components/Onboarding'
 import { OrganizationSection } from './components/Organization'
 import { StudySection } from './components/Study'
+import { currentOnboardingStep, onboardingAction } from './shared/onboarding'
 import { getStorage, withStorageLock } from './shared/storage'
 import './index.css'
 import { calculateCurrentStreak } from './shared/challenge'
@@ -355,12 +357,17 @@ function Dashboard() {
                 </button>
               </div>
 
-              <StudySection
-                session={current().studySession}
-                ready={current().catalogVersion !== null}
-                refresh={refetch}
-              />
-              <OrganizationSection organization={current().organization} />
+              <Onboarding state={current()} refresh={refetch} />
+              <Show when={currentOnboardingStep(current()) !== 'cards'}>
+                <StudySection
+                  session={current().studySession}
+                  ready={current().catalogVersion !== null}
+                  refresh={refetch}
+                />
+              </Show>
+              <Show when={currentOnboardingStep(current()) !== 'organization'}>
+                <OrganizationSection organization={current().organization} />
+              </Show>
               <Show when={isExtensionHintOpen()}>
                 <aside
                   class="extension-return-hint"
@@ -398,6 +405,11 @@ function Dashboard() {
                 <DashboardSettingsModal
                   analyticsEnabled={current().settings.analyticsEnabled}
                   onAnalyticsChange={updateAnalyticsEnabled}
+                  onRestart={async () => {
+                    await onboardingAction({ action: 'reset' })
+                    await refetch()
+                    setIsSettingsOpen(false)
+                  }}
                   onClose={() => setIsSettingsOpen(false)}
                 />
               </Show>
@@ -722,6 +734,7 @@ function AnalyticsWelcomeModal(props: {
 }
 
 function DashboardSettingsModal(props: {
+  onRestart: () => void | Promise<void>
   analyticsEnabled: boolean
   onAnalyticsChange: (analyticsEnabled: boolean) => void | Promise<void>
   onClose: () => void
@@ -739,6 +752,13 @@ function DashboardSettingsModal(props: {
       <div class="advanced-modal word-modal dashboard-settings-modal">
         <button type="button" class="modal-close" onClick={props.onClose}>
           закрыть
+        </button>
+        <button
+          type="button"
+          class="dashboard-settings-button"
+          onClick={props.onRestart}
+        >
+          Пройти знакомство заново
         </button>
         <h2 class="section-heading">Настройки</h2>
         <div class="settings-toggle-row">

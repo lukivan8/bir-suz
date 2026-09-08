@@ -58,7 +58,7 @@ chrome.runtime.onInstalled.addListener(async (details) => {
     await ensureStatsFlushAlarm()
     syncStatsInBackground(defaultStorage)
     await chrome.tabs.create({
-      url: chrome.runtime.getURL('dashboard.html?welcome=analytics'),
+      url: chrome.runtime.getURL('dashboard.html'),
     })
     return
   }

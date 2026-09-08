@@ -7,6 +7,7 @@ import {
   Show,
 } from 'solid-js'
 import type { RuntimeMessage, RuntimeResponseFor } from './shared/messages'
+import { onboardingAction } from './shared/onboarding'
 import { getStorage, withStorageLock } from './shared/storage'
 import type { AppSettings } from './shared/types'
 import { normalizeStorageShape } from './shared/validation'
@@ -258,6 +259,13 @@ function App() {
               <a
                 class="border border-accent bg-transparent px-4 py-3 text-center font-mono-editorial text-[11px] uppercase tracking-[0.12em] text-accent hover:text-accent-deep"
                 href="dashboard.html"
+                onClick={async (event) => {
+                  event.preventDefault()
+                  await onboardingAction({ action: 'popup' })
+                  await chrome.tabs.create({
+                    url: chrome.runtime.getURL('dashboard.html'),
+                  })
+                }}
                 target="_blank"
                 rel="noopener"
               >

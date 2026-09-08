@@ -85,6 +85,8 @@ export interface OnboardingState {
   version: 1
   steps: Record<string, 'completed' | 'skipped'>
   browserAnswers: number
+  runId?: string
+  browserStepStartedAt?: number
 }
 
 export type Confidence = -2 | -1 | 0 | 1 | 2
@@ -103,6 +105,7 @@ export interface StudyRating {
 export interface StudySession {
   id: string
   onboarding: boolean
+  onboardingRunId?: string | undefined
   cards: StudyCard[]
   index: number
   results: StudyRating[]
