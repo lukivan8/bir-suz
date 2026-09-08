@@ -1,0 +1,15 @@
+export declare function Organization(value: unknown): boolean
+export declare function OrganizationsResponse(value: unknown): boolean
+export declare function CreateOrganization(value: unknown): boolean
+export declare function PatchOrganization(value: unknown): boolean
+export declare function ConnectRequest(value: unknown): boolean
+export declare function ConnectResponse(value: unknown): boolean
+export declare function RemoteWord(value: unknown): boolean
+export declare function RemoteVocabulary(value: unknown): boolean
+export declare function RemoteVocabularyCatalog(value: unknown): boolean
+export declare function ImportRowError(value: unknown): boolean
+export declare function ProtocolError(value: unknown): boolean
+export declare function ImportResponse(value: unknown): boolean
+export declare function AnalyticsEventV2(value: unknown): boolean
+export declare function AnalyticsBatchRequest(value: unknown): boolean
+export declare function AnalyticsBatchResponse(value: unknown): boolean

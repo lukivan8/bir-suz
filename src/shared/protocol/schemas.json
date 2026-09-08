@@ -1,0 +1,1040 @@
+{
+  "Organization": {
+    "type": "object",
+    "properties": {
+      "id": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 200
+      },
+      "name": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 200
+      },
+      "code": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 200
+      },
+      "active": {
+        "type": "boolean"
+      },
+      "createdAt": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "updatedAt": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "connectedInstallations": {
+        "type": "integer",
+        "minimum": 0
+      }
+    },
+    "required": ["id", "name", "code", "active", "createdAt", "updatedAt"],
+    "additionalProperties": false
+  },
+  "OrganizationsResponse": {
+    "type": "object",
+    "properties": {
+      "organizations": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/Organization"
+        }
+      }
+    },
+    "required": ["organizations"],
+    "additionalProperties": false
+  },
+  "CreateOrganization": {
+    "type": "object",
+    "properties": {
+      "name": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 200
+      },
+      "code": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 200
+      },
+      "active": {
+        "type": "boolean"
+      }
+    },
+    "required": ["name", "code"],
+    "additionalProperties": false
+  },
+  "PatchOrganization": {
+    "type": "object",
+    "properties": {
+      "name": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 200
+      },
+      "code": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 200
+      },
+      "active": {
+        "type": "boolean"
+      }
+    },
+    "required": [],
+    "additionalProperties": false,
+    "minProperties": 1
+  },
+  "ConnectRequest": {
+    "type": "object",
+    "properties": {
+      "installationId": {
+        "type": "string",
+        "format": "uuid"
+      },
+      "code": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 200
+      }
+    },
+    "required": ["installationId", "code"],
+    "additionalProperties": false
+  },
+  "ConnectResponse": {
+    "type": "object",
+    "properties": {
+      "organization": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "code": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          }
+        },
+        "required": ["id", "name", "code"],
+        "additionalProperties": false
+      },
+      "extraVocabularyEnabled": {
+        "const": true,
+        "type": "boolean"
+      }
+    },
+    "required": ["organization", "extraVocabularyEnabled"],
+    "additionalProperties": false
+  },
+  "RemoteWord": {
+    "type": "object",
+    "properties": {
+      "id": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 200
+      },
+      "kk": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 1000
+      },
+      "ru": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 1000
+      },
+      "level": {
+        "type": "string",
+        "enum": ["A1", "A2", "B1"]
+      }
+    },
+    "required": ["id", "kk", "ru", "level"],
+    "additionalProperties": false
+  },
+  "RemoteVocabulary": {
+    "type": "object",
+    "properties": {
+      "id": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 200
+      },
+      "name": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 200
+      },
+      "description": {
+        "type": "string"
+      },
+      "level": {
+        "type": "string",
+        "enum": ["A1", "A2", "B1"]
+      },
+      "version": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "requiresOrganization": {
+        "type": "boolean"
+      },
+      "updatedAt": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "words": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/RemoteWord"
+        }
+      }
+    },
+    "required": [
+      "id",
+      "name",
+      "level",
+      "version",
+      "requiresOrganization",
+      "updatedAt",
+      "words"
+    ],
+    "additionalProperties": false
+  },
+  "RemoteVocabularyCatalog": {
+    "type": "object",
+    "properties": {
+      "protocolVersion": {
+        "type": "integer",
+        "const": 1
+      },
+      "version": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "vocabularies": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/RemoteVocabulary"
+        }
+      }
+    },
+    "required": ["protocolVersion", "version", "vocabularies"],
+    "additionalProperties": false
+  },
+  "ImportRowError": {
+    "type": "object",
+    "properties": {
+      "row": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "field": {
+        "type": "string"
+      },
+      "code": {
+        "type": "string",
+        "enum": [
+          "REQUIRED",
+          "DUPLICATE_ID",
+          "INVALID_LEVEL",
+          "FORMULA_NOT_ALLOWED",
+          "INVALID_HEADER",
+          "TOO_MANY_ROWS"
+        ]
+      },
+      "message": {
+        "type": "string"
+      }
+    },
+    "required": ["row", "field", "code", "message"],
+    "additionalProperties": false
+  },
+  "ProtocolError": {
+    "type": "object",
+    "properties": {
+      "error": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "enum": [
+              "INVALID_REQUEST",
+              "CODE_NOT_FOUND",
+              "CODE_DISABLED",
+              "ORGANIZATION_CODE_CONFLICT",
+              "VOCABULARY_NOT_FOUND",
+              "INVALID_XLSX",
+              "IMPORT_VALIDATION_FAILED",
+              "PAYLOAD_TOO_LARGE",
+              "ORGANIZATION_NOT_FOUND",
+              "INTERNAL_ERROR"
+            ]
+          },
+          "message": {
+            "type": "string"
+          },
+          "fields": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "array",
+              "items": {
+                "$ref": "#/components/schemas/ImportRowError"
+              }
+            }
+          }
+        },
+        "required": ["code", "message", "fields"],
+        "additionalProperties": false
+      }
+    },
+    "required": ["error"],
+    "additionalProperties": false
+  },
+  "ImportResponse": {
+    "type": "object",
+    "properties": {
+      "vocabularyId": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 200
+      },
+      "version": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "imported": {
+        "type": "integer",
+        "minimum": 0
+      }
+    },
+    "required": ["vocabularyId", "version", "imported"],
+    "additionalProperties": false
+  },
+  "AnalyticsEventV2": {
+    "oneOf": [
+      {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "installationId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "type": {
+            "type": "string",
+            "const": "onboarding_started"
+          },
+          "occurredAt": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "sessionId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "organizationId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "vocabularyId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "wordId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "durationMs": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "confidence": {
+            "type": "integer",
+            "enum": [-2, -1, 0, 1, 2]
+          },
+          "correct": {
+            "type": "boolean"
+          },
+          "onboardingStep": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          }
+        },
+        "required": ["id", "installationId", "type", "occurredAt"],
+        "additionalProperties": false
+      },
+      {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "installationId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "type": {
+            "type": "string",
+            "const": "onboarding_step_completed"
+          },
+          "occurredAt": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "sessionId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "organizationId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "vocabularyId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "wordId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "durationMs": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "confidence": {
+            "type": "integer",
+            "enum": [-2, -1, 0, 1, 2]
+          },
+          "correct": {
+            "type": "boolean"
+          },
+          "onboardingStep": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          }
+        },
+        "required": [
+          "id",
+          "installationId",
+          "type",
+          "occurredAt",
+          "onboardingStep"
+        ],
+        "additionalProperties": false
+      },
+      {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "installationId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "type": {
+            "type": "string",
+            "const": "onboarding_completed"
+          },
+          "occurredAt": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "sessionId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "organizationId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "vocabularyId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "wordId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "durationMs": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "confidence": {
+            "type": "integer",
+            "enum": [-2, -1, 0, 1, 2]
+          },
+          "correct": {
+            "type": "boolean"
+          },
+          "onboardingStep": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          }
+        },
+        "required": ["id", "installationId", "type", "occurredAt"],
+        "additionalProperties": false
+      },
+      {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "installationId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "type": {
+            "type": "string",
+            "const": "organization_connected"
+          },
+          "occurredAt": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "sessionId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "organizationId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "vocabularyId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "wordId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "durationMs": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "confidence": {
+            "type": "integer",
+            "enum": [-2, -1, 0, 1, 2]
+          },
+          "correct": {
+            "type": "boolean"
+          },
+          "onboardingStep": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          }
+        },
+        "required": [
+          "id",
+          "installationId",
+          "type",
+          "occurredAt",
+          "organizationId"
+        ],
+        "additionalProperties": false
+      },
+      {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "installationId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "type": {
+            "type": "string",
+            "const": "dictionary_activated"
+          },
+          "occurredAt": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "sessionId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "organizationId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "vocabularyId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "wordId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "durationMs": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "confidence": {
+            "type": "integer",
+            "enum": [-2, -1, 0, 1, 2]
+          },
+          "correct": {
+            "type": "boolean"
+          },
+          "onboardingStep": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          }
+        },
+        "required": [
+          "id",
+          "installationId",
+          "type",
+          "occurredAt",
+          "vocabularyId"
+        ],
+        "additionalProperties": false
+      },
+      {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "installationId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "type": {
+            "type": "string",
+            "const": "study_session_started"
+          },
+          "occurredAt": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "sessionId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "organizationId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "vocabularyId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "wordId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "durationMs": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "confidence": {
+            "type": "integer",
+            "enum": [-2, -1, 0, 1, 2]
+          },
+          "correct": {
+            "type": "boolean"
+          },
+          "onboardingStep": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          }
+        },
+        "required": [
+          "id",
+          "installationId",
+          "type",
+          "occurredAt",
+          "sessionId",
+          "vocabularyId"
+        ],
+        "additionalProperties": false
+      },
+      {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "installationId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "type": {
+            "type": "string",
+            "const": "study_card_rated"
+          },
+          "occurredAt": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "sessionId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "organizationId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "vocabularyId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "wordId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "durationMs": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "confidence": {
+            "type": "integer",
+            "enum": [-2, -1, 0, 1, 2]
+          },
+          "correct": {
+            "type": "boolean"
+          },
+          "onboardingStep": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          }
+        },
+        "required": [
+          "id",
+          "installationId",
+          "type",
+          "occurredAt",
+          "sessionId",
+          "vocabularyId",
+          "wordId",
+          "confidence",
+          "durationMs"
+        ],
+        "additionalProperties": false
+      },
+      {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "installationId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "type": {
+            "type": "string",
+            "const": "study_session_completed"
+          },
+          "occurredAt": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "sessionId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "organizationId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "vocabularyId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "wordId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "durationMs": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "confidence": {
+            "type": "integer",
+            "enum": [-2, -1, 0, 1, 2]
+          },
+          "correct": {
+            "type": "boolean"
+          },
+          "onboardingStep": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          }
+        },
+        "required": [
+          "id",
+          "installationId",
+          "type",
+          "occurredAt",
+          "sessionId",
+          "vocabularyId"
+        ],
+        "additionalProperties": false
+      },
+      {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "installationId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "type": {
+            "type": "string",
+            "const": "challenge_completed"
+          },
+          "occurredAt": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "sessionId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "organizationId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "vocabularyId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "wordId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "durationMs": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "confidence": {
+            "type": "integer",
+            "enum": [-2, -1, 0, 1, 2]
+          },
+          "correct": {
+            "type": "boolean"
+          },
+          "onboardingStep": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          }
+        },
+        "required": [
+          "id",
+          "installationId",
+          "type",
+          "occurredAt",
+          "vocabularyId",
+          "wordId",
+          "correct",
+          "durationMs"
+        ],
+        "additionalProperties": false
+      },
+      {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "installationId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "type": {
+            "type": "string",
+            "const": "challenge_skipped"
+          },
+          "occurredAt": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "sessionId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "organizationId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "vocabularyId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "wordId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "durationMs": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "confidence": {
+            "type": "integer",
+            "enum": [-2, -1, 0, 1, 2]
+          },
+          "correct": {
+            "type": "boolean"
+          },
+          "onboardingStep": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          }
+        },
+        "required": [
+          "id",
+          "installationId",
+          "type",
+          "occurredAt",
+          "vocabularyId",
+          "wordId"
+        ],
+        "additionalProperties": false
+      }
+    ]
+  },
+  "AnalyticsBatchRequest": {
+    "type": "object",
+    "properties": {
+      "events": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/AnalyticsEventV2"
+        },
+        "minItems": 1,
+        "maxItems": 500
+      }
+    },
+    "required": ["events"],
+    "additionalProperties": false
+  },
+  "AnalyticsBatchResponse": {
+    "type": "object",
+    "properties": {
+      "accepted": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "duplicates": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "rejected": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string"
+            },
+            "code": {
+              "type": "string",
+              "enum": [
+                "INVALID_REQUEST",
+                "ORGANIZATION_NOT_FOUND",
+                "VOCABULARY_NOT_FOUND"
+              ]
+            }
+          },
+          "required": ["id", "code"],
+          "additionalProperties": false
+        }
+      }
+    },
+    "required": ["accepted", "duplicates", "rejected"],
+    "additionalProperties": false
+  }
+}

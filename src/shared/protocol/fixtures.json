@@ -1,0 +1,237 @@
+{
+  "catalog-public": [
+    "RemoteVocabularyCatalog",
+    {
+      "protocolVersion": 1,
+      "version": 3,
+      "vocabularies": [
+        {
+          "id": "builtin-kazakh-basic-words",
+          "name": "Базовые слова A1",
+          "level": "A1",
+          "version": 1,
+          "requiresOrganization": false,
+          "updatedAt": 0,
+          "words": [
+            {
+              "id": "kazakh-basic-words_001",
+              "kk": "аға",
+              "ru": "старший брат",
+              "level": "A1"
+            }
+          ]
+        },
+        {
+          "id": "builtin-kazakh-everyday-words",
+          "name": "Повседневная лексика A2",
+          "level": "A2",
+          "version": 1,
+          "requiresOrganization": false,
+          "updatedAt": 0,
+          "words": [
+            {
+              "id": "kazakh-everyday-words_001",
+              "kk": "ағайын-туған",
+              "ru": "родственники",
+              "level": "A2"
+            }
+          ]
+        },
+        {
+          "id": "builtin-kazakh-expanded-words",
+          "name": "Расширенная лексика B1",
+          "level": "B1",
+          "version": 1,
+          "requiresOrganization": false,
+          "updatedAt": 0,
+          "words": [
+            {
+              "id": "kazakh-expanded-words_001",
+              "kk": "ақсүйек",
+              "ru": "аристократ",
+              "level": "B1"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "catalog-organization": [
+    "RemoteVocabularyCatalog",
+    {
+      "protocolVersion": 1,
+      "version": 4,
+      "vocabularies": [
+        {
+          "id": "builtin-kazakh-basic-words",
+          "name": "Базовые слова A1",
+          "level": "A1",
+          "version": 1,
+          "requiresOrganization": false,
+          "updatedAt": 0,
+          "words": [
+            {
+              "id": "kazakh-basic-words_001",
+              "kk": "аға",
+              "ru": "старший брат",
+              "level": "A1"
+            }
+          ]
+        },
+        {
+          "id": "builtin-kazakh-everyday-words",
+          "name": "Повседневная лексика A2",
+          "level": "A2",
+          "version": 1,
+          "requiresOrganization": false,
+          "updatedAt": 0,
+          "words": [
+            {
+              "id": "kazakh-everyday-words_001",
+              "kk": "ағайын-туған",
+              "ru": "родственники",
+              "level": "A2"
+            }
+          ]
+        },
+        {
+          "id": "builtin-kazakh-expanded-words",
+          "name": "Расширенная лексика B1",
+          "level": "B1",
+          "version": 1,
+          "requiresOrganization": false,
+          "updatedAt": 0,
+          "words": [
+            {
+              "id": "kazakh-expanded-words_001",
+              "kk": "ақсүйек",
+              "ru": "аристократ",
+              "level": "B1"
+            }
+          ]
+        },
+        {
+          "id": "builtin-kazakh-verbs",
+          "name": "50 самых полезных глаголов",
+          "level": "A2",
+          "version": 1,
+          "requiresOrganization": true,
+          "updatedAt": 0,
+          "words": [
+            {
+              "id": "kazakh-verbs_001",
+              "kk": "айту",
+              "ru": "говорить",
+              "level": "A2"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "connect-success": [
+    "ConnectResponse",
+    {
+      "organization": {
+        "id": "fixture-school",
+        "name": "Школа №18",
+        "code": "SCHOOL18"
+      },
+      "extraVocabularyEnabled": true
+    }
+  ],
+  "code-unknown": [
+    "ProtocolError",
+    {
+      "error": {
+        "code": "CODE_NOT_FOUND",
+        "message": "Код недоступен",
+        "fields": {}
+      }
+    }
+  ],
+  "code-disabled": [
+    "ProtocolError",
+    {
+      "error": {
+        "code": "CODE_DISABLED",
+        "message": "Код недоступен",
+        "fields": {}
+      }
+    }
+  ],
+  "batch-success": [
+    "AnalyticsBatchResponse",
+    {
+      "accepted": 1,
+      "duplicates": 0,
+      "rejected": []
+    }
+  ],
+  "batch-mixed": [
+    "AnalyticsBatchResponse",
+    {
+      "accepted": 1,
+      "duplicates": 1,
+      "rejected": [
+        {
+          "id": "bad-event",
+          "code": "INVALID_REQUEST"
+        }
+      ]
+    }
+  ],
+  "import-success": [
+    "ImportResponse",
+    {
+      "vocabularyId": "builtin-kazakh-verbs",
+      "version": 2,
+      "imported": 1
+    }
+  ],
+  "import-errors": [
+    "ProtocolError",
+    {
+      "error": {
+        "code": "IMPORT_VALIDATION_FAILED",
+        "message": "Проверьте строки",
+        "fields": {
+          "rows": [
+            {
+              "row": 2,
+              "field": "kk",
+              "code": "REQUIRED",
+              "message": "Укажите перевод"
+            },
+            {
+              "row": 3,
+              "field": "level",
+              "code": "INVALID_LEVEL",
+              "message": "Укажите A1, A2 или B1"
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "connect-request": [
+    "ConnectRequest",
+    {
+      "installationId": "00000000-0000-4000-8000-000000000001",
+      "code": "SCHOOL18"
+    }
+  ],
+  "batch-request": [
+    "AnalyticsBatchRequest",
+    {
+      "events": [
+        {
+          "id": "fixture-event",
+          "installationId": "00000000-0000-4000-8000-000000000001",
+          "type": "onboarding_started",
+          "occurredAt": 0
+        }
+      ]
+    }
+  ]
+}
