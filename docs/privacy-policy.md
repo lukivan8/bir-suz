@@ -1,6 +1,6 @@
 # Bir Söz Privacy Policy
 
-Last updated: June 19, 2026
+Last updated: September 8, 2026
 
 Bir Söz is a Chrome extension for learning Kazakh words while browsing. Its
 mission is to help create a lightweight Kazakh-language environment during
@@ -12,7 +12,9 @@ it is used.
 Bir Söz stores the following data in `chrome.storage.local` on the user's
 device:
 
-- selected vocabulary and custom vocabulary entries;
+- cached server catalogs, selected vocabularies and custom vocabulary entries;
+- organization connection, onboarding checklist and an unfinished card session;
+- a queue of consented learning events awaiting delivery;
 - word learning progress, including repetition schedule and review history;
 - challenge counts, correctness, response time, streaks, and settings;
 - extension preferences such as cooldown, quiet mode, and analytics preference.
@@ -22,28 +24,39 @@ progress inside the extension.
 
 ## Usage Analytics
 
-Usage analytics are disabled by default. On first install, Bir Söz shows a
-disclosure screen with an opt-in action. Analytics can also be turned on or off
-at any time in the dashboard settings under "Usage statistics".
+Usage analytics are disabled by default. They can be turned on or off in the
+dashboard settings under "Usage statistics". Local learning, SRS and onboarding
+continue to work when analytics are off. No new learning events are created or
+sent while analytics are off.
 
-When analytics are enabled, Bir Söz sends learning-related technical events to
-`https://api.lukivan8.com`. The data may include:
+When enabled, Bir Söz sends v2 learning events to `https://api.lukivan8.com`:
 
-- a randomly generated installation identifier;
-- built-in vocabulary IDs, built-in vocabulary names, built-in word IDs, and
-  built-in word text used by the learning feature;
-- whether a challenge was answered, skipped, enabled, or disabled;
-- whether an answer was correct;
-- response time;
-- spaced-repetition progress such as repetition count, interval, next review
-  time, and mastery state;
-- aggregate custom vocabulary progress counts, if the user creates custom
-  vocabulary.
+- a randomly generated installation identifier and stable event identifiers;
+- event timestamps and organization ID when connected;
+- onboarding start, step and completion; server dictionary selection;
+- organization connection and card-session start/completion;
+- server vocabulary/word IDs for card ratings and browser answers/skips;
+- answer correctness, confidence rating and raw response duration.
 
-Analytics requests are limited to two types: learning events and daily
-learning-progress snapshots. Learning events record actions such as answers,
-skips, correctness, response time, and enable/disable events. Daily snapshots
-record built-in word progress and aggregate vocabulary progress.
+The server calculates learning time from the original response duration. The
+extension does not upload word text, vocabulary names, per-word SRS histories,
+custom vocabulary aggregates or new daily progress snapshots. Legacy local
+statistics may remain on the device after an update but are not newly uploaded.
+Events waiting for delivery remain in local storage through network failures and
+browser restarts. Turning analytics off clears this queue and cancels an active
+send attempt; it cannot undo requests already received by the server.
+
+## Server Catalog and Organization Connection
+
+The extension downloads server dictionaries without requiring analytics consent.
+After the first successful download it can use the last valid local cache offline.
+To connect an organization, the user submits its code and the installation
+identifier to the same API. This operational request is independent of learning
+analytics consent. The code is stored locally and used to request the authorized
+catalog, but is not included in analytics events. The interface offers connection
+only; it does not provide account switching or member disconnection. Archiving
+an organization on the server removes gated access on the next successful sync;
+local learning history is retained.
 
 Bir Söz does not send visited page URLs, page content, browsing history,
 cookies, passwords, form inputs, screenshots, advertising identifiers, Google
@@ -79,8 +92,8 @@ Bir Söz requests Chrome permissions to:
 - detect generic tab/navigation activity so vocabulary prompts can appear during
   normal browsing;
 - run scheduled background maintenance for queued analytics;
-- communicate with `https://api.lukivan8.com` for usage analytics when usage
-  statistics are enabled.
+- communicate with `https://api.lukivan8.com` for server dictionaries, an
+  organization connection requested by the user, and consented usage analytics.
 
 ## Limited Use Statement
 
