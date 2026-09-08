@@ -1,3 +1,4 @@
+import { consumeChallenge, refreshOnboardingBadge } from './shared/browser-step'
 import { syncCatalog } from './shared/catalog-sync'
 import {
   applyChallengeResult,
@@ -6,6 +7,7 @@ import {
   shouldBlockForUserSettings,
 } from './shared/challenge'
 import { isRuntimeMessage } from './shared/messages'
+import { currentOnboardingStep } from './shared/onboarding'
 import { connectOrganization } from './shared/organization'
 import {
   flushStatsQueueFromTimer,
@@ -34,6 +36,10 @@ async function maintainCatalog() {
 }
 
 void maintainCatalog()
+void refreshOnboardingBadge()
+chrome.storage.onChanged.addListener((changes, area) => {
+  if (area === 'local' && changes['onboarding']) void refreshOnboardingBadge()
+})
 
 const COMMAND_NAME = 'demo-trigger'
 const STATS_FLUSH_ALARM_NAME = 'bir-soz-stats-flush'
@@ -129,6 +135,16 @@ chrome.tabs.onCreated.addListener(async (tab) => {
 
 chrome.tabs.onRemoved.addListener((tabId) => {
   readyContentTabs.delete(tabId)
+  void withStorageLock(async () => {
+    const current = await getStorage()
+    await updateStorage({
+      pendingChallenges: Object.fromEntries(
+        Object.entries(current.pendingChallenges).filter(
+          ([, v]) => v.tabId !== tabId,
+        ),
+      ),
+    })
+  })
 })
 
 chrome.commands.onCommand.addListener(async (command) => {
@@ -205,7 +221,7 @@ chrome.runtime.onMessage.addListener(
       }
 
       if (message.type === 'bir-soz:submit-result') {
-        await handleChallengeResult(message.payload)
+        await handleChallengeResult(message.payload, _sender.tab?.id)
         sendResponse({ ok: true })
         return
       }
@@ -230,6 +246,16 @@ chrome.runtime.onMessage.addListener(
 )
 
 async function maybeTriggerChallenge(
+  source: TriggerSource,
+  bypassCooldown = false,
+  targetTabId?: number,
+) {
+  return navigator.locks.request('bir-soz-challenge-dispatch', () =>
+    dispatchChallenge(source, bypassCooldown, targetTabId),
+  )
+}
+
+async function dispatchChallenge(
   source: TriggerSource,
   bypassCooldown = false,
   targetTabId?: number,
@@ -273,18 +299,51 @@ async function maybeTriggerChallenge(
     return false
   }
 
-  const payload = buildChallengePayload(source, word, vocabularyWords)
-  log('sending challenge to content script', { source, tabId, wordId: word.id })
+  const vocabulary = storage.vocabularies.find((v) => v.words.includes(word))
+  if (!vocabulary) return false
+  const payload = {
+    ...buildChallengePayload(source, word, vocabularyWords),
+    challengeId: crypto.randomUUID(),
+    vocabularyId: vocabulary.id,
+  }
+  await withStorageLock(async () => {
+    const current = await getStorage()
+    const pendingChallenges = Object.fromEntries(
+      Object.entries(current.pendingChallenges).filter(
+        ([, value]) => value.tabId !== tabId,
+      ),
+    )
+    pendingChallenges[payload.challengeId] = {
+      id: payload.challengeId,
+      vocabularyId: vocabulary.id,
+      wordId: word.id,
+      tabId,
+      source,
+      createdAt: payload.startedAt,
+      onboardingRunId:
+        currentOnboardingStep(storage) === 'browser'
+          ? storage.onboarding.runId
+          : undefined,
+    }
+    await updateStorage({ pendingChallenges })
+  })
+  log('sending challenge to content script', { source, tabId })
 
   try {
     await chrome.tabs.sendMessage(tabId, {
       type: 'bir-soz:show-challenge',
       payload,
     })
-    log('challenge sent successfully', { source, tabId, wordId: word.id })
+    log('challenge sent successfully', { source, tabId })
     return true
   } catch (error) {
     readyContentTabs.delete(tabId)
+    await withStorageLock(async () => {
+      const current = await getStorage()
+      const pendingChallenges = { ...current.pendingChallenges }
+      delete pendingChallenges[payload.challengeId]
+      await updateStorage({ pendingChallenges })
+    })
     log('challenge send failed', {
       source,
       tabId,
@@ -390,22 +449,18 @@ function blockDetails(storage: Awaited<ReturnType<typeof getStorage>>) {
   }
 }
 
-async function handleChallengeResult(result: ChallengeResult) {
-  return withStorageLock(async () => {
-    log('challenge result received', {
-      wordId: result.wordId,
-      source: result.source,
-      wasCorrect: result.wasCorrect,
-      wasSkipped: result.wasSkipped,
-      elapsedMs: result.elapsedMs,
-    })
-    const storage = await getStorage()
+async function handleChallengeResult(result: ChallengeResult, tabId?: number) {
+  await withStorageLock(async () => {
+    const consumed = consumeChallenge(await getStorage(), result, tabId)
+    if (!consumed) return
+    const storage = consumed.state
     await recordChallengeEvent(storage, result)
     const next = applyChallengeResult(storage, result)
     await updateStorage({
-      vocabularies: next.vocabularies,
-      userStats: next.userStats,
+      ...next,
+      pendingChallenges: storage.pendingChallenges,
+      onboarding: storage.onboarding,
     })
-    log('challenge result stored', { wordId: result.wordId })
   })
+  await refreshOnboardingBadge()
 }

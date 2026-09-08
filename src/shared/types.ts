@@ -87,6 +87,7 @@ export interface OnboardingState {
   browserAnswers: number
   runId?: string
   browserStepStartedAt?: number
+  returnedAt?: number
 }
 
 export type Confidence = -2 | -1 | 0 | 1 | 2
@@ -114,7 +115,18 @@ export interface StudySession {
   completedAt: number | null
 }
 
+export interface PendingChallenge {
+  id: string
+  vocabularyId: string
+  wordId: string
+  source: TriggerSource
+  tabId: number
+  createdAt: number
+  onboardingRunId?: string | undefined
+}
+
 export interface StorageShape {
+  pendingChallenges: Record<string, PendingChallenge>
   studySession: StudySession | null
   organization: ConnectResponse['organization'] | null
   remoteArchive: Vocabulary[]
@@ -137,6 +149,8 @@ export type TriggerSource = 'new-tab' | 'navigation' | 'demo-hotkey'
 export type ChallengeDirection = 'source-to-target' | 'target-to-source'
 
 export interface ChallengePayload {
+  challengeId?: string
+  vocabularyId?: string
   source: TriggerSource
   word: WordItem
   direction: ChallengeDirection
@@ -147,6 +161,8 @@ export interface ChallengePayload {
 }
 
 export interface ChallengeResult {
+  challengeId?: string | undefined
+  vocabularyId?: string | undefined
   wordId: string
   source: TriggerSource
   elapsedMs: number

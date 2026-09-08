@@ -1126,3 +1126,7 @@ a {
 .study-ratings button:disabled {
   opacity: 0.45;
 }
+
+.activity-panel + .extension-return-hint {
+  margin-top: 24px;
+}

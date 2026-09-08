@@ -210,8 +210,14 @@ export function isChallengeResult(value: unknown): value is ChallengeResult {
   const candidate = value as Partial<ChallengeResult>
   return (
     typeof candidate.wordId === 'string' &&
+    (candidate.challengeId === undefined ||
+      typeof candidate.challengeId === 'string') &&
+    (candidate.vocabularyId === undefined ||
+      typeof candidate.vocabularyId === 'string') &&
     isTriggerSource(candidate.source) &&
     typeof candidate.elapsedMs === 'number' &&
+    Number.isFinite(candidate.elapsedMs) &&
+    candidate.elapsedMs >= 0 &&
     typeof candidate.wasSkipped === 'boolean' &&
     typeof candidate.wasCorrect === 'boolean' &&
     typeof candidate.timedOut === 'boolean'

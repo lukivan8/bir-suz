@@ -10,6 +10,7 @@ import { render } from 'solid-js/web'
 import { Onboarding } from './components/Onboarding'
 import { OrganizationSection } from './components/Organization'
 import { StudySection } from './components/Study'
+import { visitCompletedOnboarding } from './shared/browser-step'
 import { currentOnboardingStep, onboardingAction } from './shared/onboarding'
 import { getStorage, withStorageLock } from './shared/storage'
 import './index.css'
@@ -103,6 +104,7 @@ function Dashboard() {
   }
 
   onMount(() => {
+    void visitCompletedOnboarding()
     void chrome.storage.local
       .get(DASHBOARD_EXTENSION_HINT_DISMISSED_KEY)
       .then((stored) => {
@@ -358,6 +360,12 @@ function Dashboard() {
               </div>
 
               <Onboarding state={current()} refresh={refetch} />
+              <Show when={current().onboarding.browserAnswers === 3}>
+                <p role="status">
+                  Знакомство завершено — 3 из 3 заданий. Продолжайте изучать
+                  слова в своём ритме.
+                </p>
+              </Show>
               <Show when={currentOnboardingStep(current()) !== 'cards'}>
                 <StudySection
                   session={current().studySession}

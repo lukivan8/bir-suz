@@ -256,6 +256,11 @@ function App() {
             </section>
 
             <section class="grid gap-2">
+              <Show when={current().onboarding.steps['cards']}>
+                <p>
+                  Задания знакомства: {current().onboarding.browserAnswers}/3
+                </p>
+              </Show>
               <a
                 class="border border-accent bg-transparent px-4 py-3 text-center font-mono-editorial text-[11px] uppercase tracking-[0.12em] text-accent hover:text-accent-deep"
                 href="dashboard.html"
@@ -269,7 +274,9 @@ function App() {
                 target="_blank"
                 rel="noopener"
               >
-                {t().openDashboard}
+                {current().onboarding.browserAnswers === 3
+                  ? 'Знакомство завершено — вернуться к прогрессу'
+                  : t().openDashboard}
               </a>
               <button
                 type="button"

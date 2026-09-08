@@ -145,6 +145,8 @@ function Overlay(props: { payload: ChallengePayload; onClose: () => void }) {
 
     const payload: ChallengeResult = {
       wordId: props.payload.word.id,
+      challengeId: props.payload.challengeId,
+      vocabularyId: props.payload.vocabularyId,
       source: props.payload.source,
       elapsedMs,
       wasCorrect: correct,

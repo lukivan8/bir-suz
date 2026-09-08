@@ -72,20 +72,45 @@ export function applyChallengeResult(
   storage: StorageShape,
   result: ChallengeResult,
   now = Date.now(),
-): Pick<StorageShape, 'vocabularies' | 'userStats'> {
+): Pick<StorageShape, 'vocabularies' | 'userStats' | 'remoteArchive'> {
+  const update = (vocabularies: StorageShape['vocabularies']) =>
+    vocabularies.map((v) =>
+      v.id !== result.vocabularyId
+        ? v
+        : {
+            ...v,
+            words: v.words.map((w) =>
+              w.id !== result.wordId
+                ? w
+                : {
+                    ...w,
+                    srs: calculateNextSrs(
+                      w.srs,
+                      qualityFromResult(result),
+                      now,
+                    ),
+                  },
+            ),
+          },
+    )
   return {
-    vocabularies: updateActiveVocabularyWords(
-      storage,
-      (words) =>
-        words.map((word) => {
-          if (word.id !== result.wordId) return word
-          return {
-            ...word,
-            srs: calculateNextSrs(word.srs, qualityFromResult(result), now),
-          }
-        }),
-      now,
-    ),
+    remoteArchive: result.vocabularyId
+      ? update(storage.remoteArchive)
+      : storage.remoteArchive,
+    vocabularies: result.vocabularyId
+      ? update(storage.vocabularies)
+      : updateActiveVocabularyWords(
+          storage,
+          (words) =>
+            words.map((word) => {
+              if (word.id !== result.wordId) return word
+              return {
+                ...word,
+                srs: calculateNextSrs(word.srs, qualityFromResult(result), now),
+              }
+            }),
+          now,
+        ),
     userStats: buildNextStats(storage, result, now),
   }
 }
