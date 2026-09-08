@@ -1,3 +1,7 @@
+import {
+  ANALYTICS_CONSENT_VERSION,
+  needsAnalyticsConsent,
+} from './shared/analytics-consent'
 import { consumeChallenge, refreshOnboardingBadge } from './shared/browser-step'
 import { syncCatalog } from './shared/catalog-sync'
 import {
@@ -76,6 +80,28 @@ chrome.runtime.onInstalled.addListener(async (details) => {
   void maintainCatalog()
   await ensureStatsFlushAlarm()
   syncStatsInBackground(await getStorage())
+  if (details.reason === 'update') {
+    const show = await withStorageLock(async () => {
+      const state = await getStorage()
+      if (
+        !needsAnalyticsConsent(state.settings) ||
+        state.settings.analyticsConsentPromptVersion ===
+          ANALYTICS_CONSENT_VERSION
+      )
+        return false
+      await updateStorage({
+        settings: {
+          ...state.settings,
+          analyticsConsentPromptVersion: ANALYTICS_CONSENT_VERSION,
+        },
+      })
+      return true
+    })
+    if (show)
+      await chrome.tabs.create({
+        url: chrome.runtime.getURL('dashboard.html?welcome=analytics'),
+      })
+  }
 })
 
 chrome.runtime.onStartup.addListener(async () => {

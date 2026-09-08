@@ -156,3 +156,17 @@ Store User Data Policy, including the Limited Use requirements.
 
 For privacy questions, use the developer contact links (email or Telegram) in
 the footer of https://www.birsoz.kz/.
+
+
+Version 0.2.2: renewed analytics consent
+
+Analytics now requires a decision for the current data-practice version, not
+just the legacy analyticsEnabled setting. On upgrade, old permission is paused
+and pending v2 and legacy analytics queues are discarded. No new learning
+events are created until explicit consent. A one-time update tab explains the
+choice; an unanswered choice stays visible in the extension without blocking
+learning. Refusal and acceptance persist across ordinary subsequent updates.
+Changing the decision is available in Settings. Local progress, vocabulary,
+organization connection and installation identity are retained. Already received
+server records are not deleted. Catalog downloads and optional organization
+connection remain independent of learning-analytics consent.

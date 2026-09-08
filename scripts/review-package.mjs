@@ -16,6 +16,11 @@ const mechanisms = {
     'analyticsEnabled',
   ],
   'Minimized learning event builders': ['transitionEvents'],
+  'Versioned analytics consent and fail-closed migration': [
+    'analyticsConsentVersion',
+    'analyticsAllowed',
+    'analyticsConsentPromptVersion',
+  ],
   'Content-script outbound messages': [
     'bir-soz:content-ready',
     'bir-soz:page-activity',

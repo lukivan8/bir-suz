@@ -76,6 +76,8 @@ export interface AppSettings {
   newTabTriggerEnabled: boolean
   navigationTriggerEnabled: boolean
   analyticsEnabled: boolean
+  analyticsConsentVersion?: number
+  analyticsConsentPromptVersion?: number
   cooldownMinutes: number
   quietHours: QuietHours
   disabledUntil?: number | undefined

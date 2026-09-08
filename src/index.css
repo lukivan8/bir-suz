@@ -1366,3 +1366,23 @@ a {
   font-size: 12px;
   overflow-wrap: anywhere;
 }
+
+.analytics-consent-panel {
+  padding: 24px;
+}
+
+.analytics-consent-panel .modal-note {
+  margin: 16px 0;
+  line-height: 1.6;
+}
+
+.analytics-consent-panel .modal-actions {
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.analytics-consent-panel button {
+  min-height: 44px;
+  padding: 10px 16px;
+  border: 1px solid var(--rule);
+}

@@ -1,5 +1,6 @@
 import { test } from 'bun:test'
 import assert from 'node:assert/strict'
+import { ANALYTICS_CONSENT_VERSION } from '../src/shared/analytics-consent'
 import { transitionEvents } from '../src/shared/analytics-events'
 import fixtures from '../src/shared/protocol/fixtures.json'
 import { mergeRemoteCatalog } from '../src/shared/remote-model'
@@ -9,6 +10,7 @@ import {
   persistLearningTransition,
 } from '../src/shared/stats'
 import {
+  ensureStorage,
   getStorage,
   normalizeStorage,
   updateStorage,
@@ -28,6 +30,7 @@ function state() {
     fixtures['catalog-public'][1],
   )
   s.settings.analyticsEnabled = true
+  s.settings.analyticsConsentVersion = ANALYTICS_CONSENT_VERSION
   return s
 }
 function result(s: StorageShape, duration = 120001): ChallengeResult {
@@ -327,4 +330,72 @@ test('onboarding and organization events carry IDs but never code or content', (
   )
   assert.ok(!JSON.stringify(events).includes('PRIVATE-CODE'))
   assert.ok(!JSON.stringify(events).includes('Private name'))
+})
+
+test('old true/false consent fails closed before lifecycle migration and discards queues without touching learning data', async () => {
+  for (const enabled of [true, false]) {
+    const old = state()
+    delete old.settings.analyticsConsentVersion
+    old.settings.analyticsEnabled = enabled
+    old.userStats.totalCorrect = 17
+    old.settings.cooldownMinutes = 7
+    old.analyticsQueue = [
+      { id: 'old-event', type: 'challenge_completed' },
+    ] as never
+    await harness(async () => {
+      await chrome.storage.local.set({
+        statsPendingEvents: [{ old: true }],
+        statsPendingSnapshots: [{ old: true }],
+      })
+      const read = await getStorage()
+      assert.equal(read.settings.analyticsEnabled, false)
+      assert.deepEqual(transitionEvents(old, old, result(old)), [])
+      let requests = 0
+      await flushStats((async () => {
+        requests++
+        return new Response()
+      }) as typeof fetch)
+      assert.equal(requests, 0)
+      const raw = await chrome.storage.local.get(null)
+      assert.equal(raw.settings.analyticsEnabled, false)
+      assert.deepEqual(raw.analyticsQueue, [])
+      assert.deepEqual(raw.statsPendingEvents, [])
+      assert.deepEqual(raw.statsPendingSnapshots, [])
+      assert.equal(raw.userStats.totalCorrect, 17)
+      assert.equal(raw.settings.cooldownMinutes, 7)
+      assert.deepEqual(raw.vocabularies, old.vocabularies)
+      await enqueue()
+      assert.deepEqual((await getStorage()).analyticsQueue, [])
+      const pending = await getStorage()
+      await updateStorage({
+        settings: {
+          ...pending.settings,
+          analyticsEnabled: true,
+          analyticsConsentVersion: ANALYTICS_CONSENT_VERSION,
+        },
+      })
+      assert.deepEqual((await getStorage()).analyticsQueue, [])
+      await enqueue()
+      assert.equal((await getStorage()).analyticsQueue.length, 1)
+    }, old)
+  }
+})
+
+test('current allow and refusal survive repeated initialization; future consent versions fail closed', async () => {
+  for (const enabled of [true, false]) {
+    const s = state()
+    s.settings.analyticsEnabled = enabled
+    await harness(async () => {
+      await ensureStorage()
+      await ensureStorage()
+      assert.equal((await getStorage()).settings.analyticsEnabled, enabled)
+      assert.equal(
+        (await getStorage()).settings.analyticsConsentVersion,
+        ANALYTICS_CONSENT_VERSION,
+      )
+    }, s)
+  }
+  const s = state()
+  s.settings.analyticsConsentVersion = ANALYTICS_CONSENT_VERSION + 1
+  assert.equal(normalizeStorage(s).settings.analyticsEnabled, false)
 })

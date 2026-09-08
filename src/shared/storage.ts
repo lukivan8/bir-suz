@@ -1,3 +1,4 @@
+import { analyticsAllowed, needsAnalyticsConsent } from './analytics-consent'
 import { validateProtocol } from './protocol/validate'
 import { migrateRemoteVocabularies } from './remote-model'
 import type {
@@ -32,6 +33,8 @@ const defaultSettings: AppSettings = {
   newTabTriggerEnabled: true,
   navigationTriggerEnabled: true,
   analyticsEnabled: false,
+  analyticsConsentVersion: 0,
+  analyticsConsentPromptVersion: 0,
   cooldownMinutes: 3,
   quietHours: {
     enabled: false,
@@ -91,6 +94,17 @@ export async function ensureStorage() {
       storageKeys,
     )) as LegacyStorageShape
     const patch = buildStoragePatch(current)
+    if (needsAnalyticsConsent(current.settings ?? {})) {
+      // Known legacy analytics queues only; keep identity and learning history.
+      const legacy = await chrome.storage.local.get([
+        'statsPendingEvents',
+        'statsPendingSnapshots',
+      ])
+      for (const key of ['statsPendingEvents', 'statsPendingSnapshots']) {
+        if (legacy[key] !== undefined && JSON.stringify(legacy[key]) !== '[]')
+          Object.assign(patch, { [key]: [] })
+      }
+    }
     if (Object.keys(patch).length > 0) await chrome.storage.local.set(patch)
   })
 }
@@ -143,7 +157,8 @@ function buildStoragePatch(current: LegacyStorageShape): Partial<StorageShape> {
     !isAppSettings(current.settings) ||
     current.settings.navigationTriggerEnabled === undefined ||
     current.settings.analyticsEnabled === undefined ||
-    current.settings.uiLanguage !== 'ru'
+    current.settings.uiLanguage !== 'ru' ||
+    current.settings.analyticsEnabled !== normalized.settings.analyticsEnabled
   ) {
     patch.settings = normalized.settings
   }
@@ -196,9 +211,11 @@ export function normalizeStorage(storage: LegacyStorageShape): StorageShape {
   return {
     studySession: storage.studySession ?? null,
     pendingChallenges: storage.pendingChallenges ?? {},
-    analyticsQueue: Array.isArray(storage.analyticsQueue)
-      ? storage.analyticsQueue
-      : [],
+    analyticsQueue:
+      analyticsAllowed(storage.settings ?? {}) &&
+      Array.isArray(storage.analyticsQueue)
+        ? storage.analyticsQueue
+        : [],
     vocabularies,
     remoteArchive,
     organization,
@@ -305,10 +322,15 @@ function normalizeSettings(settings: unknown): AppSettings {
       typeof settings.navigationTriggerEnabled === 'boolean'
         ? settings.navigationTriggerEnabled
         : defaultSettings.navigationTriggerEnabled,
-    analyticsEnabled:
-      typeof settings.analyticsEnabled === 'boolean'
-        ? settings.analyticsEnabled
-        : defaultSettings.analyticsEnabled,
+    analyticsEnabled: analyticsAllowed(settings),
+    analyticsConsentVersion:
+      typeof settings.analyticsConsentVersion === 'number'
+        ? settings.analyticsConsentVersion
+        : 0,
+    analyticsConsentPromptVersion:
+      typeof settings.analyticsConsentPromptVersion === 'number'
+        ? settings.analyticsConsentPromptVersion
+        : 0,
     cooldownMinutes:
       typeof settings.cooldownMinutes === 'number'
         ? settings.cooldownMinutes

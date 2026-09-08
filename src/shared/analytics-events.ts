@@ -1,3 +1,4 @@
+import { analyticsAllowed } from './analytics-consent'
 import type { AnalyticsEventV2 } from './api-contract'
 import type { ChallengeResult, StorageShape } from './types'
 
@@ -7,7 +8,7 @@ export function transitionEvents(
   after: StorageShape,
   result?: ChallengeResult,
 ): EventInput[] {
-  if (!after.settings.analyticsEnabled) return []
+  if (!analyticsAllowed(after.settings)) return []
   const events: EventInput[] = []
   const remote = (id?: string) =>
     [

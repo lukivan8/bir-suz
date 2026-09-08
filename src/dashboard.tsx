@@ -10,6 +10,10 @@ import { render } from 'solid-js/web'
 import { Onboarding } from './components/Onboarding'
 import { OrganizationForm } from './components/Organization'
 import { StudyModal } from './components/Study'
+import {
+  consentDecision,
+  needsAnalyticsConsent,
+} from './shared/analytics-consent'
 import { visitCompletedOnboarding } from './shared/browser-step'
 import { currentOnboardingStep } from './shared/onboarding'
 import { persistLearningTransition } from './shared/stats'
@@ -77,9 +81,8 @@ function Dashboard() {
   const [masteryFilter, setMasteryFilter] = createSignal<MasteryFilter>('all')
   const [selectedVocabularyId, setSelectedVocabularyId] = createSignal<string>()
   const [isAddVocabularyOpen, setIsAddVocabularyOpen] = createSignal(false)
-  const [isAnalyticsWelcomeOpen, setIsAnalyticsWelcomeOpen] = createSignal(
-    new URLSearchParams(window.location.search).get('welcome') === 'analytics',
-  )
+  const [isAnalyticsWelcomeOpen, setIsAnalyticsWelcomeOpen] =
+    createSignal(false)
   const [isSettingsOpen, setIsSettingsOpen] = createSignal(false)
   const [isStudyOpen, setIsStudyOpen] = createSignal(false)
   const [isAddWordOpen, setIsAddWordOpen] = createSignal(false)
@@ -114,14 +117,11 @@ function Dashboard() {
 
       const next = {
         ...current,
-        settings: {
-          ...current.settings,
-          analyticsEnabled,
-        },
+        settings: consentDecision(current.settings, analyticsEnabled),
       }
 
-      mutate(next)
       await persistLearningTransition(current, next)
+      mutate(next)
     })
   }
 
@@ -361,23 +361,41 @@ function Dashboard() {
                 />
               </Show>
 
+              <Show
+                when={
+                  needsAnalyticsConsent(current().settings) ||
+                  isAnalyticsWelcomeOpen()
+                }
+              >
+                <AnalyticsConsentPanel
+                  isUpdate={
+                    new URLSearchParams(window.location.search).get(
+                      'welcome',
+                    ) === 'analytics'
+                  }
+                  onSkip={async () => {
+                    await updateAnalyticsEnabled(false)
+                    closeAnalyticsWelcome()
+                  }}
+                  onEnable={enableAnalytics}
+                />
+              </Show>
               <Onboarding
                 state={current()}
                 refresh={refetch}
                 onOpenStudy={() => setIsStudyOpen(true)}
               />
-              <Show when={isAnalyticsWelcomeOpen()}>
-                <AnalyticsWelcomeModal
-                  onSkip={closeAnalyticsWelcome}
-                  onEnable={enableAnalytics}
-                />
-              </Show>
               <Show when={isSettingsOpen()}>
                 <DashboardSettingsModal
                   organization={current().organization}
                   onOrganizationConnected={() => void refetch()}
                   analyticsEnabled={current().settings.analyticsEnabled}
-                  onAnalyticsChange={updateAnalyticsEnabled}
+                  onAnalyticsChange={async (enabled) => {
+                    if (enabled) {
+                      setIsSettingsOpen(false)
+                      setIsAnalyticsWelcomeOpen(true)
+                    } else await updateAnalyticsEnabled(false)
+                  }}
                   onClose={() => setIsSettingsOpen(false)}
                 />
               </Show>
@@ -668,26 +686,53 @@ function StatBlock(props: {
   )
 }
 
-function AnalyticsWelcomeModal(props: {
-  onSkip: () => void
+function AnalyticsConsentPanel(props: {
+  isUpdate: boolean
+  onSkip: () => void | Promise<void>
   onEnable: () => void | Promise<void>
 }) {
+  const [busy, setBusy] = createSignal(false)
+  const [error, setError] = createSignal('')
+  async function decide(action: () => void | Promise<void>) {
+    if (busy()) return
+    setBusy(true)
+    setError('')
+    try {
+      await action()
+    } catch {
+      setError('Не удалось сохранить выбор. Повторите попытку.')
+    } finally {
+      setBusy(false)
+    }
+  }
   return (
-    <div class="modal-backdrop" role="dialog" aria-modal="true">
-      <div class="advanced-modal word-modal analytics-welcome-modal">
-        <h2 class="section-heading">Статистика помогает Bir Söz расти</h2>
+    <section
+      class="onboarding analytics-consent-panel"
+      aria-label="Согласие на аналитику"
+    >
+      <div>
+        <h2 class="section-heading">Ваш выбор: аналитика Bir Söz</h2>
+        <p class="modal-note">
+          {props.isUpdate
+            ? 'Мы обновили условия сбора статистики. Подтвердите ваш выбор, даже если раньше уже разрешали аналитику.'
+            : 'Разрешить отправку учебной статистики для оценки и улучшения обучения?'}{' '}
+          До вашего согласия она выключена. Обучение доступно при любом выборе.
+        </p>
         <p class="modal-note">
           По вашему согласию мы отправляем на сервер этапы знакомства, выбор
           серверных словарей, оценки карточек, ответы, пропуски и время ответа.
           Данные связаны со случайным идентификатором установки. Это
-          псевдонимные данные, а не полностью анонимная статистика.
+          псевдонимные данные, а не полностью анонимная статистика. Они помогают
+          оценивать и улучшать обучение.
         </p>
         <p class="modal-note">
-          Для подключённой организации публично видны общие показатели и дата
-          последнего выполненного задания рядом с псевдонимом установки. Адреса
-          страниц, содержимое сайтов, формы, cookies и ваши личные слова не
-          отправляются. Выключение статистики останавливает отправку и очищает
-          текущую очередь; уже полученные сервером данные остаются.{' '}
+          Подключение по коду отдельно передаёт код и идентификатор установки
+          даже при выключенной аналитике. Для подключённой организации публично
+          видны общие показатели и дата последнего выполненного задания рядом с
+          псевдонимом установки. Адреса страниц, содержимое сайтов, формы,
+          cookies и ваши личные слова не отправляются. Выключение статистики
+          останавливает отправку и очищает текущую очередь; уже полученные
+          сервером данные остаются.{' '}
           <a
             href="https://api.lukivan8.com/privacy"
             target="_blank"
@@ -697,15 +742,26 @@ function AnalyticsWelcomeModal(props: {
           </a>
         </p>
         <div class="modal-actions">
-          <button type="button" onClick={props.onSkip}>
-            Не включать
+          <button
+            type="button"
+            disabled={busy()}
+            onClick={() => void decide(props.onSkip)}
+          >
+            Не отправлять
           </button>
-          <button type="button" onClick={props.onEnable}>
-            Включить статистику
+          <button
+            type="button"
+            disabled={busy()}
+            onClick={() => void decide(props.onEnable)}
+          >
+            Разрешить аналитику
           </button>
         </div>
+        <Show when={error()}>
+          <p role="alert">{error()}</p>
+        </Show>
       </div>
-    </div>
+    </section>
   )
 }
 

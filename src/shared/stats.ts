@@ -1,8 +1,14 @@
+import { analyticsAllowed } from './analytics-consent'
 import { transitionEvents } from './analytics-events'
 import { API_ORIGIN } from './api-client'
 import type { AnalyticsBatchResponse, AnalyticsEventV2 } from './api-contract'
 import { validateProtocol } from './protocol/validate'
-import { getStorage, updateStorage, withStorageLock } from './storage'
+import {
+  ensureStorage,
+  getStorage,
+  updateStorage,
+  withStorageLock,
+} from './storage'
 import type { ChallengeResult, StorageShape } from './types'
 
 export type StatsEventType = 'answered' | 'skipped' | 'disabled' | 'enabled'
@@ -41,7 +47,7 @@ export async function persistLearningTransition(
   }
   await updateStorage({
     ...after,
-    analyticsQueue: after.settings.analyticsEnabled
+    analyticsQueue: analyticsAllowed(after.settings)
       ? [...before.analyticsQueue, ...events]
       : [],
   })
@@ -77,6 +83,7 @@ export function acknowledgedBatch(
 }
 
 export async function flushStats(transport: typeof fetch = fetch) {
+  await ensureStorage()
   return navigator.locks.request('bir-soz-analytics-flush', async () => {
     for (;;) {
       let batch: AnalyticsEventV2[] = []
@@ -88,11 +95,8 @@ export async function flushStats(transport: typeof fetch = fetch) {
       ) => {
         if (
           area === 'local' &&
-          (
-            changes['settings']?.newValue as
-              | { analyticsEnabled?: boolean }
-              | undefined
-          )?.analyticsEnabled === false
+          changes['settings'] &&
+          !analyticsAllowed(changes['settings'].newValue ?? {})
         )
           controller.abort()
       }
@@ -100,7 +104,7 @@ export async function flushStats(transport: typeof fetch = fetch) {
       try {
         await withStorageLock(async () => {
           const state = await getStorage()
-          if (!state.settings.analyticsEnabled) {
+          if (!analyticsAllowed(state.settings)) {
             if (state.analyticsQueue.length)
               await updateStorage({ analyticsQueue: [] })
             return
@@ -138,7 +142,7 @@ export async function flushStats(transport: typeof fetch = fetch) {
         await withStorageLock(async () => {
           const state = await getStorage()
           await updateStorage({
-            analyticsQueue: state.settings.analyticsEnabled
+            analyticsQueue: analyticsAllowed(state.settings)
               ? state.analyticsQueue.filter((e) => !ids.has(e.id))
               : [],
           })
