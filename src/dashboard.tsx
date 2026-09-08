@@ -8,6 +8,7 @@ import {
 } from 'solid-js'
 import { render } from 'solid-js/web'
 import { OrganizationSection } from './components/Organization'
+import { StudySection } from './components/Study'
 import { getStorage, withStorageLock } from './shared/storage'
 import './index.css'
 import { calculateCurrentStreak } from './shared/challenge'
@@ -354,6 +355,11 @@ function Dashboard() {
                 </button>
               </div>
 
+              <StudySection
+                session={current().studySession}
+                ready={current().catalogVersion !== null}
+                refresh={refetch}
+              />
               <OrganizationSection organization={current().organization} />
               <Show when={isExtensionHintOpen()}>
                 <aside

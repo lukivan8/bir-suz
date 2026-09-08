@@ -1087,3 +1087,42 @@ a {
     display: none;
   }
 }
+
+.study-panel {
+  margin-block: 24px;
+}
+.study-card {
+  display: grid;
+  gap: 24px;
+  place-content: center;
+  width: 100%;
+  min-height: 220px;
+  padding: 32px;
+  border: 1px solid var(--rule);
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--serif-body);
+  font-size: clamp(24px, 4vw, 48px);
+  overflow-wrap: anywhere;
+  white-space: normal;
+  text-align: center;
+}
+.study-card small {
+  font-family: var(--mono);
+  font-size: 12px;
+}
+.study-ratings {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.study-panel button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 4px;
+}
+.study-panel button:disabled {
+  cursor: default;
+}
+.study-ratings button:disabled {
+  opacity: 0.45;
+}
