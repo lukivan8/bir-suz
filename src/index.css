@@ -1412,6 +1412,7 @@ a {
   border-bottom: 1px solid var(--rule);
 }
 .stat-block .progress-metric-value {
+  margin-bottom: 16px;
   font-size: 88px;
 }
 
