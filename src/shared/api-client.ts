@@ -2,7 +2,7 @@ import type { RemoteVocabularyCatalog } from './api-contract'
 import { assertProtocol } from './protocol/validate'
 
 export const API_ORIGIN =
-  import.meta.env?.['VITE_BIR_API_ORIGIN'] || 'https://api.lukivan8.com'
+  import.meta.env?.['VITE_BIR_API_ORIGIN'] || 'https://www.birsoz.kz'
 export type CatalogResponse =
   | { status: 304 }
   | { status: 200; etag: string | null; catalog: RemoteVocabularyCatalog }

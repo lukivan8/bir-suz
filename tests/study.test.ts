@@ -63,7 +63,9 @@ test('each rating persists SRS/index, restart resumes and duplicates do nothing'
   }
   assert.equal(storage.studySession.completedAt, 122001)
   assert.notEqual(startStudy(storage).studySession.id, id)
-  assert.equal(storage.userStats.timeInLanguageContactMs, 12345)
+  // Each card took 120001ms: over the limit, so only the 10s allowance counts.
+  assert.equal(storage.userStats.timeInLanguageContactMs, 12345 + 7 * 10_000)
+  assert.equal(storage.userStats.dailyReviewHistory.at(-1)?.studied, 7)
 })
 
 test('snapshot survives remote update and raw duration is never clipped', () => {
@@ -98,10 +100,11 @@ test('browser picker never falls back to not-due reviews; explicit study priorit
     wasCorrect: true,
     timedOut: false,
   }
+  // A response over two minutes keeps only the 10s exposure allowance.
   assert.equal(
     applyChallengeResult(storage, result, 1000).userStats
       .timeInLanguageContactMs,
-    12345,
+    12345 + 10_000,
   )
 })
 

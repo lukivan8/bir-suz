@@ -8,6 +8,8 @@ import {
 } from 'solid-js'
 import type { StudyAction } from '../shared/study-service'
 import type { Confidence, StudySession } from '../shared/types'
+import { CatalogUnavailable } from './CatalogUnavailable'
+import { SupportLink } from './SupportLink'
 
 const ratings: { value: Confidence; label: string }[] = [
   { value: -2, label: '-2 Не помню' },
@@ -163,17 +165,7 @@ export function StudyModal(props: {
       <div class="study-panel">
         <h2 class="section-heading">Изучать слова</h2>
         <Show when={!props.ready}>
-          <p>Ожидаем загрузку словарей.</p>
-          <button
-            type="button"
-            class="dashboard-settings-button"
-            onClick={async () => {
-              await chrome.runtime.sendMessage({ type: 'bir-soz:sync-catalog' })
-              await props.refresh()
-            }}
-          >
-            Повторить загрузку
-          </button>
+          <CatalogUnavailable refresh={props.refresh} />
         </Show>
         <Show when={props.ready && !active() && !error()}>
           <p role="status">Подготавливаем карточку…</p>
@@ -226,6 +218,7 @@ export function StudyModal(props: {
           }}
         </Show>
         <Show when={error()}>
+          <SupportLink />
           <p role="alert">{error()}</p>
           <button
             type="button"

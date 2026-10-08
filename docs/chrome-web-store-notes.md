@@ -11,7 +11,7 @@ local progress, optional organizations, onboarding and flashcards.
 - storage: local preferences, SRS, custom words, downloaded catalog, organization,
   onboarding/card session and consented event queue.
 - alarms: catalog refresh every15 minutes and opt-in event retry every minute.
-- https://api.lukivan8.com/*: public server content, explicitly requested
+- https://www.birsoz.kz/*: public server content, explicitly requested
   organization connection, and separately opt-in learning analytics.
 - HTTP(S) content-script matches: automatic page overlays and generic activity
   triggers need persistent access. activeTab only after a click cannot implement

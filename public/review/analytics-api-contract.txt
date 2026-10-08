@@ -1,6 +1,6 @@
 Bir Soz API contract — current extension (legacy 0.1.1 is different)
 
-Destination: https://api.lukivan8.com. Three fixed paths below; no arbitrary-URL
+Destination: https://www.birsoz.kz (site domain proxying the developer API). Three fixed paths below; no arbitrary-URL
 transport and no network sender in the content script. credentials:'omit' on
 all three requests. Timeout:15 seconds. No cookies/account/authentication token.
 Full field types, enums, required properties and error schemas: api-schemas.json.

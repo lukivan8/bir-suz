@@ -1,5 +1,10 @@
 # Bir Söz agent guide
 
+For a fresh session on this Mac, start with `../README.md` and
+`../docs/LOCAL-DEVELOPMENT.md`. The workspace helper builds a local-API extension
+at `../.local/extension`; load/reload that path for isolated backend tests.
+Production-origin `dist` is a separate build. Release steps: `../docs/DEPLOYMENT.md`.
+
 ## Goal
 
 Maintain the Manifest V3 Chrome extension that teaches Kazakh vocabulary during normal browsing.
@@ -28,5 +33,6 @@ Before browser work, read [local testing](docs/local-testing.md). After each ext
 - Keep permissions minimal. Explain any new permission in the README and store notes.
 - Preserve analytics opt-in. Never collect page URLs, page content, cookies, credentials, custom vocabulary text, or custom vocabulary IDs.
 - Keep changes to analytics payloads synchronized with `openapi.yaml`, `src/shared/stats.ts`, and the `bir-stats` service.
+- Dashboard hours use `src/shared/activity.ts`, a local mirror of `bir-stats/src/queries/interaction-time.ts` (≤120s response +10s, otherwise 10s; skips 0). Change both together. Analytics payloads still carry raw, unclipped durations.
 - Treat `chrome.storage.local` migrations as backward-compatible production migrations.
 - Run lint and build before committing. Add focused tests when behavior changes.

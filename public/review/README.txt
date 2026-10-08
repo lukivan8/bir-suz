@@ -22,7 +22,7 @@ Review navigation (paths relative to this ZIP):
 The code map is generated after bundling; the build fails if a marker disappears
 or an endpoint is missing/stale in the API note. Code is intentionally unminified.
 No special review-only behavior, remote switches or hidden test mode exists.
-Privacy: https://api.lukivan8.com/privacy
+Privacy: https://www.birsoz.kz/privacy
 Support: https://www.birsoz.kz/ (developer contact links in footer).
 
 

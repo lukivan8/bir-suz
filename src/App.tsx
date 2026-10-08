@@ -6,6 +6,8 @@ import {
   onCleanup,
   Show,
 } from 'solid-js'
+import { CatalogLoadedToast } from './components/CatalogLoadedToast'
+import { CatalogUnavailable } from './components/CatalogUnavailable'
 import type { RuntimeMessage, RuntimeResponseFor } from './shared/messages'
 import { persistLearningTransition } from './shared/stats'
 import { getStorage, withStorageLock } from './shared/storage'
@@ -155,6 +157,10 @@ function App() {
       <Show when={state()}>
         {(current) => (
           <>
+            <Show when={current().catalogVersion === null}>
+              <CatalogUnavailable refresh={refetch} modal />
+            </Show>
+            <CatalogLoadedToast loaded={current().catalogVersion !== null} />
             <section class="space-y-1 font-mono-editorial text-[11px] uppercase tracking-[0.12em] text-ink-faded">
               <div class="flex gap-4">
                 <span>
@@ -215,22 +221,7 @@ function App() {
               </div>
               <label class="grid gap-2 text-[15px]">
                 <span>{t().vocabulary}</span>
-                <Show when={current().vocabularies.length === 0}>
-                  <p role="status">
-                    Ожидаем загрузку словарей. Проверьте подключение к сети.
-                  </p>
-                  <button
-                    type="button"
-                    onClick={async () => {
-                      await chrome.runtime.sendMessage({
-                        type: 'bir-soz:sync-catalog',
-                      })
-                      await refetch()
-                    }}
-                  >
-                    Повторить загрузку
-                  </button>
-                </Show>
+
                 <select
                   class="w-full border border-rule bg-paper px-3 py-2 font-serif-body text-[15px] text-ink"
                   value={activeVocabularyValue(current())}
@@ -271,7 +262,7 @@ function App() {
                 type="button"
                 class="border border-rule bg-transparent px-4 py-3 font-mono-editorial text-[11px] uppercase tracking-[0.12em] text-ink-faded hover:text-ink disabled:opacity-60"
                 onClick={triggerDemo}
-                disabled={busy()}
+                disabled={busy() || current().catalogVersion === null}
               >
                 {busy() ? t().triggering : t().demoTrigger}
               </button>

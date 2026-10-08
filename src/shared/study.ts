@@ -1,3 +1,4 @@
+import { nextActivityStats } from './activity'
 import { calculateNextSrs, isDue } from './srs'
 import type { Confidence, StorageShape, StudyCard, StudySession } from './types'
 import { getActiveVocabularies } from './vocabularies'
@@ -122,8 +123,17 @@ export function rateStudyCard(
           },
     )
   const nextIndex = index + 1
+  const durationMs = Math.max(0, now - session.shownAt)
   return {
     ...storage,
+    userStats: {
+      ...storage.userStats,
+      ...nextActivityStats(
+        storage.userStats,
+        { kind: 'study', durationMs },
+        now,
+      ),
+    },
     vocabularies: update(storage.vocabularies),
     remoteArchive: update(storage.remoteArchive),
     studySession: {
@@ -136,7 +146,7 @@ export function rateStudyCard(
         {
           index,
           confidence,
-          durationMs: Math.max(0, now - session.shownAt),
+          durationMs,
           srs,
         },
       ],

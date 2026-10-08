@@ -7,8 +7,12 @@ import {
   Show,
 } from 'solid-js'
 import { render } from 'solid-js/web'
+import { CatalogLoadedToast } from './components/CatalogLoadedToast'
+import { CatalogUnavailable } from './components/CatalogUnavailable'
+import { HelpModal } from './components/HelpModal'
 import { Onboarding } from './components/Onboarding'
 import { OrganizationForm } from './components/Organization'
+import { ProgressPanel } from './components/ProgressPanel'
 import { StudyModal } from './components/Study'
 import {
   consentDecision,
@@ -16,16 +20,14 @@ import {
 } from './shared/analytics-consent'
 import { visitCompletedOnboarding } from './shared/browser-step'
 import { currentOnboardingStep } from './shared/onboarding'
+import { masteryLabel, masteryLevel } from './shared/progress'
 import { persistLearningTransition } from './shared/stats'
 import { getStorage, withStorageLock } from './shared/storage'
 import './index.css'
-import { calculateCurrentStreak } from './shared/challenge'
 import type { RuntimeMessage, RuntimeResponseFor } from './shared/messages'
 import type { StorageShape, Vocabulary, WordItem } from './shared/types'
 import { normalizeStorageShape } from './shared/validation'
 
-const DAY_MS = 24 * 60 * 60 * 1000
-const HEATMAP_WEEKS = 13
 type MasteryFilter = 'all' | 'mastered' | 'in-progress' | 'new'
 interface PendingDelete {
   vocabularyId: string
@@ -35,14 +37,6 @@ interface PendingDelete {
 interface VocabularySettingsState {
   vocabularyId: string
 }
-interface ActivityDay {
-  key: string
-  label: string
-  count: number
-  correct: number
-  isToday: boolean
-}
-
 async function getState() {
   const response = await sendRuntimeMessage({
     type: 'bir-soz:get-state',
@@ -84,6 +78,7 @@ function Dashboard() {
   const [isAnalyticsWelcomeOpen, setIsAnalyticsWelcomeOpen] =
     createSignal(false)
   const [isSettingsOpen, setIsSettingsOpen] = createSignal(false)
+  const [isHelpOpen, setIsHelpOpen] = createSignal(false)
   const [isStudyOpen, setIsStudyOpen] = createSignal(false)
   const [isAddWordOpen, setIsAddWordOpen] = createSignal(false)
   const [editingWordId, setEditingWordId] = createSignal<string>()
@@ -91,15 +86,10 @@ function Dashboard() {
   const [vocabularySettings, setVocabularySettings] =
     createSignal<VocabularySettingsState>()
 
-  const activityDays = () => buildActivityDays(state())
-  const activityMonths = () => buildActivityMonths(activityDays())
-  const activityWeekdays = () => buildActivityWeekdays()
   const selectedVocabulary = () =>
     getSelectedVocabulary(state(), selectedVocabularyId())
   const dictionaryWords = () =>
     getDictionaryWords(selectedVocabulary(), masteryFilter())
-  const currentStreak = () =>
-    calculateCurrentStreak(state()?.userStats.dailyReviewHistory ?? [])
 
   const closeAnalyticsWelcome = () => {
     setIsAnalyticsWelcomeOpen(false)
@@ -337,6 +327,14 @@ function Dashboard() {
                   <button
                     type="button"
                     class="dashboard-settings-button"
+                    aria-haspopup="dialog"
+                    onClick={() => setIsHelpOpen(true)}
+                  >
+                    Помощь
+                  </button>
+                  <button
+                    type="button"
+                    class="dashboard-settings-button"
                     onClick={() => setIsSettingsOpen(true)}
                   >
                     Настройки
@@ -351,6 +349,10 @@ function Dashboard() {
                   </button>
                 </div>
               </div>
+              <Show when={current().catalogVersion === null}>
+                <CatalogUnavailable refresh={refetch} modal />
+              </Show>
+              <CatalogLoadedToast loaded={current().catalogVersion !== null} />
               <Show when={isStudyOpen()}>
                 <StudyModal
                   session={current().studySession}
@@ -385,6 +387,9 @@ function Dashboard() {
                 refresh={refetch}
                 onOpenStudy={() => setIsStudyOpen(true)}
               />
+              <Show when={isHelpOpen()}>
+                <HelpModal onClose={() => setIsHelpOpen(false)} />
+              </Show>
               <Show when={isSettingsOpen()}>
                 <DashboardSettingsModal
                   organization={current().organization}
@@ -401,80 +406,11 @@ function Dashboard() {
               </Show>
 
               <section class="dashboard-section">
-                <span class="section-num">01 — Серия</span>
-                <Show when={current().vocabularies.length === 0}>
-                  <p role="status">
-                    Ожидаем загрузку словарей. Проверьте подключение к сети.
-                  </p>
-                  <button
-                    type="button"
-                    onClick={async () => {
-                      await chrome.runtime.sendMessage({
-                        type: 'bir-soz:sync-catalog',
-                      })
-                      await refetch()
-                    }}
-                  >
-                    Повторить загрузку
-                  </button>
-                </Show>
-                <h1 class="section-heading">
-                  Ритм, который держится {currentStreak()} дней
-                </h1>
-                <div class="activity-panel">
-                  <div class="activity-stats">
-                    <StatBlock
-                      label="Лучшая серия"
-                      value={current().userStats.bestStreak}
-                      unit="дней"
-                    />
-                    <StatBlock
-                      label="Всего решено"
-                      value={current().userStats.totalCorrect}
-                      unit="задач"
-                    />
-                  </div>
-                  <div class="heatmap-frame">
-                    <div class="heatmap-months">
-                      <For each={activityMonths()}>
-                        {(month) => <span>{month}</span>}
-                      </For>
-                    </div>
-                    <div class="heatmap-body">
-                      <div class="heatmap-weekdays">
-                        <For each={activityWeekdays()}>
-                          {(day) => <span>{day}</span>}
-                        </For>
-                      </div>
-                      <div
-                        class="activity-heatmap"
-                        role="img"
-                        aria-label="Активность за последние 13 недель"
-                      >
-                        <For each={activityDays()}>
-                          {(day) => (
-                            <button
-                              type="button"
-                              class="heatmap-day"
-                              classList={{
-                                today: day.isToday,
-                                'level-1': day.correct > 0 && day.correct < 10,
-                                'level-2':
-                                  day.correct >= 10 && day.correct < 25,
-                                'level-3':
-                                  day.correct >= 25 && day.correct < 50,
-                                'level-4':
-                                  day.correct >= 50 && day.correct < 100,
-                                'level-5': day.correct >= 100,
-                              }}
-                              data-tooltip={`${day.label}: ${day.count} заданий, ${day.correct} решено`}
-                            />
-                          )}
-                        </For>
-                      </div>
-                    </div>
-                  </div>
-                </div>
+                <span class="section-num">01 — Прогресс</span>
+                <ProgressPanel
+                  storage={current()}
+                  onStudy={() => setIsStudyOpen(true)}
+                />
               </section>
 
               <section class="dashboard-section" id="vocabularies">
@@ -671,21 +607,6 @@ function Dashboard() {
   )
 }
 
-function StatBlock(props: {
-  label: string
-  value: number
-  unit: string
-  faded?: boolean
-}) {
-  return (
-    <div class="stat-block">
-      <span>{props.label}</span>
-      <strong classList={{ faded: props.faded }}>{props.value}</strong>
-      <span>{props.unit}</span>
-    </div>
-  )
-}
-
 function AnalyticsConsentPanel(props: {
   isUpdate: boolean
   onSkip: () => void | Promise<void>
@@ -734,7 +655,7 @@ function AnalyticsConsentPanel(props: {
           не отправляются. Выключение статистики останавливает отправку и
           очищает текущую очередь; уже полученные сервером данные остаются.{' '}
           <a
-            href="https://api.lukivan8.com/privacy"
+            href="https://www.birsoz.kz/privacy"
             target="_blank"
             rel="noreferrer"
           >
@@ -791,14 +712,11 @@ function DashboardSettingsModal(props: {
           <div>
             <span>Статистика использования</span>
             <p>
-              Отправляет учебные действия и время ответа со случайным
-              идентификатором установки. В закрытой панели доверенной команды
-              видны общие показатели организации и дата последнего задания рядом
-              с псевдонимом. Выключение очищает текущую очередь, но не удаляет
-              данные с сервера. Адреса страниц, содержимое сайтов и личные слова
-              не отправляются.{' '}
+              Отправляет ответы и их время с анонимным ID установки. Команда
+              организации видит общую статистику. Адреса и содержимое сайтов,
+              личные слова не отправляются.{' '}
               <a
-                href="https://api.lukivan8.com/privacy"
+                href="https://www.birsoz.kz/privacy"
                 target="_blank"
                 rel="noreferrer"
               >
@@ -817,7 +735,7 @@ function DashboardSettingsModal(props: {
             when={props.organization}
             fallback={
               <OrganizationForm
-                description="Если вы пропустили подключение организации, введите её код здесь, чтобы открыть дополнительные возможности и словари."
+                description="Введите код организации, чтобы открыть её словари."
                 onConnected={props.onOrganizationConnected}
               />
             }
@@ -1252,57 +1170,6 @@ function VocabularyOverview(props: {
   )
 }
 
-function buildActivityMonths(days: ActivityDay[]) {
-  return days
-    .filter((_, index) => index % 7 === 0)
-    .map((day, index, weeks) => {
-      const month = new Intl.DateTimeFormat('ru-RU', { month: 'short' }).format(
-        dateFromKey(day.key),
-      )
-      if (index === 0) return month
-
-      const previousMonth = new Intl.DateTimeFormat('ru-RU', {
-        month: 'short',
-      }).format(dateFromKey(weeks[index - 1]?.key ?? day.key))
-
-      return month === previousMonth ? '' : month
-    })
-}
-
-function buildActivityWeekdays() {
-  return ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс']
-}
-
-function buildActivityDays(state: StorageShape | undefined): ActivityDay[] {
-  const history = new Map(
-    (state?.userStats.dailyReviewHistory ?? []).map((entry) => [
-      entry.date,
-      entry,
-    ]),
-  )
-  const today = startOfDay(Date.now())
-  const todayWeekdayIndex = mondayWeekdayIndex(new Date(today))
-  const totalDays = (HEATMAP_WEEKS - 1) * 7 + todayWeekdayIndex + 1
-
-  return Array.from({ length: totalDays }, (_, index) => {
-    const time = today - (totalDays - 1 - index) * DAY_MS
-    const date = new Date(time)
-    const key = dateKey(date)
-    const entry = history.get(key)
-
-    return {
-      key,
-      label: new Intl.DateTimeFormat('ru-RU', {
-        day: 'numeric',
-        month: 'short',
-      }).format(date),
-      count: entry?.count ?? 0,
-      correct: entry?.correct ?? 0,
-      isToday: index === totalDays - 1,
-    }
-  })
-}
-
 function countWordsByMastery(
   vocabulary: Vocabulary | undefined,
   level: Exclude<MasteryFilter, 'all'>,
@@ -1355,28 +1222,11 @@ function vocabularyProgress(vocabulary: Vocabulary) {
   }
 }
 
-function masteryLevel(word: WordItem): Exclude<MasteryFilter, 'all'> {
-  if (isMastered(word)) return 'mastered'
-  if (word.srs.lastReviewedAt) return 'in-progress'
-  return 'new'
-}
-
 function masteryRank(word: WordItem) {
   const level = masteryLevel(word)
   if (level === 'mastered') return 0
   if (level === 'in-progress') return 1
   return 2
-}
-
-function masteryLabel(word: WordItem) {
-  const level = masteryLevel(word)
-  if (level === 'mastered') return 'освоено'
-  if (level === 'in-progress') return `в работе · ${word.srs.repetition}/3`
-  return 'новое'
-}
-
-function isMastered(word: WordItem) {
-  return word.srs.repetition >= 3 && word.srs.interval > 7
 }
 
 function createWordItem(
@@ -1446,28 +1296,6 @@ function useEscapeKey(onEscape: () => void) {
     document.addEventListener('keydown', handleKeyDown)
     onCleanup(() => document.removeEventListener('keydown', handleKeyDown))
   })
-}
-
-function dateKey(date: Date) {
-  const year = date.getFullYear()
-  const month = String(date.getMonth() + 1).padStart(2, '0')
-  const day = String(date.getDate()).padStart(2, '0')
-  return `${year}-${month}-${day}`
-}
-
-function mondayWeekdayIndex(date: Date) {
-  return (date.getDay() + 6) % 7
-}
-
-function dateFromKey(key: string) {
-  const [year, month, day] = key.split('-').map(Number)
-  return new Date(year ?? 0, (month ?? 1) - 1, day ?? 1)
-}
-
-function startOfDay(time: number) {
-  const date = new Date(time)
-  date.setHours(0, 0, 0, 0)
-  return date.getTime()
 }
 
 const root = document.getElementById('root')

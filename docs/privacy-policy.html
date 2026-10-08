@@ -2,7 +2,7 @@
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Bir Söz Privacy Policy</title><style>body{font:16px/1.65 system-ui;color:#25251f;background:#faf9f6;margin:0}main{max-width:760px;margin:auto;padding:40px 24px}h2{margin-top:32px}a{color:#315e4e}</style></head><body><main>
 
 <h1>Bir Söz Privacy Policy</h1>
-<p>Last updated: September 8, 2026</p>
+<p>Last updated: October 8, 2026</p>
 <p>Bir Söz is a Chrome extension for learning Kazakh words while browsing. Its
 mission is to help create a lightweight Kazakh-language environment during
 everyday web use. This policy explains what data the extension handles and how
@@ -18,7 +18,8 @@ progress inside the extension.</p>
 dashboard settings under &quot;Статистика использования&quot;. Local learning, SRS and onboarding
 continue to work when analytics are off. No new learning events are created or
 sent while analytics are off.</p>
-<p>When enabled, version 0.2.1 and later send v2 learning events to <code>https://api.lukivan8.com</code>:</p>
+<p>When enabled, version 0.2.1 and later send v2 learning events to the developer-operated API
+(<code>https://www.birsoz.kz</code> from version 0.2.4; <code>https://api.lukivan8.com</code> in 0.2.1–0.2.3):</p>
 <ul><li>a randomly generated installation identifier and stable event identifiers;</li><li>event timestamps and organization ID when connected;</li><li>onboarding start, step and completion; server dictionary selection;</li><li>organization connection and card-session start/completion;</li><li>server vocabulary/word IDs for card ratings and browser answers/skips;</li><li>answer correctness, confidence rating and raw response duration.</li></ul>
 <p>The server calculates learning time from the original response duration. The
 extension in version 0.2.1 and later does not upload word text, vocabulary names, per-word SRS histories,
@@ -70,8 +71,9 @@ The extension explains organization data sharing before the user submits the opt
 <h2>Team Dashboard Accounts</h2>
 <p>Team login names and password hashes are stored on the server. Login creates a session lasting up to seven days, using an HttpOnly cookie. Logging out invalidates the session; disabling an account or changing its password invalidates existing access. These accounts are for dashboard administrators and are separate from extension installation identifiers.</p>
 <h2>Data Sharing</h2>
-<p>Analytics data is sent only to the developer-operated API at
-<code>https://api.lukivan8.com</code>. Bir Söz does not sell user data and does not share
+<p>Analytics data is sent only to the developer-operated API at <code>https://www.birsoz.kz</code>
+(<code>https://api.lukivan8.com</code> in versions before 0.2.4; both addresses reach the same
+service). Bir Söz does not sell user data and does not share
 user data with advertisers, data brokers, or advertising platforms.</p>
 <p>Network delivery uses Cloudflare as infrastructure for the developer-operated API.
 Network providers necessarily process IP addresses and connection metadata to
@@ -104,7 +106,7 @@ on that page; the open Shadow DOM is not a security boundary against the host pa
 <h2>Permissions</h2>
 <p>Bir Söz requests Chrome permissions to:</p>
 <ul><li>store local settings and learning progress;</li><li>detect generic tab/navigation activity so vocabulary prompts can appear during
-  normal browsing;</li><li>run scheduled catalog refreshes and consent-gated analytics retries;</li><li>communicate with <code>https://api.lukivan8.com</code> for server dictionaries, an
+  normal browsing;</li><li>run scheduled catalog refreshes and consent-gated analytics retries;</li><li>communicate with <code>https://www.birsoz.kz</code> for server dictionaries, an
   organization connection requested by the user, and consented usage analytics.</li></ul>
 <h2>Limited Use Statement</h2>
 <p>The use of information received from Google APIs will adhere to the Chrome Web

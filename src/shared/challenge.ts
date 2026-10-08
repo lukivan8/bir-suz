@@ -1,3 +1,4 @@
+import { nextActivityStats } from './activity'
 import { calculateNextSrs, isDue, qualityFromResult } from './srs'
 import type {
   ChallengePayload,
@@ -7,6 +8,8 @@ import type {
   WordItem,
 } from './types'
 import { updateActiveVocabularyWords } from './vocabularies'
+
+export { calculateBestStreak, calculateCurrentStreak } from './activity'
 
 export function shouldBlockForUserSettings(
   storage: StorageShape,
@@ -120,110 +123,24 @@ function buildNextStats(
   result: ChallengeResult,
   now: number,
 ): StorageShape['userStats'] {
-  const dailyReviewHistory = updateDailyHistory(
-    storage.userStats.dailyReviewHistory,
-    result.wasCorrect,
-    now,
-  )
-
   return {
     ...storage.userStats,
-    currentStreak: calculateCurrentStreak(dailyReviewHistory, now),
-    bestStreak: Math.max(
-      storage.userStats.bestStreak,
-      calculateBestStreak(dailyReviewHistory),
+    ...nextActivityStats(
+      storage.userStats,
+      result.wasSkipped
+        ? { kind: 'challenge', skipped: true }
+        : {
+            kind: 'challenge',
+            skipped: false,
+            correct: result.wasCorrect,
+            durationMs: result.elapsedMs,
+          },
+      now,
     ),
-    dailyReviewHistory,
     totalExposures: storage.userStats.totalExposures + 1,
     totalCorrect: storage.userStats.totalCorrect + (result.wasCorrect ? 1 : 0),
     lastChallengeAt: now,
   }
-}
-
-function updateDailyHistory(
-  history: StorageShape['userStats']['dailyReviewHistory'],
-  wasCorrect: boolean,
-  now: number,
-) {
-  const today = dateKey(now)
-  const existing = history.find((entry) => entry.date === today)
-  if (existing) {
-    return history.map((entry) =>
-      entry.date === today
-        ? {
-            ...entry,
-            count: entry.count + 1,
-            correct: entry.correct + (wasCorrect ? 1 : 0),
-          }
-        : entry,
-    )
-  }
-
-  return [
-    ...history,
-    { date: today, count: 1, correct: wasCorrect ? 1 : 0 },
-  ].slice(-90)
-}
-
-export function calculateCurrentStreak(
-  history: StorageShape['userStats']['dailyReviewHistory'],
-  now = Date.now(),
-) {
-  const activeDays = new Set(
-    history.filter((entry) => entry.count > 0).map((entry) => entry.date),
-  )
-  let streak = 0
-  let cursor = startOfDay(now)
-
-  while (activeDays.has(dateKey(cursor))) {
-    streak += 1
-    cursor -= 24 * 60 * 60 * 1000
-  }
-
-  return streak
-}
-
-export function calculateBestStreak(
-  history: StorageShape['userStats']['dailyReviewHistory'],
-) {
-  const days = history
-    .filter((entry) => entry.count > 0)
-    .map((entry) => entry.date)
-    .sort()
-
-  let best = 0
-  let current = 0
-  let previous = ''
-
-  for (const day of days) {
-    current = previous && daysBetween(previous, day) === 1 ? current + 1 : 1
-    best = Math.max(best, current)
-    previous = day
-  }
-
-  return best
-}
-
-function daysBetween(start: string, end: string) {
-  return Math.round(
-    (new Date(`${end}T00:00:00`).getTime() -
-      new Date(`${start}T00:00:00`).getTime()) /
-      (24 * 60 * 60 * 1000),
-  )
-}
-
-function dateKey(time: number) {
-  const date = new Date(time)
-  const year = date.getFullYear()
-  const month = String(date.getMonth() + 1).padStart(2, '0')
-  const day = String(date.getDate()).padStart(2, '0')
-  return `${year}-${month}-${day}`
-}
-
-function startOfDay(time: number) {
-  const date = new Date(time)
-  date.setHours(0, 0, 0, 0)
-  return date.getTime()
 }
 
 export function pickDueWord(words: WordItem[], now = Date.now()) {

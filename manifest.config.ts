@@ -3,7 +3,7 @@ import { defineManifest } from '@crxjs/vite-plugin'
 const manifest = {
   manifest_version: 3,
   name: 'Bir Söz',
-  version: '0.2.3',
+  version: '0.2.4',
   description:
     'Расширение для создания казахской языковой среды в браузере за одну установку.',
   icons: {
@@ -36,7 +36,7 @@ const manifest = {
   host_permissions: [
     process.env['VITE_BIR_API_ORIGIN']
       ? `${new URL(process.env['VITE_BIR_API_ORIGIN']).origin}/*`
-      : 'https://api.lukivan8.com/*',
+      : 'https://www.birsoz.kz/*',
   ],
   commands: {
     'demo-trigger': {

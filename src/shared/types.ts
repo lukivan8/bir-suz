@@ -48,8 +48,15 @@ export interface Vocabulary {
 
 export interface DailyReviewEntry {
   date: string
+  /** Challenges shown, including skips. */
   count: number
   correct: number
+  /** Non-skipped challenges; absent on entries recorded before 0.2.4. */
+  answered?: number
+  /** Rated study cards. */
+  studied?: number
+  /** Interaction time by the server formula; absent before 0.2.4. */
+  durationMs?: number
 }
 
 export interface UserStats {

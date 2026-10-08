@@ -124,7 +124,10 @@ export function isDailyReviewEntry(value: unknown): value is DailyReviewEntry {
   return (
     typeof candidate.date === 'string' &&
     typeof candidate.count === 'number' &&
-    typeof candidate.correct === 'number'
+    typeof candidate.correct === 'number' &&
+    optionalNumber(candidate.answered) &&
+    optionalNumber(candidate.studied) &&
+    optionalNumber(candidate.durationMs)
   )
 }
 

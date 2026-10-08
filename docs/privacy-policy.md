@@ -1,6 +1,6 @@
 # Bir Söz Privacy Policy
 
-Last updated: September 8, 2026
+Last updated: October 8, 2026
 
 Bir Söz is a Chrome extension for learning Kazakh words while browsing. Its
 mission is to help create a lightweight Kazakh-language environment during
@@ -29,7 +29,8 @@ dashboard settings under "Статистика использования". Loca
 continue to work when analytics are off. No new learning events are created or
 sent while analytics are off.
 
-When enabled, version 0.2.1 and later send v2 learning events to `https://api.lukivan8.com`:
+When enabled, version 0.2.1 and later send v2 learning events to the developer-operated API
+(`https://www.birsoz.kz` from version 0.2.4; `https://api.lukivan8.com` in 0.2.1–0.2.3):
 
 - a randomly generated installation identifier and stable event identifiers;
 - event timestamps and organization ID when connected;
@@ -100,8 +101,9 @@ Team login names and password hashes are stored on the server. Login creates a s
 
 ## Data Sharing
 
-Analytics data is sent only to the developer-operated API at
-`https://api.lukivan8.com`. Bir Söz does not sell user data and does not share
+Analytics data is sent only to the developer-operated API at `https://www.birsoz.kz`
+(`https://api.lukivan8.com` in versions before 0.2.4; both addresses reach the same
+service). Bir Söz does not sell user data and does not share
 user data with advertisers, data brokers, or advertising platforms.
 
 Network delivery uses Cloudflare as infrastructure for the developer-operated API.
@@ -147,7 +149,7 @@ Bir Söz requests Chrome permissions to:
 - detect generic tab/navigation activity so vocabulary prompts can appear during
   normal browsing;
 - run scheduled catalog refreshes and consent-gated analytics retries;
-- communicate with `https://api.lukivan8.com` for server dictionaries, an
+- communicate with `https://www.birsoz.kz` for server dictionaries, an
   organization connection requested by the user, and consented usage analytics.
 
 ## Limited Use Statement

@@ -210,10 +210,32 @@ export function Onboarding(props: {
             </p>
           </Show>
           <Show when={step() === 'browser'}>
-            <p>
-              Продолжайте пользоваться браузером. На обычных страницах будут
-              появляться задания — ответьте на три из них.
-            </p>
+            <div class="onboarding-ready" role="status">
+              <span class="onboarding-ready-mark" aria-hidden="true">
+                ✓
+              </span>
+              <div>
+                <strong class="onboarding-ready-title">Всё настроено</strong>
+                <p class="onboarding-ready-text">
+                  Можно закрыть эту вкладку и пользоваться браузером как обычно.
+                  Задания будут появляться сами на обычных страницах.
+                </p>
+              </div>
+            </div>
+            <Show
+              when={props.state.onboarding.browserAnswers >= 3}
+              fallback={
+                <p>
+                  Чтобы завершить знакомство, ответьте на три таких задания —
+                  специально искать их не нужно.
+                </p>
+              }
+            >
+              <p>
+                Три ответа получены. Нажмите «Завершить», чтобы закончить
+                знакомство. Эта подсказка больше не появится.
+              </p>
+            </Show>
             <div class="onboarding-browser-progress">
               <For each={[1, 2, 3]}>
                 {(n) => (
@@ -224,20 +246,14 @@ export function Onboarding(props: {
                   />
                 )}
               </For>
+              <span class="onboarding-browser-count">
+                {Math.min(props.state.onboarding.browserAnswers, 3)} из 3
+              </span>
             </div>
-            <Show
-              when={props.state.onboarding.browserAnswers >= 3}
-              fallback={
-                <p class="onboarding-note">
-                  Когда три ответа будут готовы, на значке Bir Söz появится ✓.
-                  Вернитесь сюда через «Мой прогресс». Интервал заданий остаётся
-                  прежним.
-                </p>
-              }
-            >
-              <p>
-                Всё готово! Нажмите «Далее», чтобы завершить знакомство. Эта
-                подсказка больше не появится.
+            <Show when={props.state.onboarding.browserAnswers < 3}>
+              <p class="onboarding-note">
+                После третьего ответа на значке Bir Söz появится ✓. Вернитесь
+                сюда через «Мой прогресс» и нажмите «Завершить».
               </p>
             </Show>
           </Show>
@@ -257,7 +273,18 @@ export function Onboarding(props: {
                     void act({ action: 'next', step: current })
                 }}
               >
-                Далее <span aria-hidden="true">→</span>
+                <Show
+                  when={step() === 'browser'}
+                  fallback={
+                    <>
+                      Далее <span aria-hidden="true">→</span>
+                    </>
+                  }
+                >
+                  {props.state.onboarding.browserAnswers >= 3
+                    ? 'Завершить'
+                    : 'Ответьте на 3 задания'}
+                </Show>
               </button>
             </div>
           </Show>
