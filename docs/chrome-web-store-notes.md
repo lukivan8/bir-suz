@@ -27,7 +27,9 @@ locally stored and can appear in the overlay, never in API payloads. No page con
 URLs, browsing history, credentials, health or financial data is extracted.
 Catalog/connection traffic is independent of analytics consent; never claim all
 network requests require opt-in. Organization-scoped pseudonyms/connect dates and,
-with analytics, last completed task dates are publicly displayed. Read the complete
+with analytics, last completed task dates are shown in the sign-in-protected team
+dashboard. Location is not collected or derived; only infrastructure providers
+(Cloudflare, Vercel) process IP addresses to serve requests. Read the complete
 [privacy policy](privacy-policy.md), including infrastructure and retention caveats.
 
 Remote code: No, subject to final ZIP audit. Remote dictionary JSON is validated

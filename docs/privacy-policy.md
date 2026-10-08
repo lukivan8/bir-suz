@@ -107,6 +107,9 @@ service). Bir Söz does not sell user data and does not share
 user data with advertisers, data brokers, or advertising platforms.
 
 Network delivery uses Cloudflare as infrastructure for the developer-operated API.
+From version 0.2.4 the extension reaches it through `https://www.birsoz.kz`, which
+Vercel hosts and forwards to the same API; Vercel processes those requests,
+including the organization code header sent when you connect an organization.
 Network providers necessarily process IP addresses and connection metadata to
 serve requests; the extension does not determine or submit geographic location.
 Application request logs contain only method, route template, status and elapsed
